@@ -33,6 +33,10 @@ function loadData() {
 
 function saveData() {
   try {
+    // Ensure data directory exists
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
     fs.writeFileSync(matchesFile, JSON.stringify(matches, null, 2));
     fs.writeFileSync(fixturesFile, JSON.stringify(fixtures, null, 2));
   } catch (error) {

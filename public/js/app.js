@@ -1,5 +1,6 @@
 // Global state
 let currentMatchId = null;
+let activeScoringMatchId = null;
 let refreshInterval = null;
 
 // Navigation
@@ -281,6 +282,7 @@ async function loadUpcomingMatches() {
 }
 
 async function selectMatchForScoring(matchId) {
+    activeScoringMatchId = matchId; // Store the active match ID for scoring
     try {
         const response = await fetch(`/api/matches/${matchId}`);
         const match = await response.json();
@@ -365,9 +367,7 @@ document.getElementById('wicket').addEventListener('change', (e) => {
 document.getElementById('ball-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const matchId = currentMatchId || document.querySelector('.match-item')?.onclick?.toString().match(/'([^']+)'/)?.[1];
-    
-    if (!matchId) {
+    if (!activeScoringMatchId) {
         alert('No active match selected');
         return;
     }
@@ -387,7 +387,7 @@ document.getElementById('ball-form').addEventListener('submit', async (e) => {
     };
     
     try {
-        const response = await fetch(`/api/matches/${matchId}/ball`, {
+        const response = await fetch(`/api/matches/${activeScoringMatchId}/ball`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(ball)
