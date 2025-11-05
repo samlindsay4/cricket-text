@@ -52,17 +52,16 @@ function saveData() {
 loadData();
 
 // Connect to MongoDB
-connectDB();
-
-// Start sync service after a short delay to ensure DB is connected
-setTimeout(() => {
+connectDB().then(() => {
+  // Start sync service only if database is connected
   if (isConnected()) {
+    console.log('Database connected, starting sync service...');
     syncService.start();
-  } else {
-    console.log('Database not connected, sync service will not start');
-    console.log('Application will continue with file-based storage');
   }
-}, 2000);
+}).catch((error) => {
+  console.log('Database connection failed, sync service will not start');
+  console.log('Application will continue with file-based storage');
+});
 
 // Routes
 

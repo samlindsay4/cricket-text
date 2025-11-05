@@ -19,6 +19,13 @@ class CricketApiService {
   }
 
   /**
+   * Check if API key is configured and valid
+   */
+  hasValidApiKey() {
+    return !!(this.apiKey && this.apiKey.trim() !== '' && this.apiKey !== 'your_rapidapi_key_here');
+  }
+
+  /**
    * Make an API request with rate limiting and error handling
    */
   async makeRequest(endpoint, params = {}) {
@@ -38,8 +45,8 @@ class CricketApiService {
         headers: {}
       };
 
-      // Add API key if available (for RapidAPI)
-      if (this.apiKey && this.apiKey !== 'your_rapidapi_key_here') {
+      // Add API key if available
+      if (this.hasValidApiKey()) {
         config.headers['X-RapidAPI-Key'] = this.apiKey;
         config.headers['X-RapidAPI-Host'] = 'cricbuzz-cricket.p.rapidapi.com';
       }
@@ -50,7 +57,7 @@ class CricketApiService {
       console.error(`API request failed for ${endpoint}:`, error.message);
       
       // Return mock data if API fails (for development/demo purposes)
-      if (!this.apiKey || this.apiKey === 'your_rapidapi_key_here') {
+      if (!this.hasValidApiKey()) {
         console.log('Using mock data (no API key configured)');
         return this.getMockData(endpoint);
       }

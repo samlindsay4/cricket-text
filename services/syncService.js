@@ -16,12 +16,20 @@ class SyncService {
     this.resultsTask = null;
     this.isRunning = false;
     
-    // Configurable intervals (in milliseconds)
-    this.liveInterval = parseInt(process.env.SYNC_LIVE_INTERVAL) || 60000; // 60 seconds
-    this.fixturesInterval = parseInt(process.env.SYNC_FIXTURES_INTERVAL) || 900000; // 15 minutes
-    this.resultsInterval = parseInt(process.env.SYNC_RESULTS_INTERVAL) || 900000; // 15 minutes
+    // Configurable intervals (in milliseconds) with validation
+    this.liveInterval = this.parseInterval(process.env.SYNC_LIVE_INTERVAL, 60000);
+    this.fixturesInterval = this.parseInterval(process.env.SYNC_FIXTURES_INTERVAL, 900000);
+    this.resultsInterval = this.parseInterval(process.env.SYNC_RESULTS_INTERVAL, 900000);
     
     this.enableSync = process.env.ENABLE_SYNC_SERVICE !== 'false';
+  }
+
+  /**
+   * Parse and validate interval from environment variable
+   */
+  parseInterval(envValue, defaultValue) {
+    const parsed = parseInt(envValue, 10);
+    return isNaN(parsed) || parsed < 1000 ? defaultValue : parsed;
   }
 
   /**
