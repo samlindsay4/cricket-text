@@ -1,0 +1,17 @@
+{
+  "name": "cricket-text",
+  "version": "1.0.0",
+  "description": "A cricket scoring and commentary system in the style of Ceefax/Teletext",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["cricket", "scoring", "teletext", "ceefax"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
