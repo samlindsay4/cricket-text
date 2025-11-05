@@ -33,7 +33,7 @@ body {
 .teletext-header h1 {
     font-size: 24px;
     font-weight: bold;
-    letter-spacing: 2px;
+    letter-spacing: 4px;
 }
 
 .page-number {
@@ -43,30 +43,27 @@ body {
 /* Navigation */
 .teletext-nav {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 5px;
+    align-items: center;
 }
 
 .nav-btn {
-    flex: 1;
-    padding: 10px;
-    background-color: #00f;
+    padding: 5px 15px;
+    background-color: transparent;
     color: #fff;
-    border: 2px solid #0f0;
+    border: none;
     cursor: pointer;
     font-family: 'Courier New', monospace;
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 .nav-btn:hover {
-    background-color: #0f0;
-    color: #000;
+    color: #ff0;
 }
 
 .nav-btn.active {
-    background-color: #ff0;
-    color: #000;
+    color: #ff0;
 }
 
 /* Pages */
@@ -87,6 +84,7 @@ body {
     text-align: center;
     border: 2px solid #0f0;
     font-size: 20px;
+    letter-spacing: 3px;
 }
 
 .section-title {
@@ -315,6 +313,7 @@ input[type="checkbox"] {
     border: 2px solid #0f0;
     display: flex;
     justify-content: space-between;
+    align-items: center;
 }
 
 /* Scrollbar */

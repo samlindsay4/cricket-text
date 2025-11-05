@@ -9,15 +9,9 @@
 <body>
     <div class="container">
         <header class="teletext-header">
-            <h1>CRICKET TEXT</h1>
+            <h1>CRICTEXT</h1>
             <div class="page-number">PAGE 302</div>
         </header>
-
-        <nav class="teletext-nav">
-            <button class="nav-btn active" data-page="live">LIVE SCORES</button>
-            <button class="nav-btn" data-page="fixtures">FIXTURES</button>
-            <button class="nav-btn" data-page="scoring">SCORING</button>
-        </nav>
 
         <!-- Live Scores Page -->
         <div id="live-page" class="page active">
@@ -126,8 +120,12 @@
         </div>
 
         <footer class="teletext-footer">
-            <div>CRICKET TEXT © 2025</div>
-            <div>Press buttons to navigate</div>
+            <div>CRICTEXT © 2025</div>
+            <nav class="teletext-nav">
+                <button class="nav-btn" data-page="live">Scores</button>
+                <button class="nav-btn" data-page="fixtures">Fixtures</button>
+                <button class="nav-btn" data-page="scoring">Scoring</button>
+            </nav>
         </footer>
     </div>
 
