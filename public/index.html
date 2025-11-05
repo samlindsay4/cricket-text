@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Text - Live Scoring</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="teletext-header">
+            <h1>CRICTEXT</h1>
+            <div class="page-number">PAGE 302</div>
+        </header>
+
+        <!-- Live Scores Page -->
+        <div id="live-page" class="page active">
+            <h2 class="page-title">▓▓▓ LIVE CRICKET SCORES ▓▓▓</h2>
+            <div id="matches-list"></div>
+            
+            <div id="live-match-detail" style="display: none;">
+                <button class="back-btn" onclick="backToMatches()">◄ BACK TO MATCHES</button>
+                
+                <div id="scorecard"></div>
+                
+                <h3 class="section-title">▓ COMMENTARY ▓</h3>
+                <div id="commentary"></div>
+            </div>
+        </div>
+
+        <!-- Fixtures Page -->
+        <div id="fixtures-page" class="page">
+            <h2 class="page-title">▓▓▓ FIXTURES ▓▓▓</h2>
+            
+            <div class="form-section">
+                <h3>CREATE NEW FIXTURE</h3>
+                <form id="fixture-form">
+                    <input type="text" id="fixture-teamA" placeholder="Team A" required>
+                    <input type="text" id="fixture-teamB" placeholder="Team B" required>
+                    <input type="text" id="fixture-venue" placeholder="Venue" required>
+                    <input type="date" id="fixture-date" required>
+                    <button type="submit">ADD FIXTURE</button>
+                </form>
+            </div>
+            
+            <div id="fixtures-list"></div>
+        </div>
+
+        <!-- Scoring Page -->
+        <div id="scoring-page" class="page">
+            <h2 class="page-title">▓▓▓ BALL-BY-BALL SCORING ▓▓▓</h2>
+            
+            <div class="form-section">
+                <h3>CREATE NEW MATCH</h3>
+                <form id="create-match-form">
+                    <input type="text" id="match-teamA" placeholder="Team A" required>
+                    <input type="text" id="match-teamB" placeholder="Team B" required>
+                    <input type="text" id="match-venue" placeholder="Venue" required>
+                    <input type="date" id="match-date" required>
+                    <button type="submit">CREATE MATCH</button>
+                </form>
+            </div>
+
+            <div id="active-match-section" style="display: none;">
+                <h3>ACTIVE MATCH</h3>
+                <div id="active-match-info"></div>
+                
+                <div id="toss-section" style="display: none;">
+                    <h4>TOSS</h4>
+                    <form id="toss-form">
+                        <select id="toss-winner" required>
+                            <option value="">Select Toss Winner</option>
+                        </select>
+                        <select id="toss-decision" required>
+                            <option value="">Select Decision</option>
+                            <option value="bat">Bat</option>
+                            <option value="field">Field</option>
+                        </select>
+                        <button type="submit">START MATCH</button>
+                    </form>
+                </div>
+
+                <div id="scoring-section" style="display: none;">
+                    <div id="current-score"></div>
+                    
+                    <h4>RECORD BALL</h4>
+                    <form id="ball-form">
+                        <input type="text" id="batsman" placeholder="Batsman" required>
+                        <input type="text" id="bowler" placeholder="Bowler" required>
+                        <input type="number" id="runs" placeholder="Runs" min="0" max="6" value="0">
+                        <select id="extra-type">
+                            <option value="">No Extra</option>
+                            <option value="wide">Wide</option>
+                            <option value="noBall">No Ball</option>
+                            <option value="bye">Bye</option>
+                            <option value="legBye">Leg Bye</option>
+                        </select>
+                        <input type="number" id="extras" placeholder="Extra Runs" min="0" value="0">
+                        <label>
+                            <input type="checkbox" id="wicket"> Wicket
+                        </label>
+                        <div id="wicket-details" style="display: none;">
+                            <input type="text" id="dismissed-batsman" placeholder="Dismissed Batsman">
+                            <select id="wicket-type">
+                                <option value="bowled">Bowled</option>
+                                <option value="caught">Caught</option>
+                                <option value="lbw">LBW</option>
+                                <option value="run out">Run Out</option>
+                                <option value="stumped">Stumped</option>
+                                <option value="hit wicket">Hit Wicket</option>
+                            </select>
+                        </div>
+                        <textarea id="ball-commentary" placeholder="Commentary (optional)" rows="2"></textarea>
+                        <button type="submit">RECORD BALL</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="upcoming-matches"></div>
+        </div>
+
+        <footer class="teletext-footer">
+            <div>CRICTEXT © 2025</div>
+            <nav class="teletext-nav">
+                <button class="nav-btn" data-page="live">Scores</button>
+                <button class="nav-btn" data-page="fixtures">Fixtures</button>
+                <button class="nav-btn" data-page="scoring">Scoring</button>
+            </nav>
+        </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
