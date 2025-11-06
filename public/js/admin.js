@@ -99,7 +99,13 @@ function displayMatchStatus() {
     
     createSection.classList.add('hidden');
     
-    if (currentMatch.status === 'upcoming' || !currentInnings || currentInnings.wickets >= 10) {
+    // Show start innings section if:
+    // - Match is upcoming, OR
+    // - No current innings exists, OR
+    // - Current innings is all out (10 wickets), OR
+    // - Current innings is declared or completed
+    const inningsCompleted = currentInnings && (currentInnings.status === 'completed' || currentInnings.declared);
+    if (currentMatch.status === 'upcoming' || !currentInnings || currentInnings.wickets >= 10 || inningsCompleted) {
       inningsSection.classList.remove('hidden');
       scoringSection.classList.add('hidden');
       // Initialize batting order and opening bowler dropdowns when showing start innings section
@@ -671,7 +677,9 @@ async function declareInnings() {
     });
     
     if (response.ok) {
-      showMessage('Innings declared!', 'success');
+      const data = await response.json();
+      showMessage(data.message || 'Innings declared!', 'success');
+      // Reload will automatically show start innings section
       loadMatchStatus();
     } else {
       const error = await response.json();

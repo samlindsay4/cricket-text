@@ -859,8 +859,15 @@ app.post('/api/match/declare', requireAuth, (req, res) => {
   currentInnings.declared = true;
   currentInnings.status = 'completed';
   
+  // Mark all batting batsmen as not out
+  Object.keys(currentInnings.allBatsmen).forEach(name => {
+    if (currentInnings.allBatsmen[name].status === 'batting') {
+      currentInnings.allBatsmen[name].status = 'not out';
+    }
+  });
+  
   if (saveMatch(match)) {
-    res.json({ match });
+    res.json({ match, message: 'Innings declared. Start next innings.' });
   } else {
     res.status(500).json({ error: 'Failed to declare innings' });
   }
