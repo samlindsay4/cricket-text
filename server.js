@@ -286,6 +286,11 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     }
   }
   
+  // Ensure currentBowler is set
+  if (!currentInnings.currentBowler || !currentInnings.currentBowler.name) {
+    return res.status(400).json({ error: 'No bowler specified' });
+  }
+  
   const striker = currentInnings.striker;
   const nonStriker = currentInnings.nonStriker;
   const currentBowlerName = currentInnings.currentBowler.name;
@@ -334,8 +339,15 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   if (ball.wicket) {
     currentInnings.wickets++;
     const dismissedName = dismissedBatsman || striker;
-    currentInnings.allBatsmen[dismissedName].status = 'out';
-    currentInnings.allBatsmen[dismissedName].howOut = wicketType;
+    
+    // Update batsman status if exists
+    if (currentInnings.allBatsmen[dismissedName]) {
+      currentInnings.allBatsmen[dismissedName].status = 'out';
+      currentInnings.allBatsmen[dismissedName].howOut = wicketType;
+    }
+    
+    // Update bowler wicket count
+    currentInnings.allBowlers[currentBowlerName].wickets++;
     
     currentInnings.fallOfWickets.push({
       runs: currentInnings.runs,
