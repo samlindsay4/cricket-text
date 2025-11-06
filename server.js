@@ -105,7 +105,6 @@ function processBall(innings, ball, ballIndex) {
   // Wides (Wd) and No-balls (Nb) go to bowler
   // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler
   // Overthrows always go to bowler
-  const overthrows = ball.overthrows || 0;
   if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
     innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows + ball.extras);
   } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
@@ -490,9 +489,13 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
   
   // 2. Create ball record with CURRENT over.ball before incrementing
+  // For illegal deliveries (wide/no-ball), use current ball number (not +1)
+  // For legal deliveries, use next ball number (+1)
+  const ballNumber = isLegalDelivery ? currentInnings.balls + 1 : Math.max(1, currentInnings.balls);
+  
   const ball = {
     over: currentInnings.overs,
-    ball: currentInnings.balls + 1, // Ball number in current over (1-6)
+    ball: ballNumber, // Ball number in current over (1-6)
     batsman: striker,
     bowler: currentBowlerName,
     runs: parseInt(runs) || 0,
