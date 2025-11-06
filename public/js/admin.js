@@ -19,8 +19,12 @@ async function login() {
     
     if (data.success) {
       sessionId = data.sessionId;
-      document.getElementById('login-section').classList.add('hidden');
-      document.getElementById('admin-section').classList.remove('hidden');
+      const loginSection = document.getElementById('login-section');
+      const adminSection = document.getElementById('admin-section');
+      loginSection.classList.add('hidden');
+      loginSection.style.display = 'none';
+      adminSection.classList.remove('hidden');
+      adminSection.style.display = 'block';
       loadMatchStatus();
     } else {
       errorDiv.textContent = 'Invalid password';
