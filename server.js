@@ -333,12 +333,12 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
 });
 
 // Serve admin page
-app.get('/admin', (req, res) => {
+app.get('/admin', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // Serve main page (Page 340)
-app.get('/', (req, res) => {
+app.get('/', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
