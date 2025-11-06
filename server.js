@@ -33,18 +33,7 @@ function initializeMatch() {
       status: 'no-match', // no-match, upcoming, live, completed
       currentInnings: 0,
       innings: [],
-      squads: {
-        England: [
-          "Ben Duckett", "Zak Crawley", "Ollie Pope", "Joe Root", "Harry Brook",
-          "Ben Stokes", "Jamie Smith", "Chris Woakes", "Gus Atkinson", 
-          "Mark Wood", "Jack Leach"
-        ],
-        Australia: [
-          "Usman Khawaja", "David Warner", "Marnus Labuschagne", "Steve Smith",
-          "Travis Head", "Cameron Green", "Alex Carey", "Pat Cummins",
-          "Mitchell Starc", "Nathan Lyon", "Josh Hazlewood"
-        ]
-      }
+      squads: {}
     };
     fs.writeFileSync(matchFile, JSON.stringify(emptyMatch, null, 2));
   }
@@ -69,6 +58,151 @@ function saveMatch(match) {
     console.error('Error saving match:', error);
     return false;
   }
+}
+
+// Recalculation functions for undo and edit ball functionality
+function processBall(innings, ball, ballIndex) {
+  // Update runs
+  innings.runs += (ball.runs + ball.extras);
+  
+  // Determine if legal delivery
+  const isLegal = (ball.extraType !== 'Wd' && ball.extraType !== 'Nb');
+  
+  // Update striker stats
+  if (!innings.allBatsmen[ball.batsman]) {
+    innings.allBatsmen[ball.batsman] = { 
+      name: ball.batsman,
+      runs: 0, 
+      balls: 0, 
+      fours: 0, 
+      sixes: 0, 
+      status: 'batting' 
+    };
+  }
+  
+  innings.allBatsmen[ball.batsman].runs += ball.runs;
+  if (isLegal) innings.allBatsmen[ball.batsman].balls++;
+  if (ball.runs === 4) innings.allBatsmen[ball.batsman].fours++;
+  if (ball.runs === 6) innings.allBatsmen[ball.batsman].sixes++;
+  
+  // Update bowler stats
+  if (!innings.allBowlers[ball.bowler]) {
+    innings.allBowlers[ball.bowler] = { 
+      name: ball.bowler,
+      balls: 0, 
+      overs: 0, 
+      maidens: 0, 
+      runs: 0, 
+      wickets: 0 
+    };
+  }
+  
+  innings.allBowlers[ball.bowler].runs += (ball.runs + ball.extras);
+  if (isLegal) innings.allBowlers[ball.bowler].balls++;
+  
+  // Handle wickets
+  if (ball.wicket) {
+    innings.wickets++;
+    innings.allBatsmen[ball.dismissedBatsman].status = 'out';
+    innings.allBatsmen[ball.dismissedBatsman].howOut = ball.wicketType;
+    
+    innings.fallOfWickets.push({
+      runs: innings.runs,
+      wickets: innings.wickets,
+      batsman: ball.dismissedBatsman
+    });
+    
+    // Bring in next batsman
+    if (innings.nextBatsmanIndex < innings.battingOrder.length) {
+      const nextBat = innings.battingOrder[innings.nextBatsmanIndex];
+      innings.nextBatsmanIndex++;
+      
+      // Replace dismissed batsman
+      if (ball.dismissedBatsman === innings.striker) {
+        innings.striker = nextBat;
+      } else {
+        innings.nonStriker = nextBat;
+      }
+    }
+  }
+  
+  // Rotate strike if odd runs
+  if (ball.runs % 2 === 1) {
+    [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+  }
+  
+  // Add to current over
+  innings.currentOver.push(ball);
+  
+  // Increment ball count and check over complete
+  if (isLegal) {
+    innings.balls++;
+    
+    if (innings.balls === 6) {
+      innings.overs++;
+      innings.balls = 0;
+      
+      // Update bowler overs
+      const bowlerBalls = innings.allBowlers[ball.bowler].balls;
+      innings.allBowlers[ball.bowler].overs = Math.floor(bowlerBalls / 6);
+      
+      // Store completed over
+      if (!innings.recentOvers) {
+        innings.recentOvers = [];
+      }
+      innings.recentOvers.push({
+        over: innings.overs,
+        bowler: ball.bowler,
+        runs: innings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
+      });
+      
+      // Keep only last MAX_RECENT_OVERS overs
+      if (innings.recentOvers.length > MAX_RECENT_OVERS) {
+        innings.recentOvers.shift();
+      }
+      
+      // Swap ends
+      [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+      
+      // Clear current over
+      innings.currentOver = [];
+      
+      // Update current bowler for next over
+      innings.currentBowler = { name: ball.bowler };
+    }
+  }
+}
+
+function recalculateInnings(innings) {
+  // Reset innings to initial state
+  innings.runs = 0;
+  innings.wickets = 0;
+  innings.overs = 0;
+  innings.balls = 0;
+  innings.currentOver = [];
+  innings.fallOfWickets = [];
+  innings.allBatsmen = Object.create(null);
+  innings.allBowlers = Object.create(null);
+  innings.striker = innings.battingOrder[0];
+  innings.nonStriker = innings.battingOrder[1];
+  innings.nextBatsmanIndex = 2;
+  innings.recentOvers = [];
+  
+  // Replay each ball in order
+  innings.allBalls.forEach((ball, index) => {
+    processBall(innings, ball, index);
+  });
+  
+  // Update current batsmen display (keep compatibility with existing code)
+  innings.currentBatsmen = [];
+  if (innings.allBatsmen[innings.striker]) {
+    innings.currentBatsmen.push(innings.allBatsmen[innings.striker]);
+  }
+  if (innings.allBatsmen[innings.nonStriker]) {
+    innings.currentBatsmen.push(innings.allBatsmen[innings.nonStriker]);
+  }
+  
+  return innings;
 }
 
 // Simple session storage (in-memory for simplicity)
@@ -155,7 +289,27 @@ app.get('/api/match', checkRateLimit, (req, res) => {
 
 // Create new Ashes test match (admin only)
 app.post('/api/match/create', requireAuth, (req, res) => {
-  const { testNumber, venue, date } = req.body;
+  const { testNumber, venue, date, englandSquad, australiaSquad } = req.body;
+  
+  // Validate squads
+  if (!englandSquad || !Array.isArray(englandSquad) || englandSquad.length !== 11) {
+    return res.status(400).json({ error: 'England squad must contain exactly 11 players' });
+  }
+  if (!australiaSquad || !Array.isArray(australiaSquad) || australiaSquad.length !== 11) {
+    return res.status(400).json({ error: 'Australia squad must contain exactly 11 players' });
+  }
+  
+  // Validate player names are not empty
+  const allPlayers = [...englandSquad, ...australiaSquad];
+  if (allPlayers.some(name => !name || name.trim() === '')) {
+    return res.status(400).json({ error: 'All player names must be filled in' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (allPlayers.some(name => dangerousNames.includes(name))) {
+    return res.status(400).json({ error: 'Invalid player names detected' });
+  }
   
   const match = {
     id: `ashes-test-${testNumber}`,
@@ -166,16 +320,8 @@ app.post('/api/match/create', requireAuth, (req, res) => {
     currentInnings: 0,
     innings: [],
     squads: {
-      England: [
-        "Ben Duckett", "Zak Crawley", "Ollie Pope", "Joe Root", "Harry Brook",
-        "Ben Stokes", "Jamie Smith", "Chris Woakes", "Gus Atkinson", 
-        "Mark Wood", "Jack Leach"
-      ],
-      Australia: [
-        "Usman Khawaja", "David Warner", "Marnus Labuschagne", "Steve Smith",
-        "Travis Head", "Cameron Green", "Alex Carey", "Pat Cummins",
-        "Mitchell Starc", "Nathan Lyon", "Josh Hazlewood"
-      ]
+      England: englandSquad,
+      Australia: australiaSquad
     }
   };
   
@@ -214,13 +360,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     return res.status(400).json({ error: `Invalid players in batting order: ${invalidPlayers.join(', ')}` });
   }
   
-  // Validate opening bowler is from bowling team's squad
-  const bowlingSquad = match.squads[bowlingTeam] || [];
-  if (openingBowler && !bowlingSquad.includes(openingBowler)) {
-    return res.status(400).json({ error: 'Opening bowler must be from the bowling team' });
-  }
-  
-  // Additional check to prevent prototype pollution in bowler name
+  // Allow opening bowler to be manually entered (not restricted to squad - handles substitutes)
+  // Just prevent prototype pollution in bowler name
   if (openingBowler && dangerousNames.includes(openingBowler)) {
     return res.status(400).json({ error: 'Invalid bowler name detected' });
   }
@@ -234,6 +375,7 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     overs: 0,
     balls: 0,
     declared: false,
+    status: 'live',
     battingOrder: battingOrder, // Array of 11 player names in batting order
     nextBatsmanIndex: 2, // Next batsman to come in (starts at 2, as 0 and 1 are opening batsmen)
     striker: null, // Will be set when first ball is bowled
@@ -451,6 +593,271 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     res.json({ match, ball });
   } else {
     res.status(500).json({ error: 'Failed to record ball' });
+  }
+});
+
+// Undo last ball (admin only)
+app.post('/api/match/undo', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  if (!currentInnings.allBalls || currentInnings.allBalls.length === 0) {
+    return res.status(400).json({ error: 'No balls to undo' });
+  }
+  
+  // Remove last ball
+  currentInnings.allBalls.pop();
+  
+  // Recalculate innings from all balls
+  recalculateInnings(currentInnings);
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to undo' });
+  }
+});
+
+// Edit a specific ball (admin only)
+app.post('/api/match/edit-ball', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { ballIndex, runs, extras, extraType, wicket, wicketType, dismissedBatsman } = req.body;
+  
+  if (ballIndex < 0 || ballIndex >= currentInnings.allBalls.length) {
+    return res.status(400).json({ error: 'Invalid ball index' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Update ball at index
+  const ball = currentInnings.allBalls[ballIndex];
+  ball.runs = parseInt(runs) || 0;
+  ball.extras = parseInt(extras) || 0;
+  ball.extraType = extraType || null;
+  ball.wicket = wicket || false;
+  ball.wicketType = wicketType || null;
+  ball.dismissedBatsman = dismissedBatsman || null;
+  
+  // Recalculate innings from all balls
+  recalculateInnings(currentInnings);
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to edit ball' });
+  }
+});
+
+// Change bowler (admin only)
+app.post('/api/match/change-bowler', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { bowlerName } = req.body;
+  
+  if (!bowlerName || bowlerName.trim() === '') {
+    return res.status(400).json({ error: 'Bowler name required' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(bowlerName)) {
+    return res.status(400).json({ error: 'Invalid bowler name' });
+  }
+  
+  // Update current bowler (can be any name - handles substitutes)
+  currentInnings.currentBowler = { name: bowlerName };
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to change bowler' });
+  }
+});
+
+// Select next batsman (admin only)
+app.post('/api/match/next-batsman', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { batsmanName } = req.body;
+  
+  // If no batsman specified, use next in order
+  let nextBatsman;
+  if (batsmanName) {
+    // Validate batsman is in batting order and hasn't batted
+    if (!currentInnings.battingOrder.includes(batsmanName)) {
+      return res.status(400).json({ error: 'Batsman not in batting order' });
+    }
+    if (currentInnings.allBatsmen[batsmanName] && currentInnings.allBatsmen[batsmanName].status !== 'not batted') {
+      return res.status(400).json({ error: 'Batsman has already batted' });
+    }
+    nextBatsman = batsmanName;
+  } else {
+    // Use next in batting order
+    if (currentInnings.nextBatsmanIndex >= currentInnings.battingOrder.length) {
+      return res.status(400).json({ error: 'No more batsmen available' });
+    }
+    nextBatsman = currentInnings.battingOrder[currentInnings.nextBatsmanIndex];
+    currentInnings.nextBatsmanIndex++;
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(nextBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // This endpoint is informational - actual batsman change happens when wicket is recorded
+  res.json({ match, nextBatsman });
+});
+
+// Edit batting order during innings (admin only)
+app.post('/api/match/edit-batting-order', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { newBattingOrder } = req.body;
+  
+  if (!newBattingOrder || newBattingOrder.length !== 11) {
+    return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
+  }
+  
+  // Validate that players who have batted or are batting remain in same position
+  const battedPlayers = Object.keys(currentInnings.allBatsmen);
+  for (let i = 0; i < battedPlayers.length; i++) {
+    const player = battedPlayers[i];
+    const oldIndex = currentInnings.battingOrder.indexOf(player);
+    const newIndex = newBattingOrder.indexOf(player);
+    
+    if (oldIndex !== newIndex) {
+      return res.status(400).json({ 
+        error: `${player} has already batted and cannot be moved in batting order` 
+      });
+    }
+  }
+  
+  currentInnings.battingOrder = newBattingOrder;
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to update batting order' });
+  }
+});
+
+// Declare innings (admin only)
+app.post('/api/match/declare', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  if (currentInnings.wickets >= 10) {
+    return res.status(400).json({ error: 'Cannot declare - all out' });
+  }
+  
+  currentInnings.declared = true;
+  currentInnings.status = 'completed';
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to declare innings' });
+  }
+});
+
+// End innings (admin only)
+app.post('/api/match/end-innings', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  currentInnings.status = 'completed';
+  
+  // If 4 innings complete, mark match as completed
+  if (match.innings.length >= 4) {
+    match.status = 'completed';
+  }
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to end innings' });
+  }
+});
+
+// Delete match (admin only)
+app.post('/api/match/delete', requireAuth, (req, res) => {
+  const emptyMatch = {
+    id: null,
+    title: null,
+    venue: null,
+    date: null,
+    status: 'no-match',
+    currentInnings: 0,
+    innings: [],
+    squads: {}
+  };
+  
+  if (saveMatch(emptyMatch)) {
+    res.json({ success: true });
+  } else {
+    res.status(500).json({ error: 'Failed to delete match' });
   }
 });
 
