@@ -1,0 +1,199 @@
+// Scorecard JavaScript for Public View (Page 340)
+
+let refreshInterval = null;
+
+// Format over string (e.g., "65.3")
+function formatOvers(overs, balls) {
+  return balls > 0 ? `${overs}.${balls}` : `${overs}`;
+}
+
+// Load and display match data
+async function loadMatch() {
+  try {
+    const response = await fetch('/api/match');
+    const match = await response.json();
+    
+    displayMatch(match);
+    updateRefreshIndicator();
+  } catch (error) {
+    console.error('Error loading match:', error);
+  }
+}
+
+// Display match data in Ceefax style
+function displayMatch(match) {
+  const content = document.getElementById('content');
+  
+  if (!match || !match.id || match.status === 'no-match') {
+    content.innerHTML = `
+      <div class="no-match">
+        <p>NO MATCH CURRENTLY ACTIVE</p>
+        <p style="margin-top: 20px; font-size: 14px;">Please check back later</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  let html = `
+    <div class="match-title">${match.title || 'THE ASHES'}</div>
+    
+    <div class="match-info">
+      <div>Venue: ${match.venue || 'TBC'}</div>
+      <div>Date: ${formatDate(match.date)}</div>
+    </div>
+  `;
+  
+  if (currentInnings) {
+    // Score Display
+    html += `
+      <div class="score-display">
+        <div class="team-score">
+          ${currentInnings.battingTeam.toUpperCase()} ${currentInnings.runs}/${currentInnings.wickets} 
+          (${formatOvers(currentInnings.overs, currentInnings.balls)} overs)
+        </div>
+      </div>
+    `;
+    
+    // Current Batsmen
+    if (currentInnings.currentBatsmen && currentInnings.currentBatsmen.length > 0) {
+      html += `<div class="batsmen">`;
+      currentInnings.currentBatsmen.forEach(batsman => {
+        html += `
+          <div class="batsman">
+            <span class="batsman-name">${batsman.name}</span>
+            <span class="batsman-stats">${batsman.runs} (${batsman.balls})</span>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+    
+    // Current Bowler
+    if (currentInnings.currentBowler) {
+      html += `
+        <div class="bowler">
+          <div><span class="bowler-name">${currentInnings.currentBowler.name}</span></div>
+          <div style="margin-top: 4px;">
+            ${currentInnings.currentBowler.overs}-${currentInnings.currentBowler.maidens}-${currentInnings.currentBowler.runs}-${currentInnings.currentBowler.wickets}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Current Over Display
+    html += `
+      <div class="current-over-section">
+        <div class="over-title">Current Over (${currentInnings.overs}${currentInnings.balls > 0 ? `.${currentInnings.balls}` : ''})</div>
+        <div class="over-balls">
+    `;
+    
+    // Display balls in current over
+    for (let i = 1; i <= 6; i++) {
+      const ball = currentInnings.currentOver && currentInnings.currentOver[i - 1];
+      if (ball) {
+        const runsText = ball.runs + (ball.extras > 0 ? `+${ball.extras}` : '');
+        const ballClass = ball.wicket ? 'ball wicket' : 'ball';
+        html += `
+          <div class="${ballClass}">
+            ${currentInnings.overs}.${i}<br>
+            ${ball.wicket ? 'W' : runsText}
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="ball pending">
+            ${currentInnings.overs}.${i}<br>
+            .
+          </div>
+        `;
+      }
+    }
+    
+    html += `
+        </div>
+      </div>
+    `;
+    
+    // Fall of Wickets
+    if (currentInnings.fallOfWickets && currentInnings.fallOfWickets.length > 0) {
+      html += `
+        <div class="fall-of-wickets">
+          <div class="fow-title">FALL OF WICKETS</div>
+      `;
+      currentInnings.fallOfWickets.forEach(fow => {
+        html += `
+          <div class="fow-item">
+            ${fow.wickets}-${fow.runs} (${fow.batsman})
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+    
+    // Recent Overs
+    if (currentInnings.recentOvers && currentInnings.recentOvers.length > 0) {
+      html += `
+        <div class="recent-overs">
+          <div class="recent-overs-title">RECENT OVERS</div>
+      `;
+      const recentOvers = currentInnings.recentOvers.slice(-5).reverse();
+      recentOvers.forEach(over => {
+        html += `
+          <div class="over-summary">
+            Over ${over.over}: ${over.runs} runs
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+  } else {
+    html += `
+      <div class="no-match">
+        <p>MATCH NOT YET STARTED</p>
+      </div>
+    `;
+  }
+  
+  content.innerHTML = html;
+}
+
+// Format date
+function formatDate(dateString) {
+  if (!dateString) return 'TBC';
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-GB', options);
+}
+
+// Update refresh indicator
+function updateRefreshIndicator() {
+  const indicator = document.getElementById('refresh-indicator');
+  const now = new Date();
+  const timeString = now.toLocaleTimeString('en-GB');
+  indicator.textContent = `Last updated: ${timeString}`;
+  
+  // Flash briefly
+  indicator.classList.add('refreshing');
+  setTimeout(() => {
+    indicator.classList.remove('refreshing');
+  }, 500);
+}
+
+// Start auto-refresh (every 5 seconds)
+function startAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+  
+  refreshInterval = setInterval(() => {
+    loadMatch();
+  }, 5000);
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  loadMatch();
+  startAutoRefresh();
+});

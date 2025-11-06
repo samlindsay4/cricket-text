@@ -1,0 +1,316 @@
+/* Ceefax/Teletext Styling */
+
+/* Import Teletext font */
+@font-face {
+  font-family: 'Teletext';
+  src: url('https://cdn.jsdelivr.net/gh/Gingeh/bedstead-fonts/bedstead.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Teletext', 'Courier New', monospace;
+  background-color: #000000;
+  color: #00FFFF;
+  line-height: 1.3;
+  padding: 0;
+  margin: 0;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0;
+  background-color: #000000;
+}
+
+/* Ceefax Header */
+.ceefax-header {
+  background-color: #0000FF;
+  color: #FFFF00;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  letter-spacing: 2px;
+  border-bottom: 2px solid #00FFFF;
+}
+
+.ceefax-logo {
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.page-number {
+  font-size: 18px;
+  color: #FFFFFF;
+}
+
+/* Content Area */
+.content {
+  padding: 16px;
+  min-height: 500px;
+}
+
+/* Match Title */
+.match-title {
+  background-color: #FF0000;
+  color: #FFFF00;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+
+/* Match Info */
+.match-info {
+  color: #00FFFF;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.match-info div {
+  margin-bottom: 4px;
+}
+
+/* Score Display */
+.score-display {
+  background-color: #0000AA;
+  color: #FFFFFF;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  border: 2px solid #00FFFF;
+}
+
+.team-score {
+  font-size: 20px;
+  color: #FFFF00;
+  margin-bottom: 8px;
+}
+
+/* Partnership */
+.partnership {
+  background-color: #000055;
+  color: #00FFFF;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #00FFFF;
+}
+
+/* Current Batsmen */
+.batsmen {
+  background-color: #001100;
+  border: 2px solid #00FF00;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.batsman {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  color: #00FFFF;
+  font-size: 14px;
+}
+
+.batsman-name {
+  color: #FFFF00;
+  width: 200px;
+}
+
+.batsman-stats {
+  color: #FFFFFF;
+}
+
+/* Current Bowler */
+.bowler {
+  background-color: #110000;
+  border: 2px solid #FF0000;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #00FFFF;
+}
+
+.bowler-name {
+  color: #FFFF00;
+}
+
+/* Current Over Display */
+.current-over-section {
+  background-color: #000000;
+  border: 2px solid #FFFF00;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.over-title {
+  color: #FFFF00;
+  font-size: 16px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.over-balls {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.ball {
+  background-color: #0000AA;
+  color: #FFFFFF;
+  padding: 8px;
+  text-align: center;
+  font-size: 14px;
+  border: 1px solid #00FFFF;
+}
+
+.ball.wicket {
+  background-color: #AA0000;
+  color: #FFFF00;
+  animation: flash 0.5s ease-in-out 3;
+}
+
+.ball.pending {
+  background-color: #000000;
+  color: #666666;
+  border: 1px dashed #333333;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Fall of Wickets */
+.fall-of-wickets {
+  background-color: #000000;
+  border: 2px solid #FF0000;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.fow-title {
+  color: #FF0000;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.fow-item {
+  color: #00FFFF;
+  padding: 2px 0;
+  font-size: 14px;
+}
+
+/* Recent Overs */
+.recent-overs {
+  background-color: #000000;
+  border: 2px solid #00FFFF;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.recent-overs-title {
+  color: #00FFFF;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.over-summary {
+  color: #FFFFFF;
+  padding: 2px 0;
+  font-size: 14px;
+}
+
+/* No Match Message */
+.no-match {
+  text-align: center;
+  padding: 40px;
+  color: #FFFF00;
+  font-size: 18px;
+}
+
+/* Footer */
+.ceefax-footer {
+  background-color: #0000FF;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+  margin-top: 20px;
+  border-top: 2px solid #00FFFF;
+}
+
+/* Auto-refresh indicator */
+.refresh-indicator {
+  color: #00FF00;
+  font-size: 12px;
+  text-align: right;
+  padding: 8px 16px;
+}
+
+.refresh-indicator.refreshing {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ceefax-header {
+    font-size: 16px;
+    padding: 6px 12px;
+  }
+  
+  .ceefax-logo {
+    font-size: 18px;
+  }
+  
+  .page-number {
+    font-size: 16px;
+  }
+  
+  .content {
+    padding: 12px;
+  }
+  
+  .match-title {
+    font-size: 16px;
+    padding: 6px 12px;
+  }
+  
+  .team-score {
+    font-size: 18px;
+  }
+  
+  .batsman-name {
+    width: 150px;
+  }
+  
+  .over-balls {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .batsman {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .batsman-name {
+    width: 100%;
+  }
+}
