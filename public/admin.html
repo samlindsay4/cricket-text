@@ -63,18 +63,29 @@
             <h2>Start New Innings</h2>
             <div class="form-group">
                 <label for="batting-team">Batting Team</label>
-                <select id="batting-team">
+                <select id="batting-team" onchange="updateBattingOrderDropdowns()">
                     <option value="England">England</option>
                     <option value="Australia">Australia</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="bowling-team">Bowling Team</label>
-                <select id="bowling-team">
+                <select id="bowling-team" onchange="updateBowlingTeamDropdowns()">
                     <option value="Australia">Australia</option>
                     <option value="England">England</option>
                 </select>
             </div>
+            
+            <h3 style="margin-top: 20px;">Batting Order</h3>
+            <div id="batting-order-container">
+                <!-- Batting order dropdowns will be populated here -->
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <label for="opening-bowler">Opening Bowler</label>
+                <select id="opening-bowler"></select>
+            </div>
+            
             <button class="btn btn-primary" onclick="startInnings()">Start Innings</button>
         </div>
 
@@ -82,24 +93,14 @@
         <div id="scoring-section" class="section hidden">
             <h2>Score Ball</h2>
             
-            <!-- Scorecard Preview -->
+            <!-- Current Match Situation -->
             <div class="scorecard-preview" id="scorecard-preview">
                 <div class="loading">Loading scorecard</div>
             </div>
 
             <!-- Ball Recording Form -->
             <div style="margin-top: 20px;">
-                <h3>Current Ball</h3>
-                
-                <div class="form-group">
-                    <label for="batsman1">Batsman 1 (on strike)</label>
-                    <select id="batsman1"></select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="batsman2">Batsman 2 (non-striker)</label>
-                    <select id="batsman2"></select>
-                </div>
+                <h3>Record Ball</h3>
                 
                 <div class="form-group">
                     <label for="bowler">Bowler</label>
@@ -145,7 +146,9 @@
                 <div id="wicket-details" class="wicket-controls hidden">
                     <div class="form-group">
                         <label for="dismissed-batsman">Dismissed Batsman</label>
-                        <select id="dismissed-batsman"></select>
+                        <select id="dismissed-batsman">
+                            <option value="">-- Will be auto-filled --</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="wicket-type">How Out</label>

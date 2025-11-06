@@ -56,27 +56,35 @@ function displayMatch(match) {
       </div>
     `;
     
-    // Current Batsmen
-    if (currentInnings.currentBatsmen && currentInnings.currentBatsmen.length > 0) {
+    // Current Batsmen - show from allBatsmen
+    if (currentInnings.striker && currentInnings.nonStriker && currentInnings.allBatsmen) {
+      const strikerStats = currentInnings.allBatsmen[currentInnings.striker];
+      const nonStrikerStats = currentInnings.allBatsmen[currentInnings.nonStriker];
+      
       html += `<div class="batsmen">`;
-      currentInnings.currentBatsmen.forEach(batsman => {
-        html += `
-          <div class="batsman">
-            <span class="batsman-name">${batsman.name}</span>
-            <span class="batsman-stats">${batsman.runs} (${batsman.balls})</span>
-          </div>
-        `;
-      });
+      html += `
+        <div class="batsman">
+          <span class="batsman-name">★ ${currentInnings.striker}</span>
+          <span class="batsman-stats">${strikerStats.runs}* (${strikerStats.balls})</span>
+        </div>
+      `;
+      html += `
+        <div class="batsman">
+          <span class="batsman-name">${currentInnings.nonStriker}</span>
+          <span class="batsman-stats">${nonStrikerStats.runs}* (${nonStrikerStats.balls})</span>
+        </div>
+      `;
       html += `</div>`;
     }
     
-    // Current Bowler
-    if (currentInnings.currentBowler) {
+    // Current Bowler - show from allBowlers
+    if (currentInnings.currentBowler && currentInnings.allBowlers && currentInnings.allBowlers[currentInnings.currentBowler.name]) {
+      const bowlerStats = currentInnings.allBowlers[currentInnings.currentBowler.name];
       html += `
         <div class="bowler">
           <div><span class="bowler-name">${currentInnings.currentBowler.name}</span></div>
           <div style="margin-top: 4px;">
-            ${currentInnings.currentBowler.overs}-${currentInnings.currentBowler.maidens}-${currentInnings.currentBowler.runs}-${currentInnings.currentBowler.wickets}
+            ${bowlerStats.overs}.${bowlerStats.balls % 6}-${bowlerStats.maidens}-${bowlerStats.runs}-${bowlerStats.wickets}
           </div>
         </div>
       `;

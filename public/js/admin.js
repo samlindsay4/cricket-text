@@ -87,6 +87,8 @@ function displayMatchStatus() {
     if (currentMatch.status === 'upcoming' || !currentInnings || currentInnings.wickets >= 10) {
       inningsSection.classList.remove('hidden');
       scoringSection.classList.add('hidden');
+      // Initialize batting order dropdowns when showing start innings section
+      initializeBattingOrderDropdowns();
     } else {
       inningsSection.classList.add('hidden');
       scoringSection.classList.remove('hidden');
@@ -101,19 +103,7 @@ function updateScoringInterface() {
   }
   
   const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
-  const battingSquad = currentMatch.squads[currentInnings.battingTeam] || [];
   const bowlingSquad = currentMatch.squads[currentInnings.bowlingTeam] || [];
-  
-  // Populate batsman dropdowns
-  const batsman1 = document.getElementById('batsman1');
-  const batsman2 = document.getElementById('batsman2');
-  const dismissedBatsman = document.getElementById('dismissed-batsman');
-  
-  batsman1.innerHTML = battingSquad.map(name => 
-    `<option value="${name}">${name}</option>`
-  ).join('');
-  batsman2.innerHTML = batsman1.innerHTML;
-  dismissedBatsman.innerHTML = batsman1.innerHTML;
   
   // Populate bowler dropdown
   const bowler = document.getElementById('bowler');
@@ -121,8 +111,71 @@ function updateScoringInterface() {
     `<option value="${name}">${name}</option>`
   ).join('');
   
+  // Set current bowler if exists
+  if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
+    bowler.value = currentInnings.currentBowler.name;
+  }
+  
+  // Populate dismissed batsman dropdown (striker and non-striker)
+  const dismissedBatsman = document.getElementById('dismissed-batsman');
+  if (currentInnings.striker && currentInnings.nonStriker) {
+    dismissedBatsman.innerHTML = `
+      <option value="${currentInnings.striker}">${currentInnings.striker}</option>
+      <option value="${currentInnings.nonStriker}">${currentInnings.nonStriker}</option>
+    `;
+  }
+  
   // Update scorecard preview
   updateScorecardPreview();
+}
+
+// Initialize batting order dropdowns
+function initializeBattingOrderDropdowns() {
+  if (!currentMatch) return;
+  
+  const battingTeam = document.getElementById('batting-team').value;
+  const bowlingTeam = document.getElementById('bowling-team').value;
+  const squad = currentMatch.squads[battingTeam] || [];
+  const bowlingSquad = currentMatch.squads[bowlingTeam] || [];
+  
+  const container = document.getElementById('batting-order-container');
+  container.innerHTML = '';
+  
+  for (let i = 1; i <= 11; i++) {
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    div.innerHTML = `
+      <label for="batting-order-${i}">${i}. Batsman</label>
+      <select id="batting-order-${i}" required>
+        ${squad.map(name => `<option value="${name}">${name}</option>`).join('')}
+      </select>
+    `;
+    container.appendChild(div);
+  }
+  
+  // Update opening bowler dropdown
+  const openingBowler = document.getElementById('opening-bowler');
+  openingBowler.innerHTML = bowlingSquad.map(name => 
+    `<option value="${name}">${name}</option>`
+  ).join('');
+}
+
+// Update batting order dropdowns when team changes
+function updateBattingOrderDropdowns() {
+  initializeBattingOrderDropdowns();
+}
+
+// Update bowling team dropdowns
+function updateBowlingTeamDropdowns() {
+  if (!currentMatch) return;
+  
+  const bowlingTeam = document.getElementById('bowling-team').value;
+  const bowlingSquad = currentMatch.squads[bowlingTeam] || [];
+  
+  const openingBowler = document.getElementById('opening-bowler');
+  openingBowler.innerHTML = bowlingSquad.map(name => 
+    `<option value="${name}">${name}</option>`
+  ).join('');
 }
 
 // Update scorecard preview
@@ -143,18 +196,23 @@ function updateScorecardPreview() {
     </div>
   `;
   
-  if (innings.currentBatsmen && innings.currentBatsmen.length > 0) {
+  // Show current striker and non-striker from allBatsmen
+  if (innings.striker && innings.nonStriker && innings.allBatsmen) {
+    const strikerStats = innings.allBatsmen[innings.striker];
+    const nonStrikerStats = innings.allBatsmen[innings.nonStriker];
+    
     html += '<div class="batsmen-list">';
-    innings.currentBatsmen.forEach(bat => {
-      html += `<div>${bat.name}: ${bat.runs} (${bat.balls})</div>`;
-    });
+    html += `<div><strong>★ ${innings.striker}:</strong> ${strikerStats.runs}* (${strikerStats.balls}) [${strikerStats.fours}x4, ${strikerStats.sixes}x6]</div>`;
+    html += `<div>${innings.nonStriker}: ${nonStrikerStats.runs}* (${nonStrikerStats.balls}) [${nonStrikerStats.fours}x4, ${nonStrikerStats.sixes}x6]</div>`;
     html += '</div>';
   }
   
-  if (innings.currentBowler) {
+  // Show current bowler from allBowlers
+  if (innings.currentBowler && innings.allBowlers && innings.allBowlers[innings.currentBowler.name]) {
+    const bowlerStats = innings.allBowlers[innings.currentBowler.name];
     html += `
       <div class="bowler-info">
-        ${innings.currentBowler.name}: ${innings.currentBowler.overs}-${innings.currentBowler.maidens}-${innings.currentBowler.runs}-${innings.currentBowler.wickets}
+        ${innings.currentBowler.name}: ${bowlerStats.overs}.${bowlerStats.balls % 6}-${bowlerStats.maidens}-${bowlerStats.runs}-${bowlerStats.wickets}
       </div>
     `;
   }
@@ -198,9 +256,36 @@ async function createMatch() {
 async function startInnings() {
   const battingTeam = document.getElementById('batting-team').value;
   const bowlingTeam = document.getElementById('bowling-team').value;
+  const openingBowler = document.getElementById('opening-bowler').value;
   
   if (battingTeam === bowlingTeam) {
     showMessage('Batting and bowling teams must be different', 'error');
+    return;
+  }
+  
+  // Collect batting order
+  const battingOrder = [];
+  for (let i = 1; i <= 11; i++) {
+    const select = document.getElementById(`batting-order-${i}`);
+    if (!select || !select.value) {
+      showMessage(`Please select batsman ${i}`, 'error');
+      return;
+    }
+    battingOrder.push(select.value);
+  }
+  
+  // Check for duplicate batsmen
+  const uniqueBatsmen = new Set(battingOrder);
+  if (uniqueBatsmen.size !== 11) {
+    showMessage('Each batsman must be selected only once', 'error');
+    return;
+  }
+  
+  // Validate all batsmen are from batting team squad
+  const battingSquad = currentMatch.squads[battingTeam] || [];
+  const invalidBatsmen = battingOrder.filter(b => !battingSquad.includes(b));
+  if (invalidBatsmen.length > 0) {
+    showMessage(`Invalid batsmen selected: ${invalidBatsmen.join(', ')}`, 'error');
     return;
   }
   
@@ -211,14 +296,20 @@ async function startInnings() {
         'Content-Type': 'application/json',
         'X-Session-Id': sessionId
       },
-      body: JSON.stringify({ battingTeam, bowlingTeam })
+      body: JSON.stringify({ 
+        battingTeam, 
+        bowlingTeam, 
+        battingOrder,
+        openingBowler 
+      })
     });
     
     if (response.ok) {
       showMessage('Innings started!', 'success');
       loadMatchStatus();
     } else {
-      showMessage('Failed to start innings', 'error');
+      const error = await response.json();
+      showMessage('Failed to start innings: ' + (error.error || 'Unknown error'), 'error');
     }
   } catch (error) {
     showMessage('Error: ' + error.message, 'error');
@@ -266,8 +357,6 @@ function toggleWicketDetails() {
 
 // Record ball
 async function recordBall() {
-  const batsman1 = document.getElementById('batsman1').value;
-  const batsman2 = document.getElementById('batsman2').value;
   const bowler = document.getElementById('bowler').value;
   const runs = parseInt(document.getElementById('runs').value) || 0;
   const extraType = document.getElementById('extra-type').value;
@@ -276,13 +365,8 @@ async function recordBall() {
   const wicketType = wicket ? document.getElementById('wicket-type').value : null;
   const dismissedBatsman = wicket ? document.getElementById('dismissed-batsman').value : null;
   
-  if (!batsman1 || !batsman2 || !bowler) {
-    showMessage('Please select batsmen and bowler', 'error');
-    return;
-  }
-  
-  if (batsman1 === batsman2) {
-    showMessage('Batsmen must be different players', 'error');
+  if (!bowler) {
+    showMessage('Please select bowler', 'error');
     return;
   }
   
@@ -294,8 +378,6 @@ async function recordBall() {
         'X-Session-Id': sessionId
       },
       body: JSON.stringify({
-        batsman1,
-        batsman2,
         bowler,
         runs,
         extras,
