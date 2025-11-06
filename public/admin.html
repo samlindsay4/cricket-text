@@ -93,8 +93,10 @@
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
-                <label for="opening-bowler">Opening Bowler (type name)</label>
-                <input type="text" id="opening-bowler" placeholder="Enter bowler name">
+                <label for="opening-bowler">Opening Bowler</label>
+                <select id="opening-bowler" required>
+                    <option value="">Select bowler...</option>
+                </select>
             </div>
             
             <button class="btn btn-primary" onclick="startInnings()">Start Innings</button>
@@ -114,12 +116,14 @@
                 <h3>Record Ball</h3>
                 
                 <div class="form-group">
-                    <label for="bowler">Bowler (type to change)</label>
-                    <input type="text" id="bowler" placeholder="Enter bowler name">
+                    <label for="bowler">Bowler</label>
+                    <select id="bowler" required>
+                        <option value="">Select bowler...</option>
+                    </select>
                 </div>
 
                 <!-- Quick Run Buttons -->
-                <label>Runs Scored</label>
+                <label>Runs off Bat</label>
                 <div class="quick-actions">
                     <button class="quick-btn" onclick="setRuns(0, event)">0</button>
                     <button class="quick-btn" onclick="setRuns(1, event)">1</button>
@@ -129,6 +133,15 @@
                     <button class="quick-btn" onclick="setRuns(6, event)">6</button>
                 </div>
                 <input type="hidden" id="runs" value="0">
+                
+                <div class="form-group">
+                    <label for="overthrows">Overthrows</label>
+                    <input type="number" id="overthrows" value="0" min="0" max="6" onchange="updateTotalRuns()">
+                </div>
+                
+                <div class="total-runs-display" style="font-size: 16px; font-weight: bold; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                    Total Runs: <span id="total-runs-display">0</span>
+                </div>
 
                 <!-- Extras -->
                 <label>Extras</label>

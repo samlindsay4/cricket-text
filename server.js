@@ -62,8 +62,11 @@ function saveMatch(match) {
 
 // Recalculation functions for undo and edit ball functionality
 function processBall(innings, ball, ballIndex) {
-  // Update runs
-  innings.runs += (ball.runs + ball.extras);
+  // Ensure overthrows field exists (for backward compatibility)
+  const overthrows = ball.overthrows || 0;
+  
+  // Update runs (include overthrows)
+  innings.runs += (ball.runs + overthrows + ball.extras);
   
   // Determine if legal delivery
   const isLegal = (ball.extraType !== 'Wd' && ball.extraType !== 'Nb');
@@ -80,10 +83,11 @@ function processBall(innings, ball, ballIndex) {
     };
   }
   
-  innings.allBatsmen[ball.batsman].runs += ball.runs;
+  innings.allBatsmen[ball.batsman].runs += (ball.runs + overthrows);
   if (isLegal) innings.allBatsmen[ball.batsman].balls++;
-  if (ball.runs === 4) innings.allBatsmen[ball.batsman].fours++;
-  if (ball.runs === 6) innings.allBatsmen[ball.batsman].sixes++;
+  // Check for boundaries (without overthrows)
+  if (ball.runs === 4 && overthrows === 0) innings.allBatsmen[ball.batsman].fours++;
+  if (ball.runs === 6 && overthrows === 0) innings.allBatsmen[ball.batsman].sixes++;
   
   // Update bowler stats
   if (!innings.allBowlers[ball.bowler]) {
@@ -97,7 +101,19 @@ function processBall(innings, ball, ballIndex) {
     };
   }
   
-  innings.allBowlers[ball.bowler].runs += (ball.runs + ball.extras);
+  // Only add certain extras to bowler's runs
+  // Wides (Wd) and No-balls (Nb) go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler (only overthrows do)
+  // Note: For byes/leg-byes, ball.runs is always 0 (no runs off bat), so only overthrows are added
+  if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+    innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows + ball.extras);
+  } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    // Byes/leg-byes: only overthrows go to bowler (ball.runs is 0 for these)
+    innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows);
+  } else {
+    // No extras, just runs off the bat plus overthrows
+    innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows);
+  }
   if (isLegal) innings.allBowlers[ball.bowler].balls++;
   
   // Handle wickets
@@ -126,8 +142,10 @@ function processBall(innings, ball, ballIndex) {
     }
   }
   
-  // Rotate strike if odd runs
-  if (ball.runs % 2 === 1) {
+  // Rotate strike if odd total runs (runs + overthrows)
+  const overthrowsForStrike = ball.overthrows || 0;
+  const totalRunsForStrike = ball.runs + overthrowsForStrike;
+  if (totalRunsForStrike % 2 === 1) {
     [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
   }
   
@@ -146,14 +164,23 @@ function processBall(innings, ball, ballIndex) {
       const bowlerBalls = innings.allBowlers[ball.bowler].balls;
       innings.allBowlers[ball.bowler].overs = Math.floor(bowlerBalls / 6);
       
-      // Store completed over
+      // Store last completed over with full ball details
+      const overRuns = innings.currentOver.reduce((sum, b) => sum + b.runs + (b.overthrows || 0) + b.extras, 0);
+      innings.lastCompletedOver = {
+        overNum: innings.overs,
+        bowler: ball.bowler,
+        balls: [...innings.currentOver],
+        runs: overRuns
+      };
+      
+      // Store completed over summary
       if (!innings.recentOvers) {
         innings.recentOvers = [];
       }
       innings.recentOvers.push({
         over: innings.overs,
         bowler: ball.bowler,
-        runs: innings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
+        runs: overRuns
       });
       
       // Keep only last MAX_RECENT_OVERS overs
@@ -413,7 +440,7 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   
   const currentInnings = match.innings[match.innings.length - 1];
   const { 
-    runs, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
+    runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
   } = req.body;
   
   // Prevent prototype pollution in input names
@@ -462,12 +489,17 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
   
   // 2. Create ball record with CURRENT over.ball before incrementing
+  // For illegal deliveries (wide/no-ball), use current ball number (not +1)
+  // For legal deliveries, use next ball number (+1)
+  const ballNumber = isLegalDelivery ? currentInnings.balls + 1 : Math.max(1, currentInnings.balls);
+  
   const ball = {
     over: currentInnings.overs,
-    ball: currentInnings.balls + 1, // Ball number in current over (1-6)
+    ball: ballNumber, // Ball number in current over (1-6)
     batsman: striker,
     bowler: currentBowlerName,
     runs: parseInt(runs) || 0,
+    overthrows: parseInt(overthrows) || 0,
     extras: parseInt(extras) || 0,
     extraType: extraType || null,
     wicket: wicket || false,
@@ -476,16 +508,17 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     timestamp: new Date().toISOString()
   };
   
-  // 3. Update innings totals
-  currentInnings.runs += (ball.runs + ball.extras);
+  // 3. Update innings totals (include overthrows in total)
+  currentInnings.runs += (ball.runs + ball.overthrows + ball.extras);
   
-  // 4. Update striker stats
-  currentInnings.allBatsmen[striker].runs += ball.runs;
+  // 4. Update striker stats (include overthrows in batsman's runs)
+  currentInnings.allBatsmen[striker].runs += (ball.runs + ball.overthrows);
   if (isLegalDelivery) {
     currentInnings.allBatsmen[striker].balls++;
   }
-  if (ball.runs === 4) currentInnings.allBatsmen[striker].fours++;
-  if (ball.runs === 6) currentInnings.allBatsmen[striker].sixes++;
+  // Check for boundaries (without overthrows)
+  if (ball.runs === 4 && ball.overthrows === 0) currentInnings.allBatsmen[striker].fours++;
+  if (ball.runs === 6 && ball.overthrows === 0) currentInnings.allBatsmen[striker].sixes++;
   
   // 5. Update bowler stats
   if (!currentInnings.allBowlers[currentBowlerName]) {
@@ -493,7 +526,19 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
     };
   }
-  currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.extras);
+  // Only add certain extras to bowler's runs
+  // Wides (Wd) and No-balls (Nb) go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler (only overthrows do)
+  // Note: For byes/leg-byes, ball.runs is always 0 (no runs off bat), so only overthrows are added
+  if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+    currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.overthrows + ball.extras);
+  } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    // Byes/leg-byes: only overthrows go to bowler (ball.runs is 0 for these)
+    currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.overthrows);
+  } else {
+    // No extras, just runs off the bat plus overthrows
+    currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.overthrows);
+  }
   if (isLegalDelivery) {
     currentInnings.allBowlers[currentBowlerName].balls++;
   }
@@ -540,8 +585,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     }
   }
   
-  // 7. Rotate strike if odd runs
-  if (ball.runs % 2 === 1) {
+  // 7. Rotate strike if odd total runs (runs + overthrows)
+  const totalRunsForStrike = ball.runs + ball.overthrows;
+  if (totalRunsForStrike % 2 === 1) {
     [currentInnings.striker, currentInnings.nonStriker] = 
       [currentInnings.nonStriker, currentInnings.striker];
   }
@@ -562,14 +608,22 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       const bowlerBalls = currentInnings.allBowlers[currentBowlerName].balls;
       currentInnings.allBowlers[currentBowlerName].overs = Math.floor(bowlerBalls / 6);
       
-      // Store completed over
+      // Store last completed over with full ball details
+      currentInnings.lastCompletedOver = {
+        overNum: currentInnings.overs, // The over that just completed
+        bowler: currentBowlerName,
+        balls: [...currentInnings.currentOver], // Deep copy of balls
+        runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + (b.overthrows || 0) + b.extras, 0)
+      };
+      
+      // Store completed over summary in recent overs
       if (!currentInnings.recentOvers) {
         currentInnings.recentOvers = [];
       }
       currentInnings.recentOvers.push({
         over: currentInnings.overs, // Use the newly incremented over number
         bowler: currentBowlerName,
-        runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
+        runs: currentInnings.lastCompletedOver.runs
       });
       
       // Keep only last MAX_RECENT_OVERS overs
@@ -808,8 +862,15 @@ app.post('/api/match/declare', requireAuth, (req, res) => {
   currentInnings.declared = true;
   currentInnings.status = 'completed';
   
+  // Mark all batting batsmen as not out
+  Object.keys(currentInnings.allBatsmen).forEach(name => {
+    if (currentInnings.allBatsmen[name].status === 'batting') {
+      currentInnings.allBatsmen[name].status = 'not out';
+    }
+  });
+  
   if (saveMatch(match)) {
-    res.json({ match });
+    res.json({ match, message: 'Innings declared. Start next innings.' });
   } else {
     res.status(500).json({ error: 'Failed to declare innings' });
   }
