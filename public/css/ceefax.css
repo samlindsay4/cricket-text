@@ -275,14 +275,14 @@ body {
   font-weight: bold;
 }
 
-.ball.wicket, .ball-wicket {
+.ball-wicket {
   background-color: var(--teletext-red);
   color: var(--teletext-white);
   font-weight: bold;
   animation: flash 0.5s ease-in-out 3;
 }
 
-.ball.pending, .ball-upcoming {
+.ball-upcoming {
   background-color: rgba(0, 0, 0, 0.5);
   color: #888888;
   border: 2px dashed #444444;

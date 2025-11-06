@@ -2,7 +2,10 @@
 
 let refreshInterval = null;
 
-// Update header date and time
+/**
+ * Updates the Ceefax header with current date and time
+ * Displays date in GB format (e.g., "6 Nov 2025") and time in 24-hour format (e.g., "12:43")
+ */
 function updateHeaderDateTime() {
   const now = new Date();
   const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
