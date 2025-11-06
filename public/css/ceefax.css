@@ -1,12 +1,19 @@
 /* Ceefax/Teletext Styling */
 
-/* Import Teletext font from CDN (falls back to Courier New if unavailable) */
-@font-face {
-  font-family: 'Teletext';
-  src: url('https://cdn.jsdelivr.net/gh/Gingeh/bedstead-fonts/bedstead.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap; /* Show fallback font while loading */
+/* Import Press Start 2P Font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Teletext color palette */
+:root {
+  --teletext-black: #000000;
+  --teletext-red: #FF0000;
+  --teletext-green: #00FF00;
+  --teletext-yellow: #FFFF00;
+  --teletext-blue: #0000FF;
+  --teletext-magenta: #FF00FF;
+  --teletext-cyan: #00FFFF;
+  --teletext-white: #FFFFFF;
+  --font-teletext: 'Press Start 2P', 'Courier New', monospace;
 }
 
 * {
@@ -15,176 +22,270 @@
   box-sizing: border-box;
 }
 
+/* CRT Scanline Effect */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  z-index: 9999;
+  opacity: 0.3;
+}
+
 body {
-  font-family: 'Teletext', 'Courier New', monospace;
-  background-color: #000000;
-  color: #00FFFF;
-  line-height: 1.3;
+  font-family: var(--font-teletext);
+  background-color: var(--teletext-black);
+  color: var(--teletext-cyan);
+  line-height: 1.8;
   padding: 0;
   margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
 }
 
 .container {
-  max-width: 960px;
+  max-width: 90ch;
   margin: 0 auto;
-  padding: 0;
-  background-color: #000000;
+  padding: 1rem;
+  background-color: var(--teletext-black);
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.3),
+    inset 0 0 60px rgba(0, 0, 0, 0.8);
 }
 
-/* Ceefax Header */
+/* Ceefax Header with Page Number Box */
 .ceefax-header {
-  background-color: #0000FF;
-  color: #FFFF00;
-  padding: 8px 16px;
   display: flex;
   justify-content: space-between;
+  background-color: var(--teletext-blue);
+  color: var(--teletext-white);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--teletext-cyan);
+  font-size: 10px;
+  margin-bottom: 1rem;
+}
+
+.ceefax-header-left {
+  display: flex;
   align-items: center;
-  font-size: 18px;
-  letter-spacing: 2px;
-  border-bottom: 2px solid #00FFFF;
 }
 
-.ceefax-logo {
+.page-number-box {
+  background-color: var(--teletext-red);
+  color: var(--teletext-yellow);
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--teletext-white);
   font-weight: bold;
-  font-size: 20px;
+  margin-right: 1rem;
 }
 
-.page-number {
-  font-size: 18px;
-  color: #FFFFFF;
+.page-title {
+  color: var(--teletext-white);
+}
+
+.ceefax-header-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.ceefax-date {
+  color: var(--teletext-white);
+}
+
+.ceefax-time {
+  color: var(--teletext-cyan);
+  font-weight: bold;
 }
 
 /* Content Area */
 .content {
-  padding: 16px;
+  padding: 1rem;
   min-height: 500px;
 }
 
 /* Match Title */
 .match-title {
-  background-color: #FF0000;
-  color: #FFFF00;
-  padding: 8px 16px;
+  background-color: var(--teletext-red);
+  color: var(--teletext-yellow);
+  padding: 0.5rem 1rem;
   text-align: center;
-  font-size: 18px;
-  margin-bottom: 16px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  margin-bottom: 1rem;
+  border: 2px solid var(--teletext-white);
 }
 
 /* Match Info */
 .match-info {
-  color: #00FFFF;
-  margin-bottom: 16px;
-  font-size: 14px;
+  color: var(--teletext-cyan);
+  margin-bottom: 1rem;
+  font-size: 8px;
 }
 
 .match-info div {
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
 }
 
-/* Score Display */
+/* Team Score Display */
 .score-display {
-  background-color: #0000AA;
-  color: #FFFFFF;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  font-size: 16px;
-  border: 2px solid #00FFFF;
+  background-color: var(--teletext-blue);
+  color: var(--teletext-white);
+  padding: 1rem;
+  border: 3px solid var(--teletext-cyan);
+  text-align: center;
+  margin: 1rem 0;
 }
 
 .team-score {
-  font-size: 20px;
-  color: #FFFF00;
-  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--teletext-yellow);
+  margin: 0.5rem 0;
 }
 
 /* Partnership */
 .partnership {
-  background-color: #000055;
-  color: #00FFFF;
-  padding: 8px 16px;
-  margin-bottom: 16px;
-  border: 1px solid #00FFFF;
+  background-color: rgba(0, 0, 85, 0.7);
+  color: var(--teletext-cyan);
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--teletext-cyan);
+  font-size: 8px;
 }
 
 /* Current Batsmen */
 .batsmen {
-  background-color: #001100;
-  border: 2px solid #00FF00;
-  padding: 12px;
-  margin-bottom: 16px;
+  background-color: rgba(0, 17, 0, 0.7);
+  border: 2px solid var(--teletext-green);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .batsman {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
-  color: #00FFFF;
-  font-size: 14px;
+  padding: 0.25rem 0;
+  color: var(--teletext-cyan);
+  font-size: 8px;
 }
 
 .batsman-name {
-  color: #FFFF00;
+  color: var(--teletext-yellow);
   width: 200px;
 }
 
 .batsman-stats {
-  color: #FFFFFF;
+  color: var(--teletext-white);
 }
 
 /* Current Bowler */
 .bowler {
-  background-color: #110000;
-  border: 2px solid #FF0000;
-  padding: 12px;
-  margin-bottom: 16px;
-  color: #00FFFF;
+  background-color: rgba(17, 0, 0, 0.7);
+  border: 2px solid var(--teletext-red);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--teletext-cyan);
+  font-size: 8px;
 }
 
 .bowler-name {
-  color: #FFFF00;
+  color: var(--teletext-yellow);
 }
 
-/* Current Over Display */
+/* Current Over Display with Section Header */
 .current-over-section {
-  background-color: #000000;
-  border: 2px solid #FFFF00;
-  padding: 12px;
-  margin-bottom: 16px;
+  background-color: var(--teletext-black);
+  border: 2px solid var(--teletext-yellow);
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.section-header {
+  background-color: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 0.25rem 0.5rem;
+  font-size: 8px;
+  font-weight: bold;
+  border-bottom: 2px solid var(--teletext-black);
 }
 
 .over-title {
-  color: #FFFF00;
-  font-size: 16px;
-  margin-bottom: 8px;
-  text-transform: uppercase;
+  background-color: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 0.25rem 0.5rem;
+  font-size: 8px;
+  font-weight: bold;
+  border-bottom: 2px solid var(--teletext-black);
+}
+
+.current-over-balls {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .over-balls {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  gap: 0.5rem;
+  padding: 0.5rem;
 }
 
 .ball {
-  background-color: #0000AA;
-  color: #FFFFFF;
-  padding: 8px;
+  padding: 0.5rem;
+  border: 2px solid var(--teletext-white);
+  font-size: 8px;
+  min-width: 4rem;
   text-align: center;
-  font-size: 14px;
-  border: 1px solid #00FFFF;
+  background-color: var(--teletext-blue);
+  color: var(--teletext-white);
 }
 
-.ball.wicket {
-  background-color: #AA0000;
-  color: #FFFF00;
+.ball-dot {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--teletext-white);
+}
+
+.ball-single {
+  background-color: var(--teletext-cyan);
+  color: var(--teletext-black);
+  font-weight: bold;
+}
+
+.ball-runs {
+  background-color: var(--teletext-cyan);
+  color: var(--teletext-black);
+  font-weight: bold;
+}
+
+.ball-boundary {
+  background-color: var(--teletext-green);
+  color: var(--teletext-black);
+  font-weight: bold;
+}
+
+.ball.wicket, .ball-wicket {
+  background-color: var(--teletext-red);
+  color: var(--teletext-white);
+  font-weight: bold;
   animation: flash 0.5s ease-in-out 3;
 }
 
-.ball.pending {
-  background-color: #000000;
-  color: #666666;
-  border: 1px dashed #333333;
+.ball.pending, .ball-upcoming {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #888888;
+  border: 2px dashed #444444;
 }
 
 @keyframes flash {
@@ -194,69 +295,71 @@ body {
 
 /* Fall of Wickets */
 .fall-of-wickets {
-  background-color: #000000;
-  border: 2px solid #FF0000;
-  padding: 12px;
-  margin-bottom: 16px;
+  background-color: var(--teletext-black);
+  border: 2px solid var(--teletext-red);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .fow-title {
-  color: #FF0000;
-  font-size: 16px;
-  margin-bottom: 8px;
+  color: var(--teletext-red);
+  font-size: 10px;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
 .fow-item {
-  color: #00FFFF;
-  padding: 2px 0;
-  font-size: 14px;
+  color: var(--teletext-cyan);
+  padding: 0.125rem 0;
+  font-size: 8px;
 }
 
 /* Recent Overs */
 .recent-overs {
-  background-color: #000000;
-  border: 2px solid #00FFFF;
-  padding: 12px;
-  margin-bottom: 16px;
+  background-color: var(--teletext-black);
+  border: 2px solid var(--teletext-cyan);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .recent-overs-title {
-  color: #00FFFF;
-  font-size: 16px;
-  margin-bottom: 8px;
+  color: var(--teletext-cyan);
+  font-size: 10px;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
 .over-summary {
-  color: #FFFFFF;
-  padding: 2px 0;
-  font-size: 14px;
+  color: var(--teletext-white);
+  padding: 0.125rem 0;
+  font-size: 8px;
 }
 
 /* No Match Message */
 .no-match {
   text-align: center;
-  padding: 40px;
-  color: #FFFF00;
-  font-size: 18px;
+  padding: 2rem;
+  color: var(--teletext-yellow);
+  font-size: 12px;
 }
 
 /* Footer */
 .ceefax-footer {
-  background-color: #0000FF;
-  color: #FFFFFF;
-  padding: 8px 16px;
+  background-color: var(--teletext-blue);
+  color: var(--teletext-white);
+  padding: 0.5rem 1rem;
   text-align: center;
-  font-size: 14px;
-  margin-top: 20px;
-  border-top: 2px solid #00FFFF;
+  font-size: 8px;
+  margin-top: 1rem;
+  border-top: 2px solid var(--teletext-cyan);
 }
 
 /* Auto-refresh indicator */
 .refresh-indicator {
-  color: #00FF00;
-  font-size: 12px;
+  color: var(--teletext-green);
+  font-size: 7px;
   text-align: right;
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
 }
 
 .refresh-indicator.refreshing {
@@ -271,29 +374,26 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
   .ceefax-header {
-    font-size: 16px;
-    padding: 6px 12px;
+    font-size: 8px;
+    padding: 0.375rem 0.75rem;
   }
   
-  .ceefax-logo {
-    font-size: 18px;
-  }
-  
-  .page-number {
-    font-size: 16px;
+  .page-number-box {
+    font-size: 8px;
+    margin-right: 0.5rem;
   }
   
   .content {
-    padding: 12px;
+    padding: 0.75rem;
   }
   
   .match-title {
-    font-size: 16px;
-    padding: 6px 12px;
+    font-size: 10px;
+    padding: 0.375rem 0.75rem;
   }
   
   .team-score {
-    font-size: 18px;
+    font-size: 14px;
   }
   
   .batsman-name {
@@ -303,15 +403,31 @@ body {
   .over-balls {
     grid-template-columns: repeat(3, 1fr);
   }
+  
+  .current-over-balls {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 480px) {
+  body {
+    font-size: 8px;
+  }
+  
   .batsman {
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
   }
   
   .batsman-name {
     width: 100%;
+  }
+  
+  .over-balls {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .current-over-balls {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

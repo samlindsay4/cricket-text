@@ -2,6 +2,20 @@
 
 let refreshInterval = null;
 
+// Update header date and time
+function updateHeaderDateTime() {
+  const now = new Date();
+  const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+  const dateStr = now.toLocaleDateString('en-GB', dateOptions);
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  
+  const dateElement = document.getElementById('ceefax-date');
+  const timeElement = document.getElementById('ceefax-time');
+  
+  if (dateElement) dateElement.textContent = dateStr;
+  if (timeElement) timeElement.textContent = timeStr;
+}
+
 // Format over string (e.g., "65.3")
 function formatOvers(overs, balls) {
   return balls > 0 ? `${overs}.${balls}` : `${overs}`;
@@ -89,21 +103,37 @@ function displayMatch(match) {
         <div class="over-balls">
     `;
     
-    // Display balls in current over
+    // Display balls in current over with color coding
     for (let i = 1; i <= 6; i++) {
       const ball = currentInnings.currentOver && currentInnings.currentOver[i - 1];
       if (ball) {
-        const runsText = ball.runs + (ball.extras > 0 ? `+${ball.extras}` : '');
-        const ballClass = ball.wicket ? 'ball wicket' : 'ball';
+        let ballClass = 'ball ';
+        
+        // Determine ball class based on outcome
+        if (ball.wicket) {
+          ballClass += 'ball-wicket';
+        } else if (ball.runs === 4 || ball.runs === 6) {
+          ballClass += 'ball-boundary';
+        } else if (ball.runs === 1) {
+          ballClass += 'ball-single';
+        } else if (ball.runs > 1) {
+          ballClass += 'ball-runs';
+        } else {
+          ballClass += 'ball-dot';
+        }
+        
+        const displayRuns = ball.wicket ? 'W' : (ball.runs === 0 ? '.' : ball.runs);
+        const extraText = ball.extras > 0 ? `+${ball.extras}` : '';
+        
         html += `
           <div class="${ballClass}">
             ${currentInnings.overs}.${i}<br>
-            ${ball.wicket ? 'W' : runsText}
+            ${displayRuns}${extraText}
           </div>
         `;
       } else {
         html += `
-          <div class="ball pending">
+          <div class="ball ball-upcoming">
             ${currentInnings.overs}.${i}<br>
             .
           </div>
@@ -194,6 +224,10 @@ function startAutoRefresh() {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', () => {
+  updateHeaderDateTime();
   loadMatch();
   startAutoRefresh();
+  
+  // Update time every second
+  setInterval(updateHeaderDateTime, 1000);
 });
