@@ -200,6 +200,13 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
   }
   
+  // Prevent prototype pollution - check for dangerous property names
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  const hasDangerousName = battingOrder.some(name => dangerousNames.includes(name));
+  if (hasDangerousName) {
+    return res.status(400).json({ error: 'Invalid player names detected' });
+  }
+  
   // Validate that all batsmen are from the batting team's squad
   const battingSquad = match.squads[battingTeam] || [];
   const invalidPlayers = battingOrder.filter(player => !battingSquad.includes(player));
@@ -211,6 +218,11 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
   const bowlingSquad = match.squads[bowlingTeam] || [];
   if (openingBowler && !bowlingSquad.includes(openingBowler)) {
     return res.status(400).json({ error: 'Opening bowler must be from the bowling team' });
+  }
+  
+  // Additional check to prevent prototype pollution in bowler name
+  if (openingBowler && dangerousNames.includes(openingBowler)) {
+    return res.status(400).json({ error: 'Invalid bowler name detected' });
   }
   
   const innings = {
@@ -226,8 +238,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     nextBatsmanIndex: 2, // Next batsman to come in (starts at 2, as 0 and 1 are opening batsmen)
     striker: null, // Will be set when first ball is bowled
     nonStriker: null, // Will be set when first ball is bowled
-    allBatsmen: {}, // Map of player name -> { runs, balls, fours, sixes, status, howOut }
-    allBowlers: {}, // Map of bowler name -> { balls, overs, maidens, runs, wickets }
+    allBatsmen: Object.create(null), // Map of player name -> { runs, balls, fours, sixes, status, howOut }
+    allBowlers: Object.create(null), // Map of bowler name -> { balls, overs, maidens, runs, wickets }
     currentBowler: openingBowler ? { name: openingBowler } : null,
     currentOver: [],
     fallOfWickets: [],
@@ -261,6 +273,15 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   const { 
     runs, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
   } = req.body;
+  
+  // Prevent prototype pollution in input names
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (bowler && dangerousNames.includes(bowler)) {
+    return res.status(400).json({ error: 'Invalid bowler name' });
+  }
+  if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
   
   // Initialize striker and non-striker on first ball
   if (!currentInnings.striker && !currentInnings.nonStriker) {
@@ -341,12 +362,15 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     const dismissedName = dismissedBatsman || striker;
     
     // Update batsman status if exists
+    // Note: allBatsmen is created with Object.create(null) to prevent prototype pollution
+    // and all names are validated against squad lists
     if (currentInnings.allBatsmen[dismissedName]) {
       currentInnings.allBatsmen[dismissedName].status = 'out';
       currentInnings.allBatsmen[dismissedName].howOut = wicketType;
     }
     
     // Update bowler wicket count
+    // Note: allBowlers is created with Object.create(null) to prevent prototype pollution
     currentInnings.allBowlers[currentBowlerName].wickets++;
     
     currentInnings.fallOfWickets.push({
