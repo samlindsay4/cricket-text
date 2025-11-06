@@ -198,6 +198,8 @@
                     <h3>Admin Actions</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
                         <button class="btn btn-secondary" onclick="undoLastBall()" id="undo-btn">↶ Undo Last Ball</button>
+                        <button class="btn btn-secondary" onclick="swapStrike()">⇄ Swap Strike</button>
+                        <button class="btn btn-secondary" onclick="showRetireBatsmanModal()">🏥 Retire Batsman</button>
                         <button class="btn btn-secondary" onclick="showChangeBowlerModal()">🔄 Change Bowler</button>
                         <button class="btn btn-secondary" onclick="declareInnings()">🏁 Declare Innings</button>
                         <button class="btn btn-secondary" onclick="endInnings()">⏹ End Innings</button>
@@ -292,6 +294,48 @@
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button class="btn btn-primary" onclick="saveEditBall()">Save</button>
                 <button class="btn btn-secondary" onclick="hideEditBallModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Choose Incoming Batsman Modal -->
+    <div id="choose-batsman-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Choose Incoming Batsman</h3>
+            <p style="margin-bottom: 15px; color: #666;">A wicket has fallen. Select the next batsman:</p>
+            <div class="form-group">
+                <label for="incoming-batsman">Next Batsman</label>
+                <select id="incoming-batsman" required>
+                    <option value="">-- Select batsman --</option>
+                </select>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmIncomingBatsman()">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Retire Batsman Modal -->
+    <div id="retire-batsman-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Retire Batsman</h3>
+            <div class="form-group">
+                <label for="retire-batsman-select">Select Batsman to Retire</label>
+                <select id="retire-batsman-select" required>
+                    <option value="">-- Select batsman --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="retire-type">Retirement Type</label>
+                <select id="retire-type" required>
+                    <option value="retired hurt">Retired Hurt</option>
+                    <option value="retired out">Retired Out</option>
+                    <option value="retired not out">Retired Not Out</option>
+                </select>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmRetireBatsman()">Retire Batsman</button>
+                <button class="btn btn-secondary" onclick="hideRetireBatsmanModal()">Cancel</button>
             </div>
         </div>
     </div>

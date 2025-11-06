@@ -922,6 +922,148 @@ app.post('/api/match/delete', requireAuth, (req, res) => {
   }
 });
 
+// Select incoming batsman (admin only)
+app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { batsmanName } = req.body;
+  
+  // Validate batsman is in batting order
+  if (!currentInnings.battingOrder.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Batsman not in batting order' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Check if batsman hasn't batted yet
+  if (currentInnings.allBatsmen[batsmanName] && currentInnings.allBatsmen[batsmanName].status !== 'not batted') {
+    return res.status(400).json({ error: 'Batsman has already batted' });
+  }
+  
+  // Initialize batsman stats
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    currentInnings.allBatsmen[batsmanName] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+  } else {
+    currentInnings.allBatsmen[batsmanName].status = 'batting';
+  }
+  
+  // Replace the appropriate batsman (keep the one who's still batting)
+  // If striker is out, replace striker; if non-striker is out, replace non-striker
+  const strikerStatus = currentInnings.allBatsmen[currentInnings.striker]?.status;
+  const nonStrikerStatus = currentInnings.allBatsmen[currentInnings.nonStriker]?.status;
+  
+  if (strikerStatus === 'out' || strikerStatus === 'retired hurt' || strikerStatus === 'retired out' || strikerStatus === 'retired not out') {
+    currentInnings.striker = batsmanName;
+  } else if (nonStrikerStatus === 'out' || nonStrikerStatus === 'retired hurt' || nonStrikerStatus === 'retired out' || nonStrikerStatus === 'retired not out') {
+    currentInnings.nonStriker = batsmanName;
+  } else {
+    // Fallback: replace striker
+    currentInnings.striker = batsmanName;
+  }
+  
+  // Update next batsman index if this was the next batsman in order
+  const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
+  if (batsmanIndex === currentInnings.nextBatsmanIndex) {
+    currentInnings.nextBatsmanIndex++;
+  }
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to select batsman' });
+  }
+});
+
+// Swap strike (admin only)
+app.post('/api/match/swap-strike', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  // Swap striker and non-striker
+  [currentInnings.striker, currentInnings.nonStriker] = 
+    [currentInnings.nonStriker, currentInnings.striker];
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to swap strike' });
+  }
+});
+
+// Retire batsman (admin only)
+app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { batsmanName, retireType } = req.body;
+  
+  // Validate batsman exists
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    return res.status(400).json({ error: 'Batsman not found' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Validate retire type
+  const validRetireTypes = ['retired hurt', 'retired out', 'retired not out'];
+  if (!validRetireTypes.includes(retireType)) {
+    return res.status(400).json({ error: 'Invalid retirement type' });
+  }
+  
+  // Update batsman status
+  currentInnings.allBatsmen[batsmanName].status = retireType;
+  currentInnings.allBatsmen[batsmanName].howOut = retireType;
+  
+  // If retired out, count as a wicket
+  if (retireType === 'retired out') {
+    currentInnings.wickets++;
+    currentInnings.fallOfWickets.push({
+      runs: currentInnings.runs,
+      wickets: currentInnings.wickets,
+      batsman: batsmanName
+    });
+  }
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to retire batsman' });
+  }
+});
+
 // Serve admin page
 app.get('/admin', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));

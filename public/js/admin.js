@@ -521,7 +521,18 @@ async function recordBall() {
       });
       
       // Reload match data
-      loadMatchStatus();
+      await loadMatchStatus();
+      
+      // If wicket was taken and not all out, show choose batsman modal
+      if (wicket && currentMatch && currentMatch.innings && currentMatch.innings.length > 0) {
+        const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+        if (currentInnings.wickets < 10) {
+          // Small delay to allow data to refresh
+          setTimeout(() => {
+            showChooseBatsmanModal();
+          }, 300);
+        }
+      }
     } else {
       const error = await response.json();
       showMessage('Failed to record ball: ' + (error.error || 'Unknown error'), 'error');
@@ -893,4 +904,179 @@ function updateUndoButton() {
   }
   
   undoBtn.disabled = true;
+}
+
+// Show choose batsman modal after wicket
+function showChooseBatsmanModal() {
+  const modal = document.getElementById('choose-batsman-modal');
+  const select = document.getElementById('incoming-batsman');
+  
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  
+  // Get remaining batsmen (not yet batted)
+  const remainingBatsmen = currentInnings.battingOrder.filter(name => {
+    return !currentInnings.allBatsmen[name] || currentInnings.allBatsmen[name].status === 'not batted';
+  });
+  
+  // Populate dropdown
+  select.innerHTML = '<option value="">-- Select batsman --</option>';
+  
+  // Add next batsman as default (if available)
+  const nextInOrder = currentInnings.nextBatsmanIndex < currentInnings.battingOrder.length 
+    ? currentInnings.battingOrder[currentInnings.nextBatsmanIndex] 
+    : null;
+  
+  remainingBatsmen.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    if (name === nextInOrder) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  
+  modal.classList.remove('hidden');
+}
+
+// Confirm incoming batsman selection
+async function confirmIncomingBatsman() {
+  const batsmanName = document.getElementById('incoming-batsman').value;
+  
+  if (!batsmanName) {
+    showMessage('Please select a batsman', 'error');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/select-incoming-batsman', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ batsmanName })
+    });
+    
+    if (response.ok) {
+      const modal = document.getElementById('choose-batsman-modal');
+      modal.classList.add('hidden');
+      showMessage('Batsman selected!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to select batsman: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Swap strike manually
+async function swapStrike() {
+  if (!confirm('Swap striker and non-striker?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/swap-strike', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      }
+    });
+    
+    if (response.ok) {
+      showMessage('Strike swapped!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to swap strike: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Show retire batsman modal
+function showRetireBatsmanModal() {
+  const modal = document.getElementById('retire-batsman-modal');
+  const select = document.getElementById('retire-batsman-select');
+  
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    showMessage('No active innings', 'error');
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  
+  // Get current batsmen
+  select.innerHTML = '<option value="">-- Select batsman --</option>';
+  
+  if (currentInnings.striker) {
+    const option = document.createElement('option');
+    option.value = currentInnings.striker;
+    option.textContent = currentInnings.striker + ' (striker)';
+    select.appendChild(option);
+  }
+  
+  if (currentInnings.nonStriker) {
+    const option = document.createElement('option');
+    option.value = currentInnings.nonStriker;
+    option.textContent = currentInnings.nonStriker + ' (non-striker)';
+    select.appendChild(option);
+  }
+  
+  modal.classList.remove('hidden');
+}
+
+function hideRetireBatsmanModal() {
+  const modal = document.getElementById('retire-batsman-modal');
+  modal.classList.add('hidden');
+}
+
+// Confirm retire batsman
+async function confirmRetireBatsman() {
+  const batsmanName = document.getElementById('retire-batsman-select').value;
+  const retireType = document.getElementById('retire-type').value;
+  
+  if (!batsmanName || !retireType) {
+    showMessage('Please select batsman and retirement type', 'error');
+    return;
+  }
+  
+  if (!confirm(`Retire ${batsmanName} (${retireType})?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/retire-batsman', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ batsmanName, retireType })
+    });
+    
+    if (response.ok) {
+      hideRetireBatsmanModal();
+      showMessage('Batsman retired!', 'success');
+      
+      // Show choose batsman modal to select replacement
+      setTimeout(() => {
+        showChooseBatsmanModal();
+      }, 500);
+    } else {
+      const error = await response.json();
+      showMessage('Failed to retire batsman: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
 }
