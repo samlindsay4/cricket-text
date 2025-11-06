@@ -3,6 +3,21 @@
 let sessionId = null;
 let currentMatch = null;
 
+// Initialize squad inputs on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const passwordField = document.getElementById('password');
+  if (passwordField) {
+    passwordField.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
+  }
+  
+  // Initialize squad input fields
+  initializeSquadInputs();
+});
+
 // Login
 async function login() {
   const password = document.getElementById('password').value;
@@ -96,22 +111,16 @@ function displayMatchStatus() {
   }
 }
 
-// Update scoring interface with squad dropdowns
+// Update scoring interface with text input for bowler
 function updateScoringInterface() {
   if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
     return;
   }
   
   const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
-  const bowlingSquad = currentMatch.squads[currentInnings.bowlingTeam] || [];
   
-  // Populate bowler dropdown
+  // Set current bowler in text input
   const bowler = document.getElementById('bowler');
-  bowler.innerHTML = bowlingSquad.map(name => 
-    `<option value="${name}">${name}</option>`
-  ).join('');
-  
-  // Set current bowler if exists
   if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
     bowler.value = currentInnings.currentBowler.name;
   }
@@ -127,6 +136,12 @@ function updateScoringInterface() {
   
   // Update scorecard preview
   updateScorecardPreview();
+  
+  // Update ball history
+  updateBallHistory();
+  
+  // Update undo button state
+  updateUndoButton();
 }
 
 // Initialize batting order dropdowns
@@ -134,9 +149,7 @@ function initializeBattingOrderDropdowns() {
   if (!currentMatch) return;
   
   const battingTeam = document.getElementById('batting-team').value;
-  const bowlingTeam = document.getElementById('bowling-team').value;
   const squad = currentMatch.squads[battingTeam] || [];
-  const bowlingSquad = currentMatch.squads[bowlingTeam] || [];
   
   const container = document.getElementById('batting-order-container');
   container.innerHTML = '';
@@ -152,12 +165,6 @@ function initializeBattingOrderDropdowns() {
     `;
     container.appendChild(div);
   }
-  
-  // Update opening bowler dropdown
-  const openingBowler = document.getElementById('opening-bowler');
-  openingBowler.innerHTML = bowlingSquad.map(name => 
-    `<option value="${name}">${name}</option>`
-  ).join('');
 }
 
 // Update batting order dropdowns when team changes
@@ -165,17 +172,9 @@ function updateBattingOrderDropdowns() {
   initializeBattingOrderDropdowns();
 }
 
-// Update bowling team dropdowns
+// Update bowling team dropdowns (no longer needed for bowler, just for compatibility)
 function updateBowlingTeamDropdowns() {
-  if (!currentMatch) return;
-  
-  const bowlingTeam = document.getElementById('bowling-team').value;
-  const bowlingSquad = currentMatch.squads[bowlingTeam] || [];
-  
-  const openingBowler = document.getElementById('opening-bowler');
-  openingBowler.innerHTML = bowlingSquad.map(name => 
-    `<option value="${name}">${name}</option>`
-  ).join('');
+  // No longer needed as bowler is text input
 }
 
 // Update scorecard preview
@@ -231,6 +230,28 @@ async function createMatch() {
     return;
   }
   
+  // Collect England squad
+  const englandSquad = [];
+  for (let i = 1; i <= 11; i++) {
+    const input = document.getElementById(`england-${i}`);
+    if (!input || !input.value.trim()) {
+      showMessage(`Please fill in England player ${i}`, 'error');
+      return;
+    }
+    englandSquad.push(input.value.trim());
+  }
+  
+  // Collect Australia squad
+  const australiaSquad = [];
+  for (let i = 1; i <= 11; i++) {
+    const input = document.getElementById(`australia-${i}`);
+    if (!input || !input.value.trim()) {
+      showMessage(`Please fill in Australia player ${i}`, 'error');
+      return;
+    }
+    australiaSquad.push(input.value.trim());
+  }
+  
   try {
     const response = await fetch('/api/match/create', {
       method: 'POST',
@@ -238,14 +259,15 @@ async function createMatch() {
         'Content-Type': 'application/json',
         'X-Session-Id': sessionId
       },
-      body: JSON.stringify({ testNumber, venue, date })
+      body: JSON.stringify({ testNumber, venue, date, englandSquad, australiaSquad })
     });
     
     if (response.ok) {
       showMessage('Match created successfully!', 'success');
       loadMatchStatus();
     } else {
-      showMessage('Failed to create match', 'error');
+      const error = await response.json();
+      showMessage('Failed to create match: ' + (error.error || 'Unknown error'), 'error');
     }
   } catch (error) {
     showMessage('Error: ' + error.message, 'error');
@@ -256,10 +278,15 @@ async function createMatch() {
 async function startInnings() {
   const battingTeam = document.getElementById('batting-team').value;
   const bowlingTeam = document.getElementById('bowling-team').value;
-  const openingBowler = document.getElementById('opening-bowler').value;
+  const openingBowler = document.getElementById('opening-bowler').value.trim();
   
   if (battingTeam === bowlingTeam) {
     showMessage('Batting and bowling teams must be different', 'error');
+    return;
+  }
+  
+  if (!openingBowler) {
+    showMessage('Please enter opening bowler name', 'error');
     return;
   }
   
@@ -357,7 +384,7 @@ function toggleWicketDetails() {
 
 // Record ball
 async function recordBall() {
-  const bowler = document.getElementById('bowler').value;
+  const bowler = document.getElementById('bowler').value.trim();
   const runs = parseInt(document.getElementById('runs').value) || 0;
   const extraType = document.getElementById('extra-type').value;
   const extras = parseInt(document.getElementById('extras').value) || 0;
@@ -366,7 +393,7 @@ async function recordBall() {
   const dismissedBatsman = wicket ? document.getElementById('dismissed-batsman').value : null;
   
   if (!bowler) {
-    showMessage('Please select bowler', 'error');
+    showMessage('Please enter bowler name', 'error');
     return;
   }
   
@@ -434,14 +461,333 @@ function formatDate(dateString) {
   return date.toLocaleDateString('en-GB', options);
 }
 
-// Handle Enter key on password field
-document.addEventListener('DOMContentLoaded', () => {
-  const passwordField = document.getElementById('password');
-  if (passwordField) {
-    passwordField.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        login();
+// Initialize squad inputs
+function initializeSquadInputs() {
+  const englandContainer = document.getElementById('england-squad-container');
+  const australiaContainer = document.getElementById('australia-squad-container');
+  
+  if (englandContainer) {
+    englandContainer.innerHTML = '';
+    for (let i = 1; i <= 11; i++) {
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      div.innerHTML = `
+        <label for="england-${i}">${i}. Player</label>
+        <input type="text" id="england-${i}" placeholder="Player name" required>
+      `;
+      englandContainer.appendChild(div);
+    }
+  }
+  
+  if (australiaContainer) {
+    australiaContainer.innerHTML = '';
+    for (let i = 1; i <= 11; i++) {
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      div.innerHTML = `
+        <label for="australia-${i}">${i}. Player</label>
+        <input type="text" id="australia-${i}" placeholder="Player name" required>
+      `;
+      australiaContainer.appendChild(div);
+    }
+  }
+}
+
+// Undo last ball
+async function undoLastBall() {
+  if (!confirm('Undo the last ball? This will recalculate all stats.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/undo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
       }
     });
+    
+    if (response.ok) {
+      showMessage('Ball undone successfully!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to undo: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
   }
-});
+}
+
+// Show change bowler modal
+function showChangeBowlerModal() {
+  const modal = document.getElementById('change-bowler-modal');
+  modal.classList.remove('hidden');
+  
+  // Pre-fill with current bowler
+  if (currentMatch && currentMatch.innings && currentMatch.innings.length > 0) {
+    const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+    if (currentInnings.currentBowler) {
+      document.getElementById('new-bowler-name').value = currentInnings.currentBowler.name;
+    }
+  }
+}
+
+function hideChangeBowlerModal() {
+  const modal = document.getElementById('change-bowler-modal');
+  modal.classList.add('hidden');
+}
+
+// Change bowler
+async function changeBowler() {
+  const bowlerName = document.getElementById('new-bowler-name').value.trim();
+  
+  if (!bowlerName) {
+    showMessage('Please enter bowler name', 'error');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/change-bowler', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ bowlerName })
+    });
+    
+    if (response.ok) {
+      showMessage('Bowler changed!', 'success');
+      hideChangeBowlerModal();
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to change bowler: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Declare innings
+async function declareInnings() {
+  if (!confirm('Declare this innings? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/declare', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      }
+    });
+    
+    if (response.ok) {
+      showMessage('Innings declared!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to declare: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// End innings
+async function endInnings() {
+  if (!confirm('End this innings? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/end-innings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      }
+    });
+    
+    if (response.ok) {
+      showMessage('Innings ended!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to end innings: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Confirm delete match
+async function confirmDeleteMatch() {
+  if (!confirm('⚠️ DELETE MATCH?\n\nThis will delete ALL match data and cannot be undone.\n\nAre you absolutely sure?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      }
+    });
+    
+    if (response.ok) {
+      showMessage('Match deleted!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to delete match: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Show edit ball modal
+function showEditBallModal(ballIndex) {
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  const ball = currentInnings.allBalls[ballIndex];
+  
+  if (!ball) return;
+  
+  const modal = document.getElementById('edit-ball-modal');
+  document.getElementById('edit-ball-index').value = ballIndex;
+  document.getElementById('edit-ball-title').textContent = `Over ${ball.over}.${ball.ball}`;
+  document.getElementById('edit-runs').value = ball.runs || 0;
+  document.getElementById('edit-extras').value = ball.extras || 0;
+  document.getElementById('edit-extra-type').value = ball.extraType || '';
+  document.getElementById('edit-wicket').checked = ball.wicket || false;
+  document.getElementById('edit-wicket-type').value = ball.wicketType || 'bowled';
+  document.getElementById('edit-dismissed-batsman').value = ball.dismissedBatsman || '';
+  
+  toggleEditWicketDetails();
+  modal.classList.remove('hidden');
+}
+
+function hideEditBallModal() {
+  const modal = document.getElementById('edit-ball-modal');
+  modal.classList.add('hidden');
+}
+
+function toggleEditWicketDetails() {
+  const wicketChecked = document.getElementById('edit-wicket').checked;
+  const wicketDetails = document.getElementById('edit-wicket-details');
+  
+  if (wicketChecked) {
+    wicketDetails.classList.remove('hidden');
+  } else {
+    wicketDetails.classList.add('hidden');
+  }
+}
+
+// Save edited ball
+async function saveEditBall() {
+  const ballIndex = parseInt(document.getElementById('edit-ball-index').value);
+  const runs = parseInt(document.getElementById('edit-runs').value) || 0;
+  const extras = parseInt(document.getElementById('edit-extras').value) || 0;
+  const extraType = document.getElementById('edit-extra-type').value;
+  const wicket = document.getElementById('edit-wicket').checked;
+  const wicketType = wicket ? document.getElementById('edit-wicket-type').value : null;
+  const dismissedBatsman = wicket ? document.getElementById('edit-dismissed-batsman').value : null;
+  
+  try {
+    const response = await fetch('/api/match/edit-ball', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({
+        ballIndex,
+        runs,
+        extras,
+        extraType,
+        wicket,
+        wicketType,
+        dismissedBatsman
+      })
+    });
+    
+    if (response.ok) {
+      showMessage('Ball edited successfully!', 'success');
+      hideEditBallModal();
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to edit ball: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Update ball history display
+function updateBallHistory() {
+  const historyDiv = document.getElementById('ball-history');
+  
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    historyDiv.innerHTML = '<div class="loading">No balls recorded</div>';
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  const balls = currentInnings.allBalls || [];
+  
+  if (balls.length === 0) {
+    historyDiv.innerHTML = '<div class="loading">No balls recorded</div>';
+    return;
+  }
+  
+  // Show last 30 balls
+  const recentBalls = balls.slice(-30).reverse();
+  
+  let html = '';
+  recentBalls.forEach((ball, idx) => {
+    const actualIndex = balls.length - 1 - idx;
+    const runsText = ball.runs + (ball.extras ? `+${ball.extras}` : '');
+    const extraText = ball.extraType ? ` (${ball.extraType})` : '';
+    const wicketText = ball.wicket ? ' 🔴 WICKET' : '';
+    
+    html += `
+      <div class="ball-item">
+        <div class="ball-info">
+          ${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}
+        </div>
+        <div class="ball-actions">
+          <button class="btn btn-secondary" onclick="showEditBallModal(${actualIndex})">Edit</button>
+        </div>
+      </div>
+    `;
+  });
+  
+  historyDiv.innerHTML = html;
+}
+
+// Update undo button state
+function updateUndoButton() {
+  const undoBtn = document.getElementById('undo-btn');
+  if (!undoBtn) return;
+  
+  if (currentMatch && currentMatch.innings && currentMatch.innings.length > 0) {
+    const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+    if (currentInnings.allBalls && currentInnings.allBalls.length > 0) {
+      undoBtn.disabled = false;
+      return;
+    }
+  }
+  
+  undoBtn.disabled = true;
+}

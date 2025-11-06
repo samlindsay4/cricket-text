@@ -55,7 +55,18 @@
                 <label for="match-date">Date</label>
                 <input type="date" id="match-date">
             </div>
-            <button class="btn btn-primary" onclick="createMatch()">Create Match</button>
+            
+            <h3 style="margin-top: 20px;">England Squad (11 Players)</h3>
+            <div id="england-squad-container">
+                <!-- England squad inputs will be populated here -->
+            </div>
+            
+            <h3 style="margin-top: 20px;">Australia Squad (11 Players)</h3>
+            <div id="australia-squad-container">
+                <!-- Australia squad inputs will be populated here -->
+            </div>
+            
+            <button class="btn btn-primary" onclick="createMatch()" style="margin-top: 20px;">Create Match</button>
         </div>
 
         <!-- Start Innings -->
@@ -82,8 +93,8 @@
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
-                <label for="opening-bowler">Opening Bowler</label>
-                <select id="opening-bowler"></select>
+                <label for="opening-bowler">Opening Bowler (type name)</label>
+                <input type="text" id="opening-bowler" placeholder="Enter bowler name">
             </div>
             
             <button class="btn btn-primary" onclick="startInnings()">Start Innings</button>
@@ -103,8 +114,8 @@
                 <h3>Record Ball</h3>
                 
                 <div class="form-group">
-                    <label for="bowler">Bowler</label>
-                    <select id="bowler"></select>
+                    <label for="bowler">Bowler (type to change)</label>
+                    <input type="text" id="bowler" placeholder="Enter bowler name">
                 </div>
 
                 <!-- Quick Run Buttons -->
@@ -168,11 +179,108 @@
                 <button class="btn btn-primary" onclick="recordBall()" style="font-size: 18px; padding: 15px 30px; margin-top: 20px;">
                     📝 RECORD BALL
                 </button>
+                
+                <!-- Admin Actions -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #333;">
+                    <h3>Admin Actions</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                        <button class="btn btn-secondary" onclick="undoLastBall()" id="undo-btn">↶ Undo Last Ball</button>
+                        <button class="btn btn-secondary" onclick="showChangeBowlerModal()">🔄 Change Bowler</button>
+                        <button class="btn btn-secondary" onclick="declareInnings()">🏁 Declare Innings</button>
+                        <button class="btn btn-secondary" onclick="endInnings()">⏹ End Innings</button>
+                        <button class="btn btn-danger" onclick="confirmDeleteMatch()">🗑 Delete Match</button>
+                    </div>
+                </div>
+                
+                <!-- Ball History -->
+                <div style="margin-top: 30px;">
+                    <h3>Recent Balls</h3>
+                    <div id="ball-history" style="max-height: 300px; overflow-y: auto;">
+                        <div class="loading">No balls recorded</div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Messages -->
         <div id="message" class="hidden"></div>
+    </div>
+    
+    <!-- Modals -->
+    <!-- Change Bowler Modal -->
+    <div id="change-bowler-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Change Bowler</h3>
+            <div class="form-group">
+                <label for="new-bowler-name">Bowler Name</label>
+                <input type="text" id="new-bowler-name" placeholder="Enter bowler name">
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="changeBowler()">Change</button>
+                <button class="btn btn-secondary" onclick="hideChangeBowlerModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Ball Modal -->
+    <div id="edit-ball-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Edit Ball <span id="edit-ball-title"></span></h3>
+            <input type="hidden" id="edit-ball-index">
+            
+            <div class="form-group">
+                <label for="edit-runs">Runs</label>
+                <input type="number" id="edit-runs" min="0" max="6" value="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-extras">Extras</label>
+                <input type="number" id="edit-extras" min="0" max="7" value="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-extra-type">Extra Type</label>
+                <select id="edit-extra-type">
+                    <option value="">None</option>
+                    <option value="Wd">Wide</option>
+                    <option value="Nb">No Ball</option>
+                    <option value="Bye">Bye</option>
+                    <option value="LB">Leg Bye</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="edit-wicket" onchange="toggleEditWicketDetails()">
+                    Wicket
+                </label>
+            </div>
+            
+            <div id="edit-wicket-details" class="hidden">
+                <div class="form-group">
+                    <label for="edit-wicket-type">How Out</label>
+                    <select id="edit-wicket-type">
+                        <option value="bowled">Bowled</option>
+                        <option value="caught">Caught</option>
+                        <option value="lbw">LBW</option>
+                        <option value="run out">Run Out</option>
+                        <option value="stumped">Stumped</option>
+                        <option value="hit wicket">Hit Wicket</option>
+                        <option value="caught and bowled">Caught & Bowled</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-dismissed-batsman">Dismissed Batsman</label>
+                    <input type="text" id="edit-dismissed-batsman" placeholder="Batsman name">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="saveEditBall()">Save</button>
+                <button class="btn btn-secondary" onclick="hideEditBallModal()">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <script src="/js/admin.js"></script>

@@ -377,3 +377,73 @@ select:focus {
     content: '...';
   }
 }
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.modal-content {
+  background-color: var(--teletext-blue);
+  border: 3px solid var(--teletext-cyan);
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+}
+
+.modal-content h3 {
+  color: var(--teletext-yellow);
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+
+/* Ball History Styles */
+#ball-history {
+  background-color: var(--teletext-black);
+  border: 2px solid var(--teletext-cyan);
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.ball-item {
+  padding: 8px;
+  margin-bottom: 5px;
+  background-color: rgba(0, 0, 255, 0.2);
+  border-left: 3px solid var(--teletext-cyan);
+  font-size: 8px;
+  color: var(--teletext-white);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ball-item:hover {
+  background-color: rgba(0, 255, 255, 0.2);
+}
+
+.ball-item .ball-info {
+  flex: 1;
+}
+
+.ball-item .ball-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.ball-item button {
+  font-size: 7px;
+  padding: 5px 10px;
+}
+
