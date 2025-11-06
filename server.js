@@ -97,7 +97,18 @@ function processBall(innings, ball, ballIndex) {
     };
   }
   
-  innings.allBowlers[ball.bowler].runs += (ball.runs + ball.extras);
+  // Only add certain extras to bowler's runs
+  // Wides (Wd) and No-balls (Nb) go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler
+  if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+    innings.allBowlers[ball.bowler].runs += (ball.runs + ball.extras);
+  } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    // Byes/leg-byes: only add batsman runs to bowler, not the extras
+    innings.allBowlers[ball.bowler].runs += ball.runs;
+  } else {
+    // No extras, just runs off the bat
+    innings.allBowlers[ball.bowler].runs += ball.runs;
+  }
   if (isLegal) innings.allBowlers[ball.bowler].balls++;
   
   // Handle wickets
@@ -493,7 +504,18 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
     };
   }
-  currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.extras);
+  // Only add certain extras to bowler's runs
+  // Wides (Wd) and No-balls (Nb) go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler
+  if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+    currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.extras);
+  } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    // Byes/leg-byes: only add batsman runs to bowler, not the extras
+    currentInnings.allBowlers[currentBowlerName].runs += ball.runs;
+  } else {
+    // No extras, just runs off the bat
+    currentInnings.allBowlers[currentBowlerName].runs += ball.runs;
+  }
   if (isLegalDelivery) {
     currentInnings.allBowlers[currentBowlerName].balls++;
   }
