@@ -193,7 +193,12 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'No match found' });
   }
   
-  const { battingTeam, bowlingTeam } = req.body;
+  const { battingTeam, bowlingTeam, battingOrder, openingBowler } = req.body;
+  
+  // Validate batting order
+  if (!battingOrder || battingOrder.length !== 11) {
+    return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
+  }
   
   const innings = {
     number: match.innings.length + 1,
@@ -204,8 +209,13 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     overs: 0,
     balls: 0,
     declared: false,
-    currentBatsmen: [],
-    currentBowler: null,
+    battingOrder: battingOrder, // Array of 11 player names in batting order
+    nextBatsmanIndex: 2, // Next batsman to come in (starts at 2, as 0 and 1 are opening batsmen)
+    striker: null, // Will be set when first ball is bowled
+    nonStriker: null, // Will be set when first ball is bowled
+    allBatsmen: {}, // Map of player name -> { runs, balls, fours, sixes, status, howOut }
+    allBowlers: {}, // Map of bowler name -> { balls, overs, maidens, runs, wickets }
+    currentBowler: openingBowler ? { name: openingBowler } : null,
     currentOver: [],
     fallOfWickets: [],
     allBalls: [],
@@ -236,20 +246,46 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   
   const currentInnings = match.innings[match.innings.length - 1];
   const { 
-    batsman1, batsman2, bowler, runs, extras, extraType, 
-    wicket, wicketType, dismissedBatsman 
+    runs, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
   } = req.body;
   
-  // Calculate ball number within the over
-  const ballInOver = currentInnings.balls + 1;
-  const overNumber = currentInnings.overs;
+  // Initialize striker and non-striker on first ball
+  if (!currentInnings.striker && !currentInnings.nonStriker) {
+    currentInnings.striker = currentInnings.battingOrder[0];
+    currentInnings.nonStriker = currentInnings.battingOrder[1];
+    
+    // Initialize their stats
+    currentInnings.allBatsmen[currentInnings.striker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+    currentInnings.allBatsmen[currentInnings.nonStriker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+  }
   
-  // Create ball record
+  // Set or update current bowler
+  if (bowler) {
+    currentInnings.currentBowler = { name: bowler };
+    if (!currentInnings.allBowlers[bowler]) {
+      currentInnings.allBowlers[bowler] = { 
+        balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
+      };
+    }
+  }
+  
+  const striker = currentInnings.striker;
+  const nonStriker = currentInnings.nonStriker;
+  const currentBowlerName = currentInnings.currentBowler.name;
+  
+  // 1. Determine if legal delivery
+  const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
+  
+  // 2. Create ball record with CURRENT over.ball before incrementing
   const ball = {
-    over: overNumber,
-    ball: ballInOver,
-    batsman: batsman1,
-    bowler: bowler,
+    over: currentInnings.overs,
+    ball: currentInnings.balls + 1, // Ball number in current over (1-6)
+    batsman: striker,
+    bowler: currentBowlerName,
     runs: parseInt(runs) || 0,
     extras: parseInt(extras) || 0,
     extraType: extraType || null,
@@ -259,50 +295,84 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     timestamp: new Date().toISOString()
   };
   
-  // Update current batsmen
-  currentInnings.currentBatsmen = [
-    { name: batsman1, runs: 0, balls: 0, fours: 0, sixes: 0 },
-    { name: batsman2, runs: 0, balls: 0, fours: 0, sixes: 0 }
-  ];
+  // 3. Update innings totals
+  currentInnings.runs += (ball.runs + ball.extras);
   
-  // Update current bowler
-  currentInnings.currentBowler = {
-    name: bowler,
-    overs: 0,
-    maidens: 0,
-    runs: 0,
-    wickets: 0
-  };
+  // 4. Update striker stats
+  currentInnings.allBatsmen[striker].runs += ball.runs;
+  if (isLegalDelivery) {
+    currentInnings.allBatsmen[striker].balls++;
+  }
+  if (ball.runs === 4) currentInnings.allBatsmen[striker].fours++;
+  if (ball.runs === 6) currentInnings.allBatsmen[striker].sixes++;
   
-  // Update innings totals
-  const totalRuns = ball.runs + ball.extras;
-  currentInnings.runs += totalRuns;
+  // 5. Update bowler stats
+  currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.extras);
+  if (isLegalDelivery) {
+    currentInnings.allBowlers[currentBowlerName].balls++;
+  }
   
-  // Handle wickets
+  // 6. Handle wickets
   if (ball.wicket) {
     currentInnings.wickets++;
+    const dismissedName = dismissedBatsman || striker;
+    currentInnings.allBatsmen[dismissedName].status = 'out';
+    currentInnings.allBatsmen[dismissedName].howOut = wicketType;
+    
     currentInnings.fallOfWickets.push({
       runs: currentInnings.runs,
       wickets: currentInnings.wickets,
-      batsman: ball.dismissedBatsman || ball.batsman
+      batsman: dismissedName
     });
+    
+    // Bring in next batsman (if available and not all out)
+    if (currentInnings.nextBatsmanIndex < 11 && currentInnings.wickets < 10) {
+      const nextBatsman = currentInnings.battingOrder[currentInnings.nextBatsmanIndex];
+      currentInnings.nextBatsmanIndex++;
+      
+      // Initialize next batsman stats
+      currentInnings.allBatsmen[nextBatsman] = { 
+        runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      };
+      
+      // Replace dismissed batsman (maintain striker/non-striker correctly)
+      if (dismissedName === striker) {
+        currentInnings.striker = nextBatsman;
+      } else {
+        currentInnings.nonStriker = nextBatsman;
+      }
+    }
   }
   
-  // Update ball count (wides and no-balls don't count as legal deliveries)
-  if (extraType !== 'Wd' && extraType !== 'Nb') {
+  // 7. Rotate strike if odd runs
+  if (ball.runs % 2 === 1) {
+    [currentInnings.striker, currentInnings.nonStriker] = 
+      [currentInnings.nonStriker, currentInnings.striker];
+  }
+  
+  // 8. Add ball to current over FIRST
+  currentInnings.currentOver.push(ball);
+  
+  // 9. Increment ball count if legal delivery
+  if (isLegalDelivery) {
     currentInnings.balls++;
     
-    // Check if over is complete
+    // 10. Check if over complete
     if (currentInnings.balls === 6) {
       currentInnings.overs++;
       currentInnings.balls = 0;
       
-      // Store completed over in recent overs
+      // Update bowler's over count
+      const bowlerBalls = currentInnings.allBowlers[currentBowlerName].balls;
+      currentInnings.allBowlers[currentBowlerName].overs = Math.floor(bowlerBalls / 6);
+      
+      // Store completed over
       if (!currentInnings.recentOvers) {
         currentInnings.recentOvers = [];
       }
       currentInnings.recentOvers.push({
-        over: currentInnings.overs - 1,
+        over: currentInnings.overs,
+        bowler: currentBowlerName,
         runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
       });
       
@@ -311,18 +381,16 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
         currentInnings.recentOvers.shift();
       }
       
+      // Swap ends
+      [currentInnings.striker, currentInnings.nonStriker] = 
+        [currentInnings.nonStriker, currentInnings.striker];
+      
       // Clear current over
       currentInnings.currentOver = [];
     }
-    
-    // Add ball to current over
-    currentInnings.currentOver.push(ball);
-  } else {
-    // For wides and no-balls, still track but don't increment ball count
-    currentInnings.currentOver.push(ball);
   }
   
-  // Store in all balls
+  // 11. Store in all balls
   currentInnings.allBalls.push(ball);
   
   if (saveMatch(match)) {
