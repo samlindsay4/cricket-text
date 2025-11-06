@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_RECENT_OVERS = 10; // Maximum number of recent overs to keep
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 // Middleware
 app.use(express.json());
@@ -16,6 +17,11 @@ app.use(express.static('public'));
 // Data storage
 const dataDir = path.join(__dirname, 'data');
 const matchFile = path.join(dataDir, 'match.json');
+
+// Helper function to check if player is unavailable
+function isPlayerUnavailable(status) {
+  return status === 'out' || status === 'retired hurt' || status === 'retired out' || status === 'retired not out';
+}
 
 // Ensure data directory exists
 if (!fs.existsSync(dataDir)) {
@@ -1124,9 +1130,9 @@ app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
   const strikerStatus = currentInnings.allBatsmen[currentInnings.striker]?.status;
   const nonStrikerStatus = currentInnings.allBatsmen[currentInnings.nonStriker]?.status;
   
-  if (strikerStatus === 'out' || strikerStatus === 'retired hurt' || strikerStatus === 'retired out' || strikerStatus === 'retired not out') {
+  if (isPlayerUnavailable(strikerStatus)) {
     currentInnings.striker = batsmanName;
-  } else if (nonStrikerStatus === 'out' || nonStrikerStatus === 'retired hurt' || nonStrikerStatus === 'retired out' || nonStrikerStatus === 'retired not out') {
+  } else if (isPlayerUnavailable(nonStrikerStatus)) {
     currentInnings.nonStriker = batsmanName;
   } else {
     // Fallback: replace striker

@@ -2,6 +2,7 @@
 
 let sessionId = null;
 let currentMatch = null;
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 // Initialize squad inputs on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -118,8 +119,8 @@ function displayMatchStatus() {
             const wicketsLeft = 10 - innings4.wickets;
             
             // Calculate run rates
-            const totalBalls = innings4.overs * 6 + innings4.balls;
-            const currentRR = totalBalls > 0 ? (innings4.runs / totalBalls * 6).toFixed(2) : '0.00';
+            const totalBalls = innings4.overs * BALLS_PER_OVER + innings4.balls;
+            const currentRR = totalBalls > 0 ? (innings4.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
             
             matchSituationHtml += `<div style="margin-top: 10px; padding: 8px; background: #fff3e0; border-left: 4px solid #ff9800;">
               <strong>Target: ${sit.target}</strong><br>
@@ -643,17 +644,15 @@ async function recordBall() {
         btn.style.opacity = '1';
       });
       
-      // Reload match data
+      // Reload match data and handle wicket modal
       await loadMatchStatus();
       
       // If wicket was taken and not all out, show choose batsman modal
+      // loadMatchStatus has already refreshed currentMatch, so we can use it directly
       if (wicket && currentMatch && currentMatch.innings && currentMatch.innings.length > 0) {
         const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
         if (currentInnings.wickets < 10) {
-          // Small delay to allow data to refresh
-          setTimeout(() => {
-            showChooseBatsmanModal();
-          }, 300);
+          showChooseBatsmanModal();
         }
       }
     } else {

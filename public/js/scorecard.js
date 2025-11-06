@@ -1,6 +1,7 @@
 // Scorecard JavaScript for Public View (Page 340)
 
 let refreshInterval = null;
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 /**
  * Updates the Ceefax header with current date and time
@@ -92,8 +93,8 @@ function displayMatch(match) {
         const wicketsLeft = 10 - currentInnings.wickets;
         
         // Calculate run rates
-        const totalBalls = currentInnings.overs * 6 + currentInnings.balls;
-        const currentRR = totalBalls > 0 ? (currentInnings.runs / totalBalls * 6).toFixed(2) : '0.00';
+        const totalBalls = currentInnings.overs * BALLS_PER_OVER + currentInnings.balls;
+        const currentRR = totalBalls > 0 ? (currentInnings.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
         
         html += `<div class="chase-info">
           <div style="font-weight: bold; margin-bottom: 5px;">TARGET: ${sit.target}</div>
