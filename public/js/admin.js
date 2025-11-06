@@ -200,10 +200,12 @@ function updateScorecardPreview() {
     const strikerStats = innings.allBatsmen[innings.striker];
     const nonStrikerStats = innings.allBatsmen[innings.nonStriker];
     
-    html += '<div class="batsmen-list">';
-    html += `<div><strong>★ ${innings.striker}:</strong> ${strikerStats.runs}* (${strikerStats.balls}) [${strikerStats.fours}x4, ${strikerStats.sixes}x6]</div>`;
-    html += `<div>${innings.nonStriker}: ${nonStrikerStats.runs}* (${nonStrikerStats.balls}) [${nonStrikerStats.fours}x4, ${nonStrikerStats.sixes}x6]</div>`;
-    html += '</div>';
+    if (strikerStats && nonStrikerStats) {
+      html += '<div class="batsmen-list">';
+      html += `<div><strong>★ ${innings.striker}:</strong> ${strikerStats.runs}* (${strikerStats.balls}) [${strikerStats.fours}x4, ${strikerStats.sixes}x6]</div>`;
+      html += `<div>${innings.nonStriker}: ${nonStrikerStats.runs}* (${nonStrikerStats.balls}) [${nonStrikerStats.fours}x4, ${nonStrikerStats.sixes}x6]</div>`;
+      html += '</div>';
+    }
   }
   
   // Show current bowler from allBowlers
