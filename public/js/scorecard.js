@@ -107,20 +107,22 @@ function displayMatch(match) {
       `;
     }
     
-    // Current Over Display
-    html += `
-      <div class="current-over-section">
-        <div class="over-title">Current Over (${currentInnings.overs}${currentInnings.balls > 0 ? `.${currentInnings.balls}` : ''})</div>
-        <div class="over-balls">
-    `;
+    // Current Over / Last Completed Over Display
+    // If current over is empty and there's a last completed over, show that instead
+    const showLastOver = (!currentInnings.currentOver || currentInnings.currentOver.length === 0) && 
+                         currentInnings.lastCompletedOver;
     
-    // Display balls in current over with color coding
-    for (let i = 1; i <= 6; i++) {
-      const ball = currentInnings.currentOver && currentInnings.currentOver[i - 1];
-      if (ball) {
+    if (showLastOver) {
+      const lastOver = currentInnings.lastCompletedOver;
+      html += `
+        <div class="current-over-section">
+          <div class="over-title">Last Over (${lastOver.overNum}th - ${lastOver.bowler})</div>
+          <div class="over-balls">
+      `;
+      
+      lastOver.balls.forEach(ball => {
         let ballClass = 'ball ';
         
-        // Determine ball class based on outcome
         if (ball.wicket) {
           ballClass += 'ball-wicket';
         } else if (ball.runs === 4 || ball.runs === 6) {
@@ -129,20 +131,104 @@ function displayMatch(match) {
           ballClass += 'ball-single';
         } else if (ball.runs > 1) {
           ballClass += 'ball-runs';
+        } else if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+          ballClass += 'ball-extra';
         } else {
           ballClass += 'ball-dot';
         }
         
-        const displayRuns = ball.wicket ? 'W' : (ball.runs === 0 ? '.' : ball.runs);
-        const extraText = ball.extras > 0 ? `+${ball.extras}` : '';
+        let displayText = '';
+        if (ball.wicket) {
+          displayText = 'W';
+        } else if (ball.runs === 0 && !ball.extras) {
+          displayText = '.';
+        } else {
+          displayText = ball.runs.toString();
+          if (ball.overthrows && ball.overthrows > 0) {
+            displayText += `+${ball.overthrows}ot`;
+          }
+          if (ball.extras > 0) {
+            displayText += `+${ball.extras}`;
+          }
+        }
+        
+        if (ball.extraType) {
+          displayText += ` ${ball.extraType}`;
+        }
         
         html += `
           <div class="${ballClass}">
-            ${currentInnings.overs}.${i}<br>
-            ${displayRuns}${extraText}
+            ${ball.over}.${ball.ball}<br>
+            ${displayText}
           </div>
         `;
-      } else {
+      });
+      
+      html += `
+          </div>
+          <div style="margin-top: 8px; text-align: center;">${lastOver.runs} runs</div>
+        </div>
+      `;
+    } else {
+      // Show current over
+      html += `
+        <div class="current-over-section">
+          <div class="over-title">Current Over (${currentInnings.overs}${currentInnings.balls > 0 ? `.${currentInnings.balls}` : ''})</div>
+          <div class="over-balls">
+      `;
+      
+      // Display balls in current over with their actual ball numbers
+      // Show all balls bowled in this over (including wides/no-balls which don't increment ball count)
+      if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
+        currentInnings.currentOver.forEach(ball => {
+          let ballClass = 'ball ';
+          
+          // Determine ball class based on outcome
+          if (ball.wicket) {
+            ballClass += 'ball-wicket';
+          } else if (ball.runs === 4 || ball.runs === 6) {
+            ballClass += 'ball-boundary';
+          } else if (ball.runs === 1) {
+            ballClass += 'ball-single';
+          } else if (ball.runs > 1) {
+            ballClass += 'ball-runs';
+          } else if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+            ballClass += 'ball-extra';
+          } else {
+            ballClass += 'ball-dot';
+          }
+          
+          let displayText = '';
+          if (ball.wicket) {
+            displayText = 'W';
+          } else if (ball.runs === 0 && !ball.extras) {
+            displayText = '.';
+          } else {
+            displayText = ball.runs.toString();
+            if (ball.overthrows && ball.overthrows > 0) {
+              displayText += `+${ball.overthrows}ot`;
+            }
+            if (ball.extras > 0) {
+              displayText += `+${ball.extras}`;
+            }
+          }
+          
+          if (ball.extraType) {
+            displayText += ` ${ball.extraType}`;
+          }
+          
+          html += `
+            <div class="${ballClass}">
+              ${ball.over}.${ball.ball}<br>
+              ${displayText}
+            </div>
+          `;
+        });
+      }
+      
+      // Show upcoming balls in the over (only if less than 6 legal deliveries)
+      const legalBallsInOver = currentInnings.balls;
+      for (let i = legalBallsInOver + 1; i <= 6; i++) {
         html += `
           <div class="ball ball-upcoming">
             ${currentInnings.overs}.${i}<br>
@@ -150,12 +236,15 @@ function displayMatch(match) {
           </div>
         `;
       }
+      
+      html += `
+          </div>
+        </div>
+      `;
     }
     
-    html += `
-        </div>
-      </div>
-    `;
+    // Don't need the closing tags here anymore as they're in each branch above
+    html = html.replace(/<\/div>\s*<\/div>\s*$/, ''); // Remove duplicate closing tags if any
     
     // Fall of Wickets
     if (currentInnings.fallOfWickets && currentInnings.fallOfWickets.length > 0) {

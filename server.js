@@ -165,14 +165,23 @@ function processBall(innings, ball, ballIndex) {
       const bowlerBalls = innings.allBowlers[ball.bowler].balls;
       innings.allBowlers[ball.bowler].overs = Math.floor(bowlerBalls / 6);
       
-      // Store completed over
+      // Store last completed over with full ball details
+      const overRuns = innings.currentOver.reduce((sum, b) => sum + b.runs + (b.overthrows || 0) + b.extras, 0);
+      innings.lastCompletedOver = {
+        overNum: innings.overs,
+        bowler: ball.bowler,
+        balls: [...innings.currentOver],
+        runs: overRuns
+      };
+      
+      // Store completed over summary
       if (!innings.recentOvers) {
         innings.recentOvers = [];
       }
       innings.recentOvers.push({
         over: innings.overs,
         bowler: ball.bowler,
-        runs: innings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
+        runs: overRuns
       });
       
       // Keep only last MAX_RECENT_OVERS overs
@@ -596,14 +605,22 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       const bowlerBalls = currentInnings.allBowlers[currentBowlerName].balls;
       currentInnings.allBowlers[currentBowlerName].overs = Math.floor(bowlerBalls / 6);
       
-      // Store completed over
+      // Store last completed over with full ball details
+      currentInnings.lastCompletedOver = {
+        overNum: currentInnings.overs, // The over that just completed
+        bowler: currentBowlerName,
+        balls: [...currentInnings.currentOver], // Deep copy of balls
+        runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + (b.overthrows || 0) + b.extras, 0)
+      };
+      
+      // Store completed over summary in recent overs
       if (!currentInnings.recentOvers) {
         currentInnings.recentOvers = [];
       }
       currentInnings.recentOvers.push({
         over: currentInnings.overs, // Use the newly incremented over number
         bowler: currentBowlerName,
-        runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
+        runs: currentInnings.lastCompletedOver.runs
       });
       
       // Keep only last MAX_RECENT_OVERS overs
