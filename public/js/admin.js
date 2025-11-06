@@ -415,6 +415,23 @@ function setRuns(runs, event) {
     btn.style.opacity = '1';
   });
   event.target.style.opacity = '0.6';
+  
+  // Update total runs display
+  updateTotalRuns();
+}
+
+// Update total runs display
+function updateTotalRuns() {
+  const runs = parseInt(document.getElementById('runs').value) || 0;
+  const overthrows = parseInt(document.getElementById('overthrows').value) || 0;
+  const totalRuns = runs + overthrows;
+  
+  const display = document.getElementById('total-runs-display');
+  if (overthrows > 0) {
+    display.textContent = `${runs} + ${overthrows}ot = ${totalRuns}`;
+  } else {
+    display.textContent = totalRuns;
+  }
 }
 
 // Set extra type from quick button
@@ -449,6 +466,7 @@ function toggleWicketDetails() {
 async function recordBall() {
   const bowler = document.getElementById('bowler').value;
   const runs = parseInt(document.getElementById('runs').value) || 0;
+  const overthrows = parseInt(document.getElementById('overthrows').value) || 0;
   const extraType = document.getElementById('extra-type').value;
   const extras = parseInt(document.getElementById('extras').value) || 0;
   const wicket = document.getElementById('wicket').checked;
@@ -470,6 +488,7 @@ async function recordBall() {
       body: JSON.stringify({
         bowler,
         runs,
+        overthrows,
         extras,
         extraType,
         wicket,
@@ -483,10 +502,12 @@ async function recordBall() {
       
       // Reset form
       document.getElementById('runs').value = '0';
+      document.getElementById('overthrows').value = '0';
       document.getElementById('extra-type').value = '';
       document.getElementById('extras').value = '0';
       document.getElementById('wicket').checked = false;
       toggleWicketDetails();
+      updateTotalRuns();
       
       // Reset button opacity
       document.querySelectorAll('.quick-btn').forEach(btn => {
@@ -820,7 +841,18 @@ function updateBallHistory() {
   let html = '';
   recentBalls.forEach((ball, idx) => {
     const actualIndex = balls.length - 1 - idx;
-    const runsText = ball.runs + (ball.extras ? `+${ball.extras}` : '');
+    let runsText = ball.runs.toString();
+    
+    // Add overthrows if present
+    if (ball.overthrows && ball.overthrows > 0) {
+      runsText += ` + ${ball.overthrows}ot`;
+    }
+    
+    // Add extras if present
+    if (ball.extras) {
+      runsText += `+${ball.extras}`;
+    }
+    
     const extraText = ball.extraType ? ` (${ball.extraType})` : '';
     const wicketText = ball.wicket ? ' 🔴 WICKET' : '';
     
