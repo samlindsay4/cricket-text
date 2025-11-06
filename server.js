@@ -200,6 +200,19 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
   }
   
+  // Validate that all batsmen are from the batting team's squad
+  const battingSquad = match.squads[battingTeam] || [];
+  const invalidPlayers = battingOrder.filter(player => !battingSquad.includes(player));
+  if (invalidPlayers.length > 0) {
+    return res.status(400).json({ error: `Invalid players in batting order: ${invalidPlayers.join(', ')}` });
+  }
+  
+  // Validate opening bowler is from bowling team's squad
+  const bowlingSquad = match.squads[bowlingTeam] || [];
+  if (openingBowler && !bowlingSquad.includes(openingBowler)) {
+    return res.status(400).json({ error: 'Opening bowler must be from the bowling team' });
+  }
+  
   const innings = {
     number: match.innings.length + 1,
     battingTeam: battingTeam,
@@ -307,6 +320,11 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   if (ball.runs === 6) currentInnings.allBatsmen[striker].sixes++;
   
   // 5. Update bowler stats
+  if (!currentInnings.allBowlers[currentBowlerName]) {
+    currentInnings.allBowlers[currentBowlerName] = { 
+      balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
+    };
+  }
   currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.extras);
   if (isLegalDelivery) {
     currentInnings.allBowlers[currentBowlerName].balls++;
@@ -371,7 +389,7 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
         currentInnings.recentOvers = [];
       }
       currentInnings.recentOvers.push({
-        over: currentInnings.overs,
+        over: currentInnings.overs, // Use the newly incremented over number
         bowler: currentBowlerName,
         runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
       });

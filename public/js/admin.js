@@ -281,6 +281,14 @@ async function startInnings() {
     return;
   }
   
+  // Validate all batsmen are from batting team squad
+  const battingSquad = currentMatch.squads[battingTeam] || [];
+  const invalidBatsmen = battingOrder.filter(b => !battingSquad.includes(b));
+  if (invalidBatsmen.length > 0) {
+    showMessage(`Invalid batsmen selected: ${invalidBatsmen.join(', ')}`, 'error');
+    return;
+  }
+  
   try {
     const response = await fetch('/api/match/start-innings', {
       method: 'POST',
