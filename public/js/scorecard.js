@@ -243,9 +243,6 @@ function displayMatch(match) {
       `;
     }
     
-    // Don't need the closing tags here anymore as they're in each branch above
-    html = html.replace(/<\/div>\s*<\/div>\s*$/, ''); // Remove duplicate closing tags if any
-    
     // Fall of Wickets
     if (currentInnings.fallOfWickets && currentInnings.fallOfWickets.length > 0) {
       html += `

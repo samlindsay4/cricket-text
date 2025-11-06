@@ -103,12 +103,12 @@ function processBall(innings, ball, ballIndex) {
   
   // Only add certain extras to bowler's runs
   // Wides (Wd) and No-balls (Nb) go to bowler
-  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler
-  // Overthrows always go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler (only overthrows do)
+  // Note: For byes/leg-byes, ball.runs is always 0 (no runs off bat), so only overthrows are added
   if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
     innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows + ball.extras);
   } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
-    // Byes/leg-byes: only add batsman runs and overthrows to bowler, not the extras
+    // Byes/leg-byes: only overthrows go to bowler (ball.runs is 0 for these)
     innings.allBowlers[ball.bowler].runs += (ball.runs + overthrows);
   } else {
     // No extras, just runs off the bat plus overthrows
@@ -528,12 +528,12 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   }
   // Only add certain extras to bowler's runs
   // Wides (Wd) and No-balls (Nb) go to bowler
-  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler
-  // Overthrows always go to bowler
+  // Byes (Bye/B) and Leg-byes (LB) do NOT go to bowler (only overthrows do)
+  // Note: For byes/leg-byes, ball.runs is always 0 (no runs off bat), so only overthrows are added
   if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
     currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.overthrows + ball.extras);
   } else if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
-    // Byes/leg-byes: only add batsman runs and overthrows to bowler, not the extras
+    // Byes/leg-byes: only overthrows go to bowler (ball.runs is 0 for these)
     currentInnings.allBowlers[currentBowlerName].runs += (ball.runs + ball.overthrows);
   } else {
     // No extras, just runs off the bat plus overthrows
