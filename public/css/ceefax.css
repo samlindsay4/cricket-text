@@ -1,11 +1,12 @@
 /* Ceefax/Teletext Styling */
 
-/* Import Teletext font */
+/* Import Teletext font from CDN (falls back to Courier New if unavailable) */
 @font-face {
   font-family: 'Teletext';
   src: url('https://cdn.jsdelivr.net/gh/Gingeh/bedstead-fonts/bedstead.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
+  font-display: swap; /* Show fallback font while loading */
 }
 
 * {

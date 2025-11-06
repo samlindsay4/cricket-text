@@ -109,23 +109,23 @@
                 <!-- Quick Run Buttons -->
                 <label>Runs Scored</label>
                 <div class="quick-actions">
-                    <button class="quick-btn" onclick="setRuns(0)">0</button>
-                    <button class="quick-btn" onclick="setRuns(1)">1</button>
-                    <button class="quick-btn" onclick="setRuns(2)">2</button>
-                    <button class="quick-btn" onclick="setRuns(3)">3</button>
-                    <button class="quick-btn" onclick="setRuns(4)">4</button>
-                    <button class="quick-btn" onclick="setRuns(6)">6</button>
+                    <button class="quick-btn" onclick="setRuns(0, event)">0</button>
+                    <button class="quick-btn" onclick="setRuns(1, event)">1</button>
+                    <button class="quick-btn" onclick="setRuns(2, event)">2</button>
+                    <button class="quick-btn" onclick="setRuns(3, event)">3</button>
+                    <button class="quick-btn" onclick="setRuns(4, event)">4</button>
+                    <button class="quick-btn" onclick="setRuns(6, event)">6</button>
                 </div>
                 <input type="hidden" id="runs" value="0">
 
                 <!-- Extras -->
                 <label>Extras</label>
                 <div class="quick-actions">
-                    <button class="quick-btn extra" onclick="setExtra('')">None</button>
-                    <button class="quick-btn extra" onclick="setExtra('Wd')">Wd</button>
-                    <button class="quick-btn extra" onclick="setExtra('Nb')">Nb</button>
-                    <button class="quick-btn extra" onclick="setExtra('Bye')">Bye</button>
-                    <button class="quick-btn extra" onclick="setExtra('LB')">LB</button>
+                    <button class="quick-btn extra" onclick="setExtra('', event)">None</button>
+                    <button class="quick-btn extra" onclick="setExtra('Wd', event)">Wd</button>
+                    <button class="quick-btn extra" onclick="setExtra('Nb', event)">Nb</button>
+                    <button class="quick-btn extra" onclick="setExtra('Bye', event)">Bye</button>
+                    <button class="quick-btn extra" onclick="setExtra('LB', event)">LB</button>
                 </div>
                 <input type="hidden" id="extra-type" value="">
                 

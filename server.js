@@ -3,9 +3,11 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MAX_RECENT_OVERS = 10; // Maximum number of recent overs to keep
 
 // Middleware
 app.use(express.json());
@@ -70,15 +72,64 @@ function saveMatch(match) {
 }
 
 // Simple session storage (in-memory for simplicity)
+// NOTE: Sessions are lost on server restart. For production, consider using
+// a persistent session store like Redis or a database-backed session store.
 let sessions = {};
+
+// Simple rate limiting for API endpoints
+const requestCounts = {};
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 60; // 60 requests per minute
+
+function checkRateLimit(req, res, next) {
+  const identifier = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!requestCounts[identifier]) {
+    requestCounts[identifier] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
+  } else {
+    if (now > requestCounts[identifier].resetTime) {
+      requestCounts[identifier] = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
+    } else {
+      requestCounts[identifier].count++;
+      if (requestCounts[identifier].count > MAX_REQUESTS_PER_WINDOW) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+      }
+    }
+  }
+  
+  next();
+}
+
+// Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(requestCounts).forEach(key => {
+    if (now > requestCounts[key].resetTime + RATE_LIMIT_WINDOW_MS) {
+      delete requestCounts[key];
+    }
+  });
+}, RATE_LIMIT_WINDOW_MS);
 
 // Admin authentication
 app.post('/api/auth/login', (req, res) => {
   const { password } = req.body;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ashes2025';
+  const adminPassword = process.env.ADMIN_PASSWORD;
   
-  if (password === adminPassword) {
-    const sessionId = Math.random().toString(36).substring(7);
+  // Require admin password to be set in production
+  if (!adminPassword && process.env.NODE_ENV === 'production') {
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Admin password not configured' 
+    });
+  }
+  
+  // Use default password only in development
+  const effectivePassword = adminPassword || 'ashes2025';
+  
+  if (password === effectivePassword) {
+    // Use cryptographically secure random for session ID
+    const sessionId = crypto.randomBytes(32).toString('hex');
     sessions[sessionId] = { authenticated: true, createdAt: Date.now() };
     res.json({ success: true, sessionId });
   } else {
@@ -97,7 +148,7 @@ function requireAuth(req, res, next) {
 }
 
 // Get current match data
-app.get('/api/match', (req, res) => {
+app.get('/api/match', checkRateLimit, (req, res) => {
   const match = loadMatch();
   res.json(match);
 });
@@ -255,8 +306,8 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
         runs: currentInnings.currentOver.reduce((sum, b) => sum + b.runs + b.extras, 0)
       });
       
-      // Keep only last 10 overs
-      if (currentInnings.recentOvers.length > 10) {
+      // Keep only last MAX_RECENT_OVERS overs
+      if (currentInnings.recentOvers.length > MAX_RECENT_OVERS) {
         currentInnings.recentOvers.shift();
       }
       

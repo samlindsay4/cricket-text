@@ -222,7 +222,7 @@ async function startInnings() {
 }
 
 // Set runs from quick button
-function setRuns(runs) {
+function setRuns(runs, event) {
   document.getElementById('runs').value = runs;
   
   // Visual feedback
@@ -233,7 +233,7 @@ function setRuns(runs) {
 }
 
 // Set extra type from quick button
-function setExtra(type) {
+function setExtra(type, event) {
   document.getElementById('extra-type').value = type;
   
   // Visual feedback
