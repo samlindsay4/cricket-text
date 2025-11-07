@@ -181,19 +181,28 @@ function updateSeriesMatchStatus(matchId, match) {
     const matchIndex = series.matches.findIndex(m => m.id === matchId);
     
     if (matchIndex !== -1) {
-      series.matches[matchIndex].status = match.status;
-      series.matches[matchIndex].venue = match.venue;
-      series.matches[matchIndex].date = match.date;
+      const seriesMatch = series.matches[matchIndex];
+      seriesMatch.status = match.status;
+      seriesMatch.venue = match.venue;
+      seriesMatch.date = match.date;
       
       // Update result if match completed
       if (match.status === 'completed' && match.result && match.result.winner) {
-        series.matches[matchIndex].result = `${match.result.winner} won by ${match.result.margin} ${match.result.winType}`;
+        // Safely construct result string with null checks
+        const margin = match.result.margin || 0;
+        const winType = match.result.winType || 'unknown';
+        const resultText = `${match.result.winner} won by ${margin} ${winType}`;
         
-        // Update series score
-        if (match.result.winner === 'England') {
-          series.seriesScore.England++;
-        } else if (match.result.winner === 'Australia') {
-          series.seriesScore.Australia++;
+        // Only update series score if this is a new result (not already counted)
+        if (seriesMatch.result !== resultText) {
+          seriesMatch.result = resultText;
+          
+          // Update series score only if not already counted
+          if (match.result.winner === 'England') {
+            series.seriesScore.England++;
+          } else if (match.result.winner === 'Australia') {
+            series.seriesScore.Australia++;
+          }
         }
       }
       

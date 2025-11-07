@@ -101,9 +101,31 @@ async function switchPublicMatch() {
     if (response.ok) {
       const match = await response.json();
       displayMatch(match);
+    } else {
+      console.error('Failed to switch match:', response.statusText);
+      // Display error message in content area
+      const content = document.getElementById('content');
+      if (content) {
+        content.innerHTML = `
+          <div class="no-match">
+            <p>ERROR LOADING MATCH</p>
+            <p style="margin-top: 20px; font-size: 14px;">Please try again later</p>
+          </div>
+        `;
+      }
     }
   } catch (error) {
     console.error('Error switching match:', error);
+    // Display error message
+    const content = document.getElementById('content');
+    if (content) {
+      content.innerHTML = `
+        <div class="no-match">
+          <p>CONNECTION ERROR</p>
+          <p style="margin-top: 20px; font-size: 14px;">Please check your connection</p>
+        </div>
+      `;
+    }
   }
 }
 
