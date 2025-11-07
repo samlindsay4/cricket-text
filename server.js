@@ -259,12 +259,240 @@ function saveCurrentMatch(match) {
     return saveMatch(match);
   }
   
-  // Save to both locations
+  // Save to legacy location
   const legacySaved = saveMatch(match);
   const newSaved = saveMatchById(match.id, match);
-  updateSeriesMatchStatus(match.id, match);
+  
+  // Also save to series structure if match is from a series
+  if (match.seriesSlug && match.matchNumber) {
+    saveMatchToSeries(match.seriesSlug, match.matchNumber, match);
+  } else {
+    // Legacy: update old series.json
+    updateSeriesMatchStatus(match.id, match);
+  }
   
   return legacySaved && newSaved;
+}
+
+// ===== NEW SERIES MANAGEMENT SYSTEM =====
+
+// Helper to create slug from name
+function createSlug(name) {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// List all series
+function listAllSeries() {
+  try {
+    const seriesDir = path.join(dataDir, 'series');
+    if (!fs.existsSync(seriesDir)) {
+      return [];
+    }
+    
+    const seriesFolders = fs.readdirSync(seriesDir)
+      .filter(item => fs.statSync(path.join(seriesDir, item)).isDirectory());
+    
+    return seriesFolders.map(folder => {
+      const seriesFile = path.join(seriesDir, folder, 'series.json');
+      if (fs.existsSync(seriesFile)) {
+        const data = JSON.parse(fs.readFileSync(seriesFile, 'utf8'));
+        return data;
+      }
+      return null;
+    }).filter(Boolean);
+  } catch (error) {
+    console.error('Error listing series:', error);
+    return [];
+  }
+}
+
+// Load a specific series
+function loadSeriesBySlug(slug) {
+  try {
+    // Validate slug to prevent path traversal
+    if (!slug || typeof slug !== 'string' || !/^[a-z0-9\-]+$/.test(slug)) {
+      console.error('Invalid series slug:', slug);
+      return null;
+    }
+    
+    const seriesFile = path.join(dataDir, 'series', slug, 'series.json');
+    const resolvedPath = path.resolve(seriesFile);
+    const resolvedDataDir = path.resolve(dataDir);
+    
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', slug);
+      return null;
+    }
+    
+    if (!fs.existsSync(seriesFile)) {
+      return null;
+    }
+    
+    return JSON.parse(fs.readFileSync(seriesFile, 'utf8'));
+  } catch (error) {
+    console.error('Error loading series:', error);
+    return null;
+  }
+}
+
+// Save a series
+function saveSeriesToSlug(slug, seriesData) {
+  try {
+    // Validate slug
+    if (!slug || typeof slug !== 'string' || !/^[a-z0-9\-]+$/.test(slug)) {
+      console.error('Invalid series slug:', slug);
+      return false;
+    }
+    
+    const seriesFolder = path.join(dataDir, 'series', slug);
+    const seriesFile = path.join(seriesFolder, 'series.json');
+    
+    const resolvedPath = path.resolve(seriesFile);
+    const resolvedDataDir = path.resolve(dataDir);
+    
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', slug);
+      return false;
+    }
+    
+    // Create series folder if doesn't exist
+    if (!fs.existsSync(seriesFolder)) {
+      fs.mkdirSync(seriesFolder, { recursive: true });
+    }
+    
+    fs.writeFileSync(seriesFile, JSON.stringify(seriesData, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving series:', error);
+    return false;
+  }
+}
+
+// Load match from series
+function loadMatchFromSeries(seriesSlug, matchNumber) {
+  try {
+    // Validate inputs
+    if (!seriesSlug || typeof seriesSlug !== 'string' || !/^[a-z0-9\-]+$/.test(seriesSlug)) {
+      console.error('Invalid series slug:', seriesSlug);
+      return null;
+    }
+    
+    if (!matchNumber || typeof matchNumber !== 'number' || matchNumber < 1 || matchNumber > 5) {
+      console.error('Invalid match number:', matchNumber);
+      return null;
+    }
+    
+    const matchFile = path.join(dataDir, 'series', seriesSlug, `match-${matchNumber}.json`);
+    const resolvedPath = path.resolve(matchFile);
+    const resolvedDataDir = path.resolve(dataDir);
+    
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected');
+      return null;
+    }
+    
+    if (!fs.existsSync(matchFile)) {
+      return null;
+    }
+    
+    return JSON.parse(fs.readFileSync(matchFile, 'utf8'));
+  } catch (error) {
+    console.error('Error loading match from series:', error);
+    return null;
+  }
+}
+
+// Save match to series
+function saveMatchToSeries(seriesSlug, matchNumber, matchData) {
+  try {
+    // Validate inputs
+    if (!seriesSlug || typeof seriesSlug !== 'string' || !/^[a-z0-9\-]+$/.test(seriesSlug)) {
+      console.error('Invalid series slug:', seriesSlug);
+      return false;
+    }
+    
+    if (!matchNumber || typeof matchNumber !== 'number' || matchNumber < 1 || matchNumber > 5) {
+      console.error('Invalid match number:', matchNumber);
+      return false;
+    }
+    
+    const matchFile = path.join(dataDir, 'series', seriesSlug, `match-${matchNumber}.json`);
+    const resolvedPath = path.resolve(matchFile);
+    const resolvedDataDir = path.resolve(dataDir);
+    
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected');
+      return false;
+    }
+    
+    fs.writeFileSync(matchFile, JSON.stringify(matchData, null, 2));
+    
+    // Update series with match status
+    const series = loadSeriesBySlug(seriesSlug);
+    if (series) {
+      const matchIndex = series.matches.findIndex(m => m.number === matchNumber);
+      if (matchIndex !== -1) {
+        series.matches[matchIndex].status = matchData.status;
+        series.matches[matchIndex].venue = matchData.venue;
+        series.matches[matchIndex].date = matchData.date;
+        
+        // Update series score if match completed
+        if (matchData.status === 'completed' && matchData.result && matchData.result.winner) {
+          const existingResult = series.matches[matchIndex].result;
+          const newResult = `${matchData.result.winner} won by ${matchData.result.margin} ${matchData.result.winType}`;
+          
+          if (existingResult !== newResult) {
+            series.matches[matchIndex].result = newResult;
+            
+            // Update series score
+            if (!series.score[matchData.result.winner]) {
+              series.score[matchData.result.winner] = 0;
+            }
+            series.score[matchData.result.winner]++;
+          }
+        }
+        
+        saveSeriesToSlug(seriesSlug, series);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving match to series:', error);
+    return false;
+  }
+}
+
+// Delete series
+function deleteSeries(slug) {
+  try {
+    // Validate slug
+    if (!slug || typeof slug !== 'string' || !/^[a-z0-9\-]+$/.test(slug)) {
+      console.error('Invalid series slug:', slug);
+      return false;
+    }
+    
+    const seriesFolder = path.join(dataDir, 'series', slug);
+    const resolvedPath = path.resolve(seriesFolder);
+    const resolvedDataDir = path.resolve(dataDir);
+    
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', slug);
+      return false;
+    }
+    
+    if (fs.existsSync(seriesFolder)) {
+      fs.rmSync(seriesFolder, { recursive: true, force: true });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error deleting series:', error);
+    return false;
+  }
 }
 
 // Recalculation functions for undo and edit ball functionality
@@ -717,6 +945,211 @@ function requireAuth(req, res, next) {
     res.status(401).json({ error: 'Unauthorized' });
   }
 }
+
+// ===== NEW SERIES MANAGEMENT API ENDPOINTS =====
+
+// List all series
+app.get('/api/series/list', checkRateLimit, (req, res) => {
+  const allSeries = listAllSeries();
+  res.json({ series: allSeries });
+});
+
+// Get specific series by slug
+app.get('/api/series/:slug', checkRateLimit, (req, res) => {
+  const { slug } = req.params;
+  const series = loadSeriesBySlug(slug);
+  
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  res.json(series);
+});
+
+// Create new series
+app.post('/api/series/create', requireAuth, (req, res) => {
+  const { name, team1, team2, numberOfMatches } = req.body;
+  
+  // Validation
+  if (!name || !team1 || !team2) {
+    return res.status(400).json({ error: 'Name, team1, and team2 are required' });
+  }
+  
+  const numMatches = parseInt(numberOfMatches) || 5;
+  if (numMatches < 1 || numMatches > 5) {
+    return res.status(400).json({ error: 'Number of matches must be between 1 and 5' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(name) || dangerousNames.includes(team1) || dangerousNames.includes(team2)) {
+    return res.status(400).json({ error: 'Invalid series or team name' });
+  }
+  
+  const slug = createSlug(name);
+  
+  // Check if series already exists
+  if (loadSeriesBySlug(slug)) {
+    return res.status(400).json({ error: 'Series with this name already exists' });
+  }
+  
+  // Create series data
+  const series = {
+    slug,
+    name,
+    team1,
+    team2,
+    numberOfMatches: numMatches,
+    createdAt: new Date().toISOString(),
+    score: {},
+    matches: []
+  };
+  
+  // Initialize score tracking
+  series.score[team1] = 0;
+  series.score[team2] = 0;
+  
+  // Initialize match placeholders
+  for (let i = 1; i <= numMatches; i++) {
+    series.matches.push({
+      number: i,
+      title: `${i}${getOrdinalSuffix(i)} Test`,
+      status: 'not-created',
+      venue: null,
+      date: null,
+      result: null
+    });
+  }
+  
+  // Save series
+  if (saveSeriesToSlug(slug, series)) {
+    res.json(series);
+  } else {
+    res.status(500).json({ error: 'Failed to create series' });
+  }
+});
+
+// Delete series
+app.delete('/api/series/:slug', requireAuth, (req, res) => {
+  const { slug } = req.params;
+  
+  if (deleteSeries(slug)) {
+    res.json({ success: true });
+  } else {
+    res.status(500).json({ error: 'Failed to delete series' });
+  }
+});
+
+// Get match from series
+app.get('/api/series/:slug/match/:matchNumber', checkRateLimit, (req, res) => {
+  const { slug, matchNumber } = req.params;
+  const match = loadMatchFromSeries(slug, parseInt(matchNumber));
+  
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  res.json(match);
+});
+
+// Create match within series
+app.post('/api/series/:slug/match/create', requireAuth, (req, res) => {
+  const { slug } = req.params;
+  const { matchNumber, venue, date, team1Squad, team2Squad } = req.body;
+  
+  // Load series
+  const series = loadSeriesBySlug(slug);
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  // Validate match number
+  const num = parseInt(matchNumber);
+  if (!num || num < 1 || num > series.numberOfMatches) {
+    return res.status(400).json({ error: 'Invalid match number' });
+  }
+  
+  // Validate squads
+  if (!team1Squad || !Array.isArray(team1Squad) || team1Squad.length !== 11) {
+    return res.status(400).json({ error: `${series.team1} squad must contain exactly 11 players` });
+  }
+  if (!team2Squad || !Array.isArray(team2Squad) || team2Squad.length !== 11) {
+    return res.status(400).json({ error: `${series.team2} squad must contain exactly 11 players` });
+  }
+  
+  // Validate player names
+  const allPlayers = [...team1Squad, ...team2Squad];
+  if (allPlayers.some(name => !name || name.trim() === '')) {
+    return res.status(400).json({ error: 'All player names must be filled in' });
+  }
+  
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (allPlayers.some(name => dangerousNames.includes(name))) {
+    return res.status(400).json({ error: 'Invalid player names detected' });
+  }
+  
+  // Create match data
+  const match = {
+    id: `${slug}-match-${num}`,
+    seriesSlug: slug,
+    matchNumber: num,
+    title: `${series.name} - ${num}${getOrdinalSuffix(num)} Test`,
+    venue,
+    date,
+    status: 'upcoming',
+    format: 'test',
+    maxInnings: 4,
+    currentInnings: 0,
+    innings: [],
+    squads: {},
+    matchSituation: {
+      lead: null,
+      leadBy: 0,
+      target: null,
+      toWin: null
+    },
+    followOn: {
+      available: false,
+      deficit: 200,
+      enforced: false
+    },
+    result: {
+      status: 'in-progress',
+      winner: null,
+      winType: null,
+      margin: null
+    }
+  };
+  
+  match.squads[series.team1] = team1Squad;
+  match.squads[series.team2] = team2Squad;
+  
+  // Save match
+  if (saveMatchToSeries(slug, num, match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to create match' });
+  }
+});
+
+// Switch to match from series (set as current active match for scoring)
+app.post('/api/series/:slug/match/:matchNumber/activate', requireAuth, (req, res) => {
+  const { slug, matchNumber } = req.params;
+  const match = loadMatchFromSeries(slug, parseInt(matchNumber));
+  
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Save to legacy match.json for scoring interface
+  if (saveMatch(match)) {
+    res.json({ success: true, match });
+  } else {
+    res.status(500).json({ error: 'Failed to activate match' });
+  }
+});
+
+// ===== LEGACY ENDPOINTS (for backward compatibility) =====
 
 // Get series information
 app.get('/api/series', checkRateLimit, (req, res) => {
