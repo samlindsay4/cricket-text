@@ -760,6 +760,17 @@ function processBall(innings, ball, ballIndex) {
   // Add to current over
   innings.currentOver.push(ball);
   
+  // BUG FIX #4: Initialize bowling ends tracking if not present
+  if (!innings.bowlingEnds) {
+    innings.bowlingEnds = {};
+  }
+  if (!innings.currentEnd) {
+    innings.currentEnd = 'End A';
+  }
+  
+  // Track which end this bowler is bowling from
+  innings.bowlingEnds[ball.bowler] = innings.currentEnd;
+  
   // Increment ball count and check over complete
   if (isLegal) {
     innings.balls++;
@@ -777,6 +788,7 @@ function processBall(innings, ball, ballIndex) {
       innings.lastCompletedOver = {
         overNum: innings.overs,
         bowler: ball.bowler,
+        end: innings.currentEnd,
         balls: [...innings.currentOver],
         runs: overRuns
       };
@@ -795,6 +807,9 @@ function processBall(innings, ball, ballIndex) {
       if (innings.recentOvers.length > MAX_RECENT_OVERS) {
         innings.recentOvers.shift();
       }
+      
+      // BUG FIX #4: Switch ends after over completes
+      innings.currentEnd = (innings.currentEnd === 'End A') ? 'End B' : 'End A';
       
       // Swap ends
       [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
@@ -2389,6 +2404,17 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // BUG FIX #2: Update current bowler to the bowler who just bowled
   currentInnings.currentBowler = { name: bowlerName };
   
+  // BUG FIX #4: Initialize bowlingEnds if not present (for backward compatibility)
+  if (!currentInnings.bowlingEnds) {
+    currentInnings.bowlingEnds = {};
+  }
+  if (!currentInnings.currentEnd) {
+    currentInnings.currentEnd = 'End A';
+  }
+  
+  // Track which end this bowler is bowling from
+  currentInnings.bowlingEnds[bowlerName] = currentInnings.currentEnd;
+  
   if (isLegalDelivery) {
     currentInnings.balls++;
     if (currentInnings.balls === 6) {
@@ -2396,14 +2422,18 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
       currentInnings.balls = 0;
       currentInnings.allBowlers[bowlerName].overs = Math.floor(currentInnings.allBowlers[bowlerName].balls / 6);
       
-      // BUG FIX #5: Store completed over information including bowler
+      // BUG FIX #5: Store completed over information including bowler and end
       const overRuns = currentInnings.currentOver.reduce((sum, b) => sum + (b.runs || 0) + (b.overthrows || 0) + (b.extras || 0), 0);
       currentInnings.lastCompletedOver = {
         overNum: currentInnings.overs,
         bowler: bowlerName,
+        end: currentInnings.currentEnd,
         balls: [...currentInnings.currentOver],
         runs: overRuns
       };
+      
+      // BUG FIX #4: Switch ends after over completes
+      currentInnings.currentEnd = (currentInnings.currentEnd === 'End A') ? 'End B' : 'End A';
       
       [currentInnings.striker, currentInnings.nonStriker] = 
         [currentInnings.nonStriker, currentInnings.striker];
@@ -2462,12 +2492,17 @@ app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req
     striker: battingOrder[0],
     nonStriker: battingOrder[1],
     currentBowler: { name: openingBowler, balls: 0 },
+    currentEnd: 'End A', // BUG FIX #4: Track which end is currently being bowled from
     allBatsmen: {
       [battingOrder[0]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' },
       [battingOrder[1]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' }
     },
     allBowlers: {
       [openingBowler]: { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 }
+    },
+    bowlingEnds: {
+      // BUG FIX #4: Track which end each bowler last bowled from
+      [openingBowler]: 'End A'
     },
     currentOver: [],
     fallOfWickets: [],

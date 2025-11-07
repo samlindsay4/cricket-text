@@ -1477,10 +1477,28 @@ function showNewBowlerModalFromDashboard() {
     const bowlingSquad = currentScoringMatch.squads[currentInnings.bowlingTeam] || [];
     
     select.innerHTML = '<option value="">-- Select bowler --</option>';
+    
+    // BUG FIX #4: Find bowler who last bowled from the current end (2 overs ago)
+    let suggestedBowler = null;
+    if (currentInnings.bowlingEnds && currentInnings.currentEnd) {
+        // Find the bowler who last bowled from this end
+        for (const [bowlerName, end] of Object.entries(currentInnings.bowlingEnds)) {
+            if (end === currentInnings.currentEnd && bowlerName !== currentInnings.lastCompletedOver?.bowler) {
+                // This bowler last bowled from this end and is not the bowler who just finished
+                suggestedBowler = bowlerName;
+                break;
+            }
+        }
+    }
+    
     bowlingSquad.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
+        // BUG FIX #4: Pre-select the suggested bowler
+        if (suggestedBowler && name === suggestedBowler) {
+            option.selected = true;
+        }
         select.appendChild(option);
     });
     
