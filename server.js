@@ -446,11 +446,13 @@ function saveMatchToSeries(seriesSlug, matchNumber, matchData) {
           if (existingResult !== newResult) {
             series.matches[matchIndex].result = newResult;
             
-            // Update series score
-            if (!series.score[matchData.result.winner]) {
-              series.score[matchData.result.winner] = 0;
+            // Update series score only if winner is one of the series teams
+            if (matchData.result.winner === series.team1 || matchData.result.winner === series.team2) {
+              if (!series.score[matchData.result.winner]) {
+                series.score[matchData.result.winner] = 0;
+              }
+              series.score[matchData.result.winner]++;
             }
-            series.score[matchData.result.winner]++;
           }
         }
         
@@ -980,9 +982,15 @@ app.post('/api/series/create', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Number of matches must be between 1 and 5' });
   }
   
-  // Prevent prototype pollution
-  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
-  if (dangerousNames.includes(name) || dangerousNames.includes(team1) || dangerousNames.includes(team2)) {
+  // Prevent prototype pollution - check for dangerous patterns
+  const dangerousPatterns = ['__proto__', 'constructor', 'prototype'];
+  const hasDangerousPattern = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const lowerStr = str.toLowerCase();
+    return dangerousPatterns.some(pattern => lowerStr.includes(pattern));
+  };
+  
+  if (hasDangerousPattern(name) || hasDangerousPattern(team1) || hasDangerousPattern(team2)) {
     return res.status(400).json({ error: 'Invalid series or team name' });
   }
   
@@ -1083,8 +1091,15 @@ app.post('/api/series/:slug/match/create', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'All player names must be filled in' });
   }
   
-  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
-  if (allPlayers.some(name => dangerousNames.includes(name))) {
+  // Prevent prototype pollution - check for dangerous patterns
+  const dangerousPatterns = ['__proto__', 'constructor', 'prototype'];
+  const hasDangerousPattern = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const lowerStr = str.toLowerCase();
+    return dangerousPatterns.some(pattern => lowerStr.includes(pattern));
+  };
+  
+  if (allPlayers.some(name => hasDangerousPattern(name))) {
     return res.status(400).json({ error: 'Invalid player names detected' });
   }
   
@@ -1588,7 +1603,8 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   if (currentInnings.wickets >= 10) {
     currentInnings.status = 'completed';
     
-    // Mark any remaining batting batsmen as not out (shouldn't happen, but defensive)
+    // Mark any remaining batting batsmen as not out
+    // This occurs when the 10th wicket falls - the non-striker remains not out
     Object.keys(currentInnings.allBatsmen).forEach(name => {
       if (currentInnings.allBatsmen[name].status === 'batting') {
         currentInnings.allBatsmen[name].status = 'not out';

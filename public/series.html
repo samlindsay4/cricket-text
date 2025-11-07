@@ -385,7 +385,7 @@
 
         // Open series dashboard
         function openSeriesDashboard(slug) {
-            window.location.href = `/series-dashboard.html?slug=${slug}`;
+            window.location.href = `/series-dashboard.html?slug=${encodeURIComponent(slug)}`;
         }
 
         // Show message
