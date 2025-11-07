@@ -95,7 +95,9 @@ async function loadPage(pageNum) {
         document.getElementById('page-number-display').textContent = `P${pageNum}`;
         document.getElementById('current-page-num').textContent = pageNum;
         
-        const response = await fetch(`/api/page-data?page=${pageNum}`);
+        const response = await fetch(`/api/page-data?page=${pageNum}&_t=${Date.now()}`, {
+            cache: 'no-store'
+        });
         const data = await response.json();
         
         if (!response.ok) {
