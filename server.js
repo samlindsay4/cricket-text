@@ -760,6 +760,17 @@ function processBall(innings, ball, ballIndex) {
   // Add to current over
   innings.currentOver.push(ball);
   
+  // BUG FIX #4: Initialize bowling ends tracking if not present
+  if (!innings.bowlingEnds) {
+    innings.bowlingEnds = {};
+  }
+  if (!innings.currentEnd) {
+    innings.currentEnd = 'End A';
+  }
+  
+  // Track which end this bowler is bowling from
+  innings.bowlingEnds[ball.bowler] = innings.currentEnd;
+  
   // Increment ball count and check over complete
   if (isLegal) {
     innings.balls++;
@@ -777,6 +788,7 @@ function processBall(innings, ball, ballIndex) {
       innings.lastCompletedOver = {
         overNum: innings.overs,
         bowler: ball.bowler,
+        end: innings.currentEnd,
         balls: [...innings.currentOver],
         runs: overRuns
       };
@@ -795,6 +807,9 @@ function processBall(innings, ball, ballIndex) {
       if (innings.recentOvers.length > MAX_RECENT_OVERS) {
         innings.recentOvers.shift();
       }
+      
+      // BUG FIX #4: Switch ends after over completes
+      innings.currentEnd = (innings.currentEnd === 'End A') ? 'End B' : 'End A';
       
       // Swap ends
       [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
@@ -878,7 +893,7 @@ function calculateMatchSituation(match) {
   
   const innings = match.innings;
   
-  // BUG FIX #4: Update lead/trail during 2nd innings (not just when completed)
+  // BUG FIX #10: Update lead/trail during 2nd innings from BATTING TEAM perspective
   if (innings.length >= 2) {
     const innings1 = innings[0];
     const innings2 = innings[1];
@@ -892,20 +907,21 @@ function calculateMatchSituation(match) {
       match.followOn.available = true;
     }
     
-    // Update lead/trail situation
-    if (team1Score > team2Score) {
-      match.matchSituation.lead = innings1.battingTeam;
-      match.matchSituation.leadBy = deficit;
-    } else if (team2Score > team1Score) {
+    // Update lead/trail situation FROM BATTING TEAM PERSPECTIVE
+    // The batting team (team 2) is either leading or trailing
+    if (team2Score > team1Score) {
       match.matchSituation.lead = innings2.battingTeam;
       match.matchSituation.leadBy = team2Score - team1Score;
+    } else if (team1Score > team2Score) {
+      match.matchSituation.lead = innings1.battingTeam;
+      match.matchSituation.leadBy = deficit;
     } else {
       match.matchSituation.lead = null;
       match.matchSituation.leadBy = 0;
     }
   }
   
-  // BUG FIX #4: Calculate target during 3rd innings (not just when completed)
+  // BUG FIX #10: Calculate target during 3rd innings from BATTING TEAM perspective
   if (innings.length >= 3) {
     const innings1 = innings[0];
     const innings2 = innings[1];
@@ -917,26 +933,43 @@ function calculateMatchSituation(match) {
     // Team that batted second's total (innings 2 + innings 3 if applicable)
     const team2Total = innings2.runs + (innings3.battingTeam === innings2.battingTeam ? innings3.runs : 0);
     
-    // Target is the deficit + 1
-    if (team1Total > team2Total) {
-      match.matchSituation.target = team1Total - team2Total + 1;
-      match.matchSituation.toWin = match.matchSituation.target;
-      match.matchSituation.lead = innings1.battingTeam;
-      match.matchSituation.leadBy = team1Total - team2Total;
-    } else if (team2Total > team1Total) {
-      match.matchSituation.target = team2Total - team1Total + 1;
-      match.matchSituation.toWin = match.matchSituation.target;
-      match.matchSituation.lead = innings2.battingTeam;
-      match.matchSituation.leadBy = team2Total - team1Total;
+    // Calculate lead from batting team perspective
+    if (innings3.battingTeam === innings1.battingTeam) {
+      // Team 1 batting again (after enforcing follow-on)
+      if (team1Total > team2Total) {
+        match.matchSituation.lead = innings1.battingTeam;
+        match.matchSituation.leadBy = team1Total - team2Total;
+      } else {
+        match.matchSituation.lead = innings2.battingTeam;
+        match.matchSituation.leadBy = team2Total - team1Total;
+      }
+    } else {
+      // Team 2 batting again (normal or after follow-on)
+      if (team2Total > team1Total) {
+        match.matchSituation.lead = innings2.battingTeam;
+        match.matchSituation.leadBy = team2Total - team1Total;
+      } else {
+        match.matchSituation.lead = innings1.battingTeam;
+        match.matchSituation.leadBy = team1Total - team2Total;
+      }
     }
   }
   
-  // BUG FIX #4: Update chase situation during 4th innings
+  // BUG FIX #10: Update chase situation during 4th innings from BATTING TEAM perspective
   if (innings.length === 4) {
     const innings4 = innings[3];
-    if (match.matchSituation.target) {
-      match.matchSituation.toWin = match.matchSituation.target - innings4.runs;
-    }
+    const innings1 = innings[0];
+    const innings2 = innings[1];
+    const innings3 = innings[2];
+    
+    // Calculate total scores
+    const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
+    const team2Total = innings2.runs + (innings4.battingTeam === innings2.battingTeam ? innings4.runs : 0);
+    
+    // The batting team needs to chase the target
+    const target = (innings4.battingTeam === innings1.battingTeam ? team2Total : team1Total) + 1;
+    match.matchSituation.target = target;
+    match.matchSituation.toWin = target - innings4.runs;
     
     // Check if match is over
     if (innings4.status === 'completed' || innings4.wickets >= 10) {
@@ -952,6 +985,19 @@ function calculateMatchResult(match) {
   }
   
   const innings = match.innings;
+  
+  // BUG FIX #11: Check for innings victory after 3rd innings (follow-on scenario)
+  if (innings.length === 3 && match.followOn && match.followOn.enforced && innings[2].status === 'completed' && innings[2].wickets >= 10) {
+    const team1Total = innings[0].runs;
+    const team2Total = innings[1].runs + innings[2].runs;
+    if (team1Total > team2Total) {
+      match.result.status = 'completed';
+      match.result.winner = innings[0].battingTeam;
+      match.result.winType = 'innings';
+      match.result.margin = team1Total - team2Total;
+      match.status = 'completed';
+    }
+  }
   
   // Match can end after 4 innings or if team batting 4th is all out or declares
   if (innings.length === 4 && (innings[3].status === 'completed' || innings[3].wickets >= 10)) {
@@ -974,7 +1020,7 @@ function calculateMatchResult(match) {
     
     match.status = 'completed';
   } else if (innings.length === 2 && innings[1].status === 'completed' && innings[1].wickets >= 10) {
-    // If batting second and all out with deficit, batting first team wins
+    // BUG FIX #11: If batting second and all out with deficit, batting first team wins by innings
     const deficit = innings[0].runs - innings[1].runs;
     if (deficit > 0) {
       match.result.status = 'completed';
@@ -2325,6 +2371,10 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   
   // Handle wickets
   if (ball.wicket) {
+    // BUG FIX #8: Validate wickets don't exceed 10
+    if (currentInnings.wickets >= 10) {
+      return res.status(400).json({ error: 'Cannot record wicket: innings already has 10 wickets' });
+    }
     currentInnings.wickets++;
     const dismissedName = dismissedBatsman || striker;
     if (currentInnings.allBatsmen[dismissedName]) {
@@ -2351,12 +2401,40 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   
   currentInnings.currentOver.push(ball);
   
+  // BUG FIX #2: Update current bowler to the bowler who just bowled
+  currentInnings.currentBowler = { name: bowlerName };
+  
+  // BUG FIX #4: Initialize bowlingEnds if not present (for backward compatibility)
+  if (!currentInnings.bowlingEnds) {
+    currentInnings.bowlingEnds = {};
+  }
+  if (!currentInnings.currentEnd) {
+    currentInnings.currentEnd = 'End A';
+  }
+  
+  // Track which end this bowler is bowling from
+  currentInnings.bowlingEnds[bowlerName] = currentInnings.currentEnd;
+  
   if (isLegalDelivery) {
     currentInnings.balls++;
     if (currentInnings.balls === 6) {
       currentInnings.overs++;
       currentInnings.balls = 0;
       currentInnings.allBowlers[bowlerName].overs = Math.floor(currentInnings.allBowlers[bowlerName].balls / 6);
+      
+      // BUG FIX #5: Store completed over information including bowler and end
+      const overRuns = currentInnings.currentOver.reduce((sum, b) => sum + (b.runs || 0) + (b.overthrows || 0) + (b.extras || 0), 0);
+      currentInnings.lastCompletedOver = {
+        overNum: currentInnings.overs,
+        bowler: bowlerName,
+        end: currentInnings.currentEnd,
+        balls: [...currentInnings.currentOver],
+        runs: overRuns
+      };
+      
+      // BUG FIX #4: Switch ends after over completes
+      currentInnings.currentEnd = (currentInnings.currentEnd === 'End A') ? 'End B' : 'End A';
+      
       [currentInnings.striker, currentInnings.nonStriker] = 
         [currentInnings.nonStriker, currentInnings.striker];
       currentInnings.currentOver = [];
@@ -2392,6 +2470,11 @@ app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req
     return res.status(404).json({ error: 'Match not found' });
   }
   
+  // BUG FIX #11: Prevent starting new innings if match is completed
+  if (match.status === 'completed') {
+    return res.status(400).json({ error: 'Cannot start new innings: match is completed' });
+  }
+  
   // Initialize innings
   const inningsNumber = match.innings.length + 1;
   
@@ -2409,12 +2492,17 @@ app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req
     striker: battingOrder[0],
     nonStriker: battingOrder[1],
     currentBowler: { name: openingBowler, balls: 0 },
+    currentEnd: 'End A', // BUG FIX #4: Track which end is currently being bowled from
     allBatsmen: {
       [battingOrder[0]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' },
       [battingOrder[1]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' }
     },
     allBowlers: {
       [openingBowler]: { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 }
+    },
+    bowlingEnds: {
+      // BUG FIX #4: Track which end each bowler last bowled from
+      [openingBowler]: 'End A'
     },
     currentOver: [],
     fallOfWickets: [],
@@ -2461,73 +2549,12 @@ app.post('/api/series/:seriesId/match/:matchId/undo', requireAuth, (req, res) =>
     return res.status(400).json({ error: 'No balls to undo' });
   }
   
-  // Remove last ball
+  // BUG FIX #7 & #8: Remove last ball and use proper recalculateInnings function
   currentInnings.allBalls.pop();
   
-  // Recalculate innings stats from scratch
-  currentInnings.runs = 0;
-  currentInnings.wickets = 0;
-  currentInnings.overs = 0;
-  currentInnings.balls = 0;
-  
-  // Reset all batsmen and bowlers
-  currentInnings.allBatsmen = {};
-  currentInnings.allBowlers = {};
-  
-  // Initialize opening batsmen
-  const [opener1, opener2] = currentInnings.battingOrder.slice(0, 2);
-  currentInnings.allBatsmen[opener1] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
-  currentInnings.allBatsmen[opener2] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
-  currentInnings.striker = opener1;
-  currentInnings.nonStriker = opener2;
-  currentInnings.nextBatsmanIndex = 2;
-  
-  // Replay all balls
-  currentInnings.allBalls.forEach((ball, index) => {
-    // This is a simplified replay - in production you'd call the full ball logic
-    const isLegalDelivery = (ball.extraType !== 'Wd' && ball.extraType !== 'Nb');
-    
-    if (isLegalDelivery) {
-      currentInnings.balls++;
-      if (currentInnings.balls >= 6) {
-        currentInnings.overs++;
-        currentInnings.balls = 0;
-      }
-    }
-    
-    currentInnings.runs += (ball.runs || 0) + (ball.extras || 0) + (ball.overthrows || 0);
-    
-    if (ball.wicket) {
-      currentInnings.wickets++;
-    }
-    
-    // Update batsman stats
-    if (!currentInnings.allBatsmen[ball.batsman]) {
-      currentInnings.allBatsmen[ball.batsman] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
-    }
-    currentInnings.allBatsmen[ball.batsman].runs += (ball.runs || 0);
-    if (isLegalDelivery) {
-      currentInnings.allBatsmen[ball.batsman].balls++;
-    }
-    if (ball.runs === 4) currentInnings.allBatsmen[ball.batsman].fours++;
-    if (ball.runs === 6) currentInnings.allBatsmen[ball.batsman].sixes++;
-    
-    // Update bowler stats
-    if (!currentInnings.allBowlers[ball.bowler]) {
-      currentInnings.allBowlers[ball.bowler] = { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 };
-    }
-    if (isLegalDelivery) {
-      currentInnings.allBowlers[ball.bowler].balls++;
-      if (currentInnings.allBowlers[ball.bowler].balls >= 6) {
-        currentInnings.allBowlers[ball.bowler].overs++;
-        currentInnings.allBowlers[ball.bowler].balls = 0;
-      }
-    }
-    currentInnings.allBowlers[ball.bowler].runs += (ball.runs || 0) + (ball.extras || 0) + (ball.overthrows || 0);
-    if (ball.wicket) {
-      currentInnings.allBowlers[ball.bowler].wickets++;
-    }
-  });
+  // Use the proper recalculateInnings function to rebuild all stats correctly
+  // This fixes duplicate entries in currentOver and prevents 11 wickets bug
+  recalculateInnings(currentInnings);
   
   // Save
   saveSeriesMatch(seriesId, matchId, match);
@@ -2756,30 +2783,15 @@ app.post('/api/series/:seriesId/match/:matchId/end-innings', requireAuth, (req, 
     currentInnings.allBatsmen[currentInnings.nonStriker].status = 'not out';
   }
   
-  // Check if match is completed
-  if (match.format === 'test' && match.innings.length >= 4) {
-    // Calculate result
-    const result = calculateMatchResult(match);
-    if (result) {
-      match.result = result;
-      match.status = 'completed';
-      
-      // Update series
-      const series = loadSeriesById(seriesId);
-      if (series) {
-        const matchIndex = series.matches.findIndex(m => m.id === matchId);
-        if (matchIndex !== -1) {
-          series.matches[matchIndex].status = 'completed';
-          series.matches[matchIndex].result = `${result.winner} won by ${result.margin} ${result.winType}`;
-          
-          // Update series score
-          if (result.winner) {
-            series.seriesScore[result.winner]++;
-          }
-          
-          saveSeriesById(seriesId, series);
-        }
-      }
+  // BUG FIX #1 & #11: Check for match completion after any innings ends
+  // Calculate match situation and check for result
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // If match is now completed, update series immediately
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
     }
   }
   
