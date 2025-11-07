@@ -2346,7 +2346,7 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // Update series stats after every ball
   calculateSeriesStats(seriesId);
   
-  res.json({ match, ball });
+  res.json(match);
 });
 
 // Start innings for series match
