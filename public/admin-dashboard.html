@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Admin - Series Management</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .dashboard-card {
+            background: #1a1a1a;
+            border: 2px solid #00ffff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .series-item {
+            background: #0a0a0a;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .series-item h3 {
+            color: #ffff00;
+            margin: 0 0 10px 0;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        
+        .modal-content {
+            background-color: #1a1a1a;
+            border: 2px solid #00ffff;
+            margin: 5% auto;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        
+        .close {
+            color: #ff0000;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #ff00ff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .page-indicator {
+            color: #00ff00;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <h2>🏏 Admin Login</h2>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter admin password">
+        </div>
+        <button class="btn btn-primary" onclick="login()" style="width: 100%;">Login</button>
+        <div id="login-error" class="alert alert-error hidden" style="margin-top: 15px;"></div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="admin-section" class="container hidden">
+        <div class="header">
+            <h1>🏏 CRICKET ADMIN DASHBOARD</h1>
+            <p>Manage Series, Matches, and News</p>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-secondary btn-small" onclick="showTab('series')">Series</button>
+                <button class="btn btn-secondary btn-small" onclick="showTab('news')">News</button>
+                <button class="btn btn-secondary btn-small" onclick="showTab('scoring')">Match Scoring</button>
+                <button class="btn btn-danger btn-small" onclick="logout()" style="float: right;">Logout</button>
+            </div>
+        </div>
+
+        <!-- Series Management Tab -->
+        <div id="series-tab" class="tab-content">
+            <div class="section">
+                <h2>Series Management</h2>
+                <button class="btn btn-primary" onclick="showCreateSeriesModal()">+ Create New Series</button>
+                
+                <div id="series-list" style="margin-top: 20px;">
+                    <div class="loading">Loading series...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Management Tab -->
+        <div id="news-tab" class="tab-content hidden">
+            <div class="section">
+                <h2>News Management</h2>
+                <button class="btn btn-primary" onclick="showCreateNewsModal()">+ Create News Story</button>
+                
+                <div id="news-list" style="margin-top: 20px;">
+                    <div class="loading">Loading news...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Match Scoring Tab -->
+        <div id="scoring-tab" class="tab-content hidden">
+            <div class="section">
+                <h2>Match Scoring</h2>
+                <p>Use the <a href="/admin" style="color: #00ffff;">legacy admin interface</a> for match scoring.</p>
+                <p style="margin-top: 10px; color: #ffff00;">Note: The legacy interface will be updated to work with series-based matches in a future update.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Series Modal -->
+    <div id="create-series-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('create-series-modal')">&times;</span>
+            <h2>Create New Series</h2>
+            
+            <div class="form-group">
+                <label for="series-name">Series Name</label>
+                <input type="text" id="series-name" placeholder="e.g., The Ashes 2025">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="team1">Team 1</label>
+                    <input type="text" id="team1" placeholder="e.g., England">
+                </div>
+                
+                <div class="form-group">
+                    <label for="team2">Team 2</label>
+                    <input type="text" id="team2" placeholder="e.g., Australia">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="num-matches">Number of Matches</label>
+                    <select id="num-matches">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="start-page">Start Page Number</label>
+                    <input type="number" id="start-page" placeholder="e.g., 350" min="350" step="10">
+                    <div class="page-indicator">Series will use pages <span id="page-range"></span></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="createSeries()">Create Series</button>
+                <button class="btn btn-secondary" onclick="closeModal('create-series-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create News Modal -->
+    <div id="create-news-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('create-news-modal')">&times;</span>
+            <h2>Create News Story</h2>
+            
+            <div class="form-group">
+                <label for="news-page">Page Number (341-345)</label>
+                <select id="news-page">
+                    <option value="341">341</option>
+                    <option value="342">342</option>
+                    <option value="343">343</option>
+                    <option value="344">344</option>
+                    <option value="345">345</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="news-title">Title</label>
+                <input type="text" id="news-title" placeholder="e.g., England Squad Announced">
+            </div>
+            
+            <div class="form-group">
+                <label for="news-date">Date</label>
+                <input type="date" id="news-date">
+            </div>
+            
+            <div class="form-group">
+                <label for="news-content">Content</label>
+                <textarea id="news-content" rows="6" placeholder="News story content..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="news-published" checked>
+                    Publish immediately
+                </label>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="createNews()">Create News</button>
+                <button class="btn btn-secondary" onclick="closeModal('create-news-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Match Modal -->
+    <div id="create-match-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('create-match-modal')">&times;</span>
+            <h2 id="match-modal-title">Create Match</h2>
+            
+            <div class="form-group">
+                <label for="match-number">Match Number</label>
+                <select id="match-number"></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="match-venue">Venue</label>
+                <input type="text" id="match-venue" placeholder="e.g., The Gabba, Brisbane">
+            </div>
+            
+            <div class="form-group">
+                <label for="match-date">Date</label>
+                <input type="date" id="match-date">
+            </div>
+            
+            <h3 id="team1-squad-title">Team 1 Squad (11 Players)</h3>
+            <div id="team1-squad-container"></div>
+            
+            <h3 id="team2-squad-title">Team 2 Squad (11 Players)</h3>
+            <div id="team2-squad-container"></div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="createMatch()">Create Match</button>
+                <button class="btn btn-secondary" onclick="closeModal('create-match-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-dashboard.js"></script>
+</body>
+</html>

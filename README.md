@@ -1,62 +1,86 @@
-# Cricket Text - Ashes Scoring App
+# Cricket Text - Ceefax Cricket Scoring System
 
-A simplified cricket scoring application for manually scoring Ashes Test matches with authentic Ceefax/Teletext styling.
+A complete Ceefax-style cricket scoring application with flexible series management, page-based navigation, and authentic teletext styling.
 
-![Public Scorecard](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
+![Ceefax Cricket](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
 
-## Features
+## 🎯 Features
 
-### Public Scorecard View (Page 340)
-- **Authentic Ceefax styling** with classic color palette
-- **Page 340** - BBC CEEFAX header
-- Live match scorecard with:
-  - Match title, venue, and date
-  - Team score (runs/wickets and overs)
-  - Current batsmen with runs and balls faced
-  - Current bowler with figures (O-M-R-W)
-  - **Current over display** showing ball-by-ball results
-  - Fall of wickets summary
-  - Recent overs summary
-- **Auto-refresh** every 5 seconds when match is live
-- **Mobile responsive** while maintaining Ceefax aesthetic
+### 🏏 Multi-Series Management
+- Create and manage multiple Test series (no hardcoding!)
+- Each series: custom name, teams, 1-5 matches
+- Manual page number assignment (e.g., The Ashes = 350-356)
+- Automatic series score tracking
+- Delete series when finished
 
-### Admin Scoring Interface
-- **Password protected** admin access
-- Create new Ashes Test matches
-- Start innings (select batting/bowling teams)
-- **Quick-action scoring buttons**:
-  - Large buttons: 0, 1, 2, 3, 4, 6
-  - Extra buttons: Wd (wide), Nb (no ball), Bye, LB (leg bye)
-  - Wicket recording with dismissal type
-- Live scorecard preview as you score
-- **Mobile-friendly** for easy scoring on phone
+### 📺 Authentic Ceefax Styling
+- **Classic teletext appearance** with proper color palette
+- **Green "CRICKET" header** on blue background with shadow
+- **Color-coded elements**: Yellow headlines, cyan sections, magenta page links
+- **Blinking LIVE indicators** in red
+- **CRT scanline effect** for authentic feel
+- **Monospace font** (Press Start 2P with Courier fallback)
+- No modern UI elements - pure Ceefax aesthetic
 
-## Technology Stack
+### 📄 Page-Based Navigation System
+- **Page 340**: Cricket Homepage (live matches, news, series)
+- **Pages 341-345**: News stories (max 5)
+- **Pages 350+**: Series pages (each series gets 20 pages)
 
-- **Backend**: Node.js + Express
-- **Storage**: JSON file-based (no database required)
-- **Frontend**: Vanilla JavaScript, HTML, CSS
-- **Authentication**: Simple password protection
+#### Series Page Structure (example: The Ashes starting at page 350)
+- **Page 350**: Series overview with score and navigation
+- **Page 351**: Live score with real-time updates
+- **Page 352**: Full scorecard with auto-cycling subpages
+- **Page 353**: Fixtures list
+- **Page 354**: Results summary
+- **Page 355**: Leading run scorers (auto-updated)
+- **Page 356**: Leading wicket takers (auto-updated)
 
-## Installation
+### 🔄 Subpage Auto-Cycling
+- Scorecard automatically cycles through innings every 5 seconds
+- Display format: "Page 352/4"
+- Subpages: Batting, Bowling for each innings
+
+### 📊 Live Statistics Aggregation
+- **Real-time batting stats**: Runs, average, high score, 100s, 50s
+- **Real-time bowling stats**: Wickets, average, best figures, 5-wicket hauls
+- Aggregated across all matches in series
+- Updates after every ball
+
+### 📰 News Management
+- Create, edit, delete news stories
+- Assign to pages 341-345
+- Publish/unpublish control
+- Display on homepage with links
+
+### 🎮 Navigation Controls
+- Page number entry with GO button
+- Previous/Next page buttons
+- Index button (returns to homepage)
+- Direct page links (e.g., "p352")
+- URL-based navigation (?page=340)
+
+### ⚡ Real-Time Updates
+- Live pages auto-refresh every 2 seconds
+- Uses Page Visibility API to pause when hidden
+- Efficient polling strategy
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
 npm install
 ```
 
-## Configuration
+### Configuration
 
-1. Copy the example environment file:
-```bash
-cp .env.example .env
-```
-
-2. (Optional) Change the admin password in `.env`:
+1. (Optional) Create `.env` file:
 ```env
 ADMIN_PASSWORD=ashes2025
 ```
 
-## Running the Application
+### Running the Application
 
 ```bash
 npm start
@@ -64,136 +88,211 @@ npm start
 
 The application will run on http://localhost:3000
 
-- **Public scorecard**: http://localhost:3000
-- **Admin interface**: http://localhost:3000/admin
+## 📍 Key URLs
 
-## Usage
+- **Homepage**: http://localhost:3000/?page=340
+- **Admin Dashboard**: http://localhost:3000/admin/dashboard (series & news management)
+- **Legacy Admin**: http://localhost:3000/admin (match scoring)
 
-### Accessing Admin Interface
+**Default admin password**: `ashes2025`
 
-1. Navigate to http://localhost:3000/admin
-2. Enter the admin password (default: `ashes2025`)
+## 📖 Usage Guide
 
-### Creating a Match
+### Creating a Series
 
-1. Login to admin interface
-2. Select test number (1st - 5th Test)
-3. Enter venue (e.g., "The Gabba, Brisbane")
-4. Select date
-5. Click "Create Match"
+1. Navigate to http://localhost:3000/admin/dashboard
+2. Login with admin password
+3. Click **Series** tab → **Create New Series**
+4. Fill in:
+   - Series Name: "The Ashes 2025"
+   - Team 1: "England"
+   - Team 2: "Australia"  
+   - Number of Matches: 5
+   - Start Page: 350
+5. Click **Create Series**
 
-### Starting an Innings
+### Setting Up a Match
 
-1. Select batting team (England or Australia)
-2. Select bowling team
-3. Click "Start Innings"
+1. In Series tab, click **View Matches** for your series
+2. Click **Setup Match** for an upcoming match
+3. Fill in:
+   - Venue: "The Gabba, Brisbane"
+   - Date: Match date
+   - Both team squads (11 players each)
+4. Click **Create Match**
 
-### Scoring Balls
+### Scoring a Match
 
-1. Select batsman 1 (on strike)
-2. Select batsman 2 (non-striker)
-3. Select bowler
-4. Click runs scored (0-6)
-5. Select extras if any (Wd, Nb, Bye, LB)
-6. Check "Wicket" if applicable and select dismissal type
-7. Click "RECORD BALL"
+1. Go to http://localhost:3000/admin (legacy interface)
+2. Use the existing scoring interface to record balls
+3. Match data saves to both legacy and series locations
+4. Statistics auto-update on pages 355-356
 
-The scorecard updates immediately and is visible on the public page.
+### Creating News
 
-## File Structure
+1. Click **News** tab → **Create News Story**
+2. Select page number (341-345)
+3. Enter title, date, and content
+4. Check "Publish immediately" if desired
+5. Click **Create News**
+
+### Viewing Public Pages
+
+- **Homepage**: /?page=340
+- **Series Overview**: /?page=350 (for Ashes at 350)
+- **Live Score**: /?page=351
+- **Full Scorecard**: /?page=352
+- **Fixtures**: /?page=353
+- **Results**: /?page=354
+- **Run Scorers**: /?page=355
+- **Wicket Takers**: /?page=356
+- **News**: /?page=341, 342, etc.
+
+## 📁 File Structure
 
 ```
 cricket-text/
-├── server.js                 # Express server with all routes
+├── server.js                   # Express server with all routes & API
 ├── public/
-│   ├── index.html           # Public scorecard (Page 340)
-│   ├── admin.html           # Admin scoring interface
+│   ├── page.html              # Main page viewer
+│   ├── admin.html             # Legacy admin (scoring)
+│   ├── admin-dashboard.html   # New admin dashboard
 │   ├── css/
-│   │   ├── ceefax.css       # Authentic Ceefax styling
-│   │   └── admin.css        # Admin interface styling
+│   │   ├── ceefax.css        # Authentic Ceefax styling
+│   │   └── admin.css         # Admin interface styling
 │   └── js/
-│       ├── scorecard.js     # Frontend logic for public view
-│       └── admin.js         # Frontend logic for admin scoring
+│       ├── page-viewer.js    # Page navigation & rendering
+│       ├── admin-dashboard.js # Dashboard functionality
+│       ├── admin.js          # Legacy scoring interface
+│       └── scorecard.js      # Legacy scorecard display
 ├── data/
-│   └── match.json           # Current match data storage
+│   ├── series/               # Series data
+│   │   └── {series-id}/
+│   │       ├── series.json   # Series metadata & stats
+│   │       └── match-*.json  # Match data files
+│   ├── news.json             # News stories
+│   ├── page-registry.json    # Page allocations
+│   └── match.json            # Legacy current match
 ├── package.json
 ├── .env.example
-└── README.md
+├── README.md
+└── GUIDE.md                   # Comprehensive guide
 ```
 
-## Data Structure
+## 🎨 Ceefax Styling
 
-Match data is stored in `data/match.json`:
+The system uses authentic BBC Ceefax colors and styling:
 
-```javascript
-{
-  "id": "ashes-test-1",
-  "title": "The Ashes - 1st Test",
-  "venue": "The Gabba, Brisbane",
-  "date": "2025-11-21",
-  "status": "live",
-  "currentInnings": 1,
-  "innings": [
-    {
-      "number": 1,
-      "battingTeam": "England",
-      "bowlingTeam": "Australia",
-      "runs": 245,
-      "wickets": 4,
-      "overs": 65,
-      "balls": 3,
-      "currentBatsmen": [...],
-      "currentBowler": {...},
-      "currentOver": [...],
-      "fallOfWickets": [...],
-      "allBalls": [...]
-    }
-  ],
-  "squads": {
-    "England": [...],
-    "Australia": [...]
-  }
-}
+### Color Palette
+- **Black (#000000)**: Background
+- **White (#FFFFFF)**: Main text
+- **Yellow (#FFFF00)**: Headlines, highlights
+- **Cyan (#00FFFF)**: Section headers, data labels
+- **Green (#00FF00)**: "CRICKET" header
+- **Magenta (#FF00FF)**: Page links
+- **Red (#FF0000)**: LIVE indicators (blinking)
+- **Blue (#0000FF)**: Background bars
+
+### Design Features
+- No modern UI (no cards, shadows, rounded corners)
+- Monospace font with teletext aesthetic
+- Classic header bar (green on blue with shadow)
+- CRT scanline overlay effect
+- Proper character spacing and layout
+
+## 🔌 API Endpoints
+
+### Series Management
+```
+GET    /api/series/list                           # List all series
+GET    /api/series/:seriesId                      # Get series details
+POST   /api/series/create                         # Create new series
+DELETE /api/series/:seriesId                      # Delete series
+POST   /api/series/:seriesId/match/create         # Create match
+POST   /api/series/:seriesId/match/:matchId/ball  # Record ball
 ```
 
-## API Endpoints
+### News Management
+```
+GET    /api/news           # List all news
+POST   /api/news/create    # Create news story
+PUT    /api/news/:id       # Update news story
+DELETE /api/news/:id       # Delete news story
+```
 
-- `GET /api/match` - Get current match data
-- `POST /api/match/create` - Create new Ashes test match (admin)
-- `POST /api/match/start-innings` - Start new innings (admin)
-- `POST /api/match/ball` - Record a ball (admin)
-- `POST /api/auth/login` - Admin login
+### Page System
+```
+GET    /api/page-data?page=XXX  # Get page content
+GET    /api/page-registry       # Get page allocations
+```
 
-## Ceefax Styling
+### Authentication
+```
+POST   /api/auth/login     # Admin login
+```
 
-The app uses authentic Ceefax colors:
-- Background: `#000000` (black)
-- Primary text: `#00FFFF` (cyan)
-- Secondary text: `#FFFF00` (yellow)
-- Highlights: `#FFFFFF` (white)
-- Headers: `#0000FF` (blue) with yellow text
-- Alerts: `#FF0000` (red)
+## 💡 Example Workflow
 
-Monospace font with Teletext-style fallbacks for authentic appearance.
+1. **Create "The Ashes 2025" series** (pages 350-369)
+2. **Setup 1st Test** at The Gabba with squads
+3. **Score the match** using legacy admin interface
+4. **Stats auto-update** on pages 355-356
+5. **Create news** about England squad on page 341
+6. **Public views**:
+   - Homepage shows live match
+   - Series pages show stats
+   - News appears on homepage and page 341
 
-## Screenshots
+## 🔒 Security
 
-### Admin Interface
+- Password-protected admin access
+- Session-based authentication
+- Path traversal prevention
+- Prototype pollution protection
+- Input validation and sanitization
+- Rate limiting on API endpoints (60 requests/minute)
 
-![Admin Login](https://github.com/user-attachments/assets/9ccca5ed-f735-411d-b9c8-4218e720836e)
+## 🌐 Browser Compatibility
 
-![Create Match](https://github.com/user-attachments/assets/6e99e524-b9cc-4463-91b0-4aab7f1ed4f7)
+Tested on Chrome, Firefox, Safari (latest versions). Requires JavaScript and modern CSS support.
 
-![Scoring Interface](https://github.com/user-attachments/assets/1e8453c8-c0de-4452-a576-3ef6591aa06e)
+## 📚 Documentation
 
-### Public Scorecard
+See [GUIDE.md](GUIDE.md) for comprehensive documentation including:
+- Detailed usage instructions
+- API documentation
+- Statistics calculation
+- Troubleshooting
+- Future enhancements
 
-![Live Scorecard](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
+## 🛠️ Technology Stack
 
-## License
+- **Backend**: Node.js + Express
+- **Storage**: JSON file-based (no database required)
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **Authentication**: Session-based with bcrypt
+- **Styling**: Custom Ceefax/Teletext CSS
+
+## 🐛 Known Issues
+
+- Legacy admin scoring interface needs full integration with series system
+- Match switching between series could be smoother
+- Mobile admin interface could be improved
+
+## 🚧 Future Enhancements
+
+- Full series-aware scoring interface
+- WebSocket real-time updates
+- Player profiles and career stats
+- Commentary system
+- Mobile-optimized admin
+- Export to CSV/JSON
+- Historical series archive
+
+## 📝 License
 
 ISC
 
-## Ready for The Ashes 2025!
+## 🏏 Ready for The Ashes 2025!
 
-This application is ready to use for The Ashes starting November 21, 2025. Simply create a match, start scoring, and enjoy the authentic Ceefax experience!
+This application is ready to use for The Ashes starting November 21, 2025. Create your series, set up matches, start scoring, and enjoy the authentic Ceefax experience!

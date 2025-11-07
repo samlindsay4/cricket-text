@@ -1,0 +1,554 @@
+// Admin Dashboard JavaScript
+let sessionId = null;
+let currentSeriesId = null;
+
+/**
+ * Login function
+ */
+async function login() {
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('login-error');
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            sessionId = data.sessionId;
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('admin-section').classList.remove('hidden');
+            document.getElementById('admin-section').style.display = 'block';
+            loadDashboard();
+        } else {
+            errorDiv.textContent = data.message || 'Invalid password';
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Login failed';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+/**
+ * Logout function
+ */
+function logout() {
+    sessionId = null;
+    document.getElementById('admin-section').style.display = 'none';
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('password').value = '';
+}
+
+/**
+ * Show specific tab
+ */
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+    
+    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    
+    // Load data for the tab
+    if (tabName === 'series') {
+        loadSeries();
+    } else if (tabName === 'news') {
+        loadNews();
+    }
+}
+
+/**
+ * Load dashboard
+ */
+function loadDashboard() {
+    showTab('series');
+}
+
+/**
+ * Load all series
+ */
+async function loadSeries() {
+    try {
+        const response = await fetch('/api/series/list');
+        const series = await response.json();
+        
+        const listDiv = document.getElementById('series-list');
+        
+        if (series.length === 0) {
+            listDiv.innerHTML = '<div style="text-align: center; color: #ffff00; padding: 20px;">No series created yet. Click "Create New Series" to get started.</div>';
+            return;
+        }
+        
+        let html = '';
+        series.forEach(s => {
+            const seriesScore = Object.entries(s.seriesScore)
+                .map(([team, wins]) => `${team}: ${wins}`)
+                .join(' | ');
+            
+            html += `
+                <div class="series-item">
+                    <h3>${s.name}</h3>
+                    <div style="color: #00ffff; margin: 5px 0;">
+                        ${s.team1} vs ${s.team2}
+                    </div>
+                    <div style="color: #00ff00; font-size: 14px; margin: 5px 0;">
+                        Series Score: ${seriesScore}
+                    </div>
+                    <div style="color: #888; font-size: 12px;">
+                        Pages ${s.startPage} - ${s.endPage}
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary btn-small" onclick="viewSeries('${s.id || s.dirName}')">View Matches</button>
+                        <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${s.startPage}', '_blank')">View Public Page</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteSeries('${s.id || s.dirName}', '${s.name}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading series:', error);
+        document.getElementById('series-list').innerHTML = '<div style="color: #ff0000;">Failed to load series</div>';
+    }
+}
+
+/**
+ * View series details and matches
+ */
+async function viewSeries(seriesId) {
+    try {
+        const response = await fetch(`/api/series/${seriesId}`);
+        const series = await response.json();
+        
+        const listDiv = document.getElementById('series-list');
+        
+        let html = `
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-secondary" onclick="loadSeries()">← Back to All Series</button>
+            </div>
+            
+            <div class="series-item">
+                <h2>${series.name}</h2>
+                <div style="color: #00ffff; margin: 10px 0; font-size: 16px;">
+                    ${series.team1} vs ${series.team2}
+                </div>
+                <div style="color: #00ff00; font-size: 16px; margin: 10px 0;">
+                    Series Score: ${Object.entries(series.seriesScore).map(([t, w]) => `${t}: ${w}`).join(' | ')}
+                </div>
+                <div style="color: #888; margin: 10px 0;">
+                    Pages ${series.startPage} - ${series.endPage}
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 30px;">Matches</h3>
+        `;
+        
+        series.matches.forEach(match => {
+            const statusColor = match.status === 'completed' ? '#00ff00' :
+                              match.status === 'live' ? '#ff0000' : '#ffff00';
+            
+            html += `
+                <div class="series-item">
+                    <h4 style="color: ${statusColor};">${match.title} ${match.status === 'live' ? '(LIVE)' : ''}</h4>
+                    <div style="color: #00ffff; margin: 5px 0;">
+                        ${match.venue || 'Venue not set'}
+                    </div>
+                    <div style="color: #888; font-size: 12px;">
+                        ${match.date || 'Date not set'} | Status: ${match.status}
+                    </div>
+                    ${match.result ? `<div style="color: #00ff00; margin-top: 5px;">${match.result}</div>` : ''}
+                    <div class="btn-group">
+                        ${match.status === 'upcoming' ? `
+                            <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, '${series.team1}', '${series.team2}')">Setup Match</button>
+                        ` : match.status === 'live' ? `
+                            <button class="btn btn-primary btn-small" onclick="window.location.href='/admin'">Score Match</button>
+                        ` : ''}
+                        ${match.status !== 'upcoming' ? `
+                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Live Score</button>
+                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 2}', '_blank')">View Scorecard</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading series details:', error);
+    }
+}
+
+/**
+ * Delete series
+ */
+async function deleteSeries(seriesId, seriesName) {
+    if (!confirm(`Are you sure you want to delete "${seriesName}"? This will delete all matches and cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${seriesId}`, {
+            method: 'DELETE',
+            headers: { 'X-Session-Id': sessionId }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Series deleted successfully');
+            loadSeries();
+        } else {
+            alert('Failed to delete series: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting series:', error);
+        alert('Failed to delete series');
+    }
+}
+
+/**
+ * Show create series modal
+ */
+function showCreateSeriesModal() {
+    document.getElementById('create-series-modal').style.display = 'block';
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Update page range when start page changes
+    document.getElementById('start-page').addEventListener('input', () => {
+        const startPage = parseInt(document.getElementById('start-page').value) || 0;
+        const endPage = startPage + 19;
+        document.getElementById('page-range').textContent = `${startPage} - ${endPage}`;
+    });
+}
+
+/**
+ * Create series
+ */
+async function createSeries() {
+    const name = document.getElementById('series-name').value;
+    const team1 = document.getElementById('team1').value;
+    const team2 = document.getElementById('team2').value;
+    const numMatches = parseInt(document.getElementById('num-matches').value);
+    const startPage = parseInt(document.getElementById('start-page').value);
+    
+    if (!name || !team1 || !team2 || !startPage) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    if (startPage < 350) {
+        alert('Start page must be 350 or higher');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/series/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ name, team1, team2, numMatches, startPage })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Series created successfully!');
+            closeModal('create-series-modal');
+            loadSeries();
+        } else {
+            alert('Failed to create series: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating series:', error);
+        alert('Failed to create series');
+    }
+}
+
+/**
+ * Load news
+ */
+async function loadNews() {
+    try {
+        const response = await fetch('/api/news');
+        const news = await response.json();
+        
+        const listDiv = document.getElementById('news-list');
+        
+        if (news.length === 0) {
+            listDiv.innerHTML = '<div style="text-align: center; color: #ffff00; padding: 20px;">No news stories yet. Click "Create News Story" to add one.</div>';
+            return;
+        }
+        
+        let html = '';
+        news.forEach(item => {
+            html += `
+                <div class="series-item">
+                    <h3>Page ${item.page}: ${item.title}</h3>
+                    <div style="color: #888; font-size: 12px; margin: 5px 0;">
+                        ${item.date} | ${item.published ? '<span style="color: #00ff00;">Published</span>' : '<span style="color: #ff0000;">Unpublished</span>'}
+                    </div>
+                    <div style="color: #00ffff; margin: 10px 0; font-size: 14px;">
+                        ${item.content.substring(0, 150)}${item.content.length > 150 ? '...' : ''}
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${item.page}', '_blank')">View</button>
+                        <button class="btn btn-primary btn-small" onclick="togglePublish('${item.id}', ${!item.published})">${item.published ? 'Unpublish' : 'Publish'}</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteNews('${item.id}', '${item.title}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading news:', error);
+        document.getElementById('news-list').innerHTML = '<div style="color: #ff0000;">Failed to load news</div>';
+    }
+}
+
+/**
+ * Show create news modal
+ */
+function showCreateNewsModal() {
+    document.getElementById('create-news-modal').style.display = 'block';
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('news-date').value = today;
+}
+
+/**
+ * Create news
+ */
+async function createNews() {
+    const page = parseInt(document.getElementById('news-page').value);
+    const title = document.getElementById('news-title').value;
+    const date = document.getElementById('news-date').value;
+    const content = document.getElementById('news-content').value;
+    const published = document.getElementById('news-published').checked;
+    
+    if (!title || !content) {
+        alert('Please fill in title and content');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/news/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ page, title, date, content, published })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('News created successfully!');
+            closeModal('create-news-modal');
+            loadNews();
+        } else {
+            alert('Failed to create news: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating news:', error);
+        alert('Failed to create news');
+    }
+}
+
+/**
+ * Toggle news publish status
+ */
+async function togglePublish(newsId, published) {
+    try {
+        const response = await fetch(`/api/news/${newsId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ published })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadNews();
+        } else {
+            alert('Failed to update news: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating news:', error);
+        alert('Failed to update news');
+    }
+}
+
+/**
+ * Delete news
+ */
+async function deleteNews(newsId, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/news/${newsId}`, {
+            method: 'DELETE',
+            headers: { 'X-Session-Id': sessionId }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('News deleted successfully');
+            loadNews();
+        } else {
+            alert('Failed to delete news: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting news:', error);
+        alert('Failed to delete news');
+    }
+}
+
+/**
+ * Show create match modal
+ */
+function showCreateMatchModal(seriesId, matchNumber, team1, team2) {
+    currentSeriesId = seriesId;
+    
+    document.getElementById('create-match-modal').style.display = 'block';
+    document.getElementById('match-modal-title').textContent = `Create Match ${matchNumber}`;
+    
+    // Create match number selector
+    const matchNumberSelect = document.getElementById('match-number');
+    matchNumberSelect.innerHTML = `<option value="${matchNumber}">${matchNumber}</option>`;
+    matchNumberSelect.value = matchNumber;
+    
+    // Update squad titles
+    document.getElementById('team1-squad-title').textContent = `${team1} Squad (11 Players)`;
+    document.getElementById('team2-squad-title').textContent = `${team2} Squad (11 Players)`;
+    
+    // Create squad input fields
+    const team1Container = document.getElementById('team1-squad-container');
+    const team2Container = document.getElementById('team2-squad-container');
+    
+    team1Container.innerHTML = '';
+    team2Container.innerHTML = '';
+    
+    for (let i = 1; i <= 11; i++) {
+        team1Container.innerHTML += `
+            <div class="form-group">
+                <input type="text" id="team1-player-${i}" placeholder="Player ${i}">
+            </div>
+        `;
+        
+        team2Container.innerHTML += `
+            <div class="form-group">
+                <input type="text" id="team2-player-${i}" placeholder="Player ${i}">
+            </div>
+        `;
+    }
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('match-date').value = today;
+}
+
+/**
+ * Create match
+ */
+async function createMatch() {
+    const matchNumber = parseInt(document.getElementById('match-number').value);
+    const venue = document.getElementById('match-venue').value;
+    const date = document.getElementById('match-date').value;
+    
+    if (!venue || !date) {
+        alert('Please fill in venue and date');
+        return;
+    }
+    
+    // Get squad1
+    const squad1 = [];
+    for (let i = 1; i <= 11; i++) {
+        const player = document.getElementById(`team1-player-${i}`).value.trim();
+        if (!player) {
+            alert('Please fill in all squad members');
+            return;
+        }
+        squad1.push(player);
+    }
+    
+    // Get squad2
+    const squad2 = [];
+    for (let i = 1; i <= 11; i++) {
+        const player = document.getElementById(`team2-player-${i}`).value.trim();
+        if (!player) {
+            alert('Please fill in all squad members');
+            return;
+        }
+        squad2.push(player);
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentSeriesId}/match/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ matchNumber, venue, date, squad1, squad2 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Match created successfully!');
+            closeModal('create-match-modal');
+            viewSeries(currentSeriesId);
+        } else {
+            alert('Failed to create match: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating match:', error);
+        alert('Failed to create match');
+    }
+}
+
+/**
+ * Close modal
+ */
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+
+// Handle Enter key for login
+document.addEventListener('DOMContentLoaded', () => {
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+    }
+});
