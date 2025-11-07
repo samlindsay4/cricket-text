@@ -2996,6 +2996,11 @@ app.get('/api/page-registry', checkRateLimit, (req, res) => {
 app.get('/api/page-data', checkRateLimit, (req, res) => {
   const { page } = req.query;
   
+  // BUG FIX #1: Add cache-control headers to prevent browser caching of live data
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   if (!page) {
     return res.status(400).json({ error: 'Page number required' });
   }

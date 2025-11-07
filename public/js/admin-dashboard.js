@@ -805,6 +805,11 @@ function setupScoringInterface() {
         bowlerSelect.appendChild(option);
     });
     
+    // BUG FIX #2: Explicitly set the select element's value to ensure the current bowler is selected
+    if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
+        bowlerSelect.value = currentInnings.currentBowler.name;
+    }
+    
     // Populate dismissed batsman dropdown
     const dismissedBatsmanSelect = document.getElementById('scoring-dismissed-batsman');
     if (currentInnings.striker && currentInnings.nonStriker) {
@@ -851,7 +856,7 @@ function updateScorecardPreview() {
         }
     }
     
-    // Show current bowler
+    // FEATURE #4: Show current bowler
     if (innings.currentBowler && innings.allBowlers && innings.allBowlers[innings.currentBowler.name]) {
         const bowlerStats = innings.allBowlers[innings.currentBowler.name];
         html += `
@@ -859,6 +864,19 @@ function updateScorecardPreview() {
                 ${innings.currentBowler.name}: ${bowlerStats.overs}.${bowlerStats.balls % 6}-${bowlerStats.maidens}-${bowlerStats.runs}-${bowlerStats.wickets}
             </div>
         `;
+    }
+    
+    // FEATURE #4: Show previous over's bowler (if not first over and different from current)
+    if (innings.overs > 0 && innings.lastCompletedOver && innings.lastCompletedOver.bowler) {
+        const prevBowlerName = innings.lastCompletedOver.bowler;
+        if (prevBowlerName !== innings.currentBowler?.name && innings.allBowlers && innings.allBowlers[prevBowlerName]) {
+            const prevBowlerStats = innings.allBowlers[prevBowlerName];
+            html += `
+                <div style="margin-top: 5px; color: #888;">
+                    ${prevBowlerName}: ${prevBowlerStats.overs}.${prevBowlerStats.balls % 6}-${prevBowlerStats.maidens}-${prevBowlerStats.runs}-${prevBowlerStats.wickets}
+                </div>
+            `;
+        }
     }
     
     preview.innerHTML = html;
