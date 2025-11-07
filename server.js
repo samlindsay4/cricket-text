@@ -16,18 +16,36 @@ app.use(express.static('public'));
 
 // Data storage
 const dataDir = path.join(__dirname, 'data');
+const seriesDir = path.join(dataDir, 'series');
 const matchFile = path.join(dataDir, 'match.json');
 const seriesFile = path.join(dataDir, 'series.json');
+const newsFile = path.join(dataDir, 'news.json');
+const pageRegistryFile = path.join(dataDir, 'page-registry.json');
 
 // Helper function to check if player is unavailable
 function isPlayerUnavailable(status) {
   return status === 'out' || status === 'retired hurt' || status === 'retired out' || status === 'retired not out';
 }
 
-// Ensure data directory exists
+// Ensure data directories exist
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+if (!fs.existsSync(seriesDir)) {
+  fs.mkdirSync(seriesDir, { recursive: true });
+}
+
+// Initialize empty files if they don't exist
+function initializeDataFiles() {
+  if (!fs.existsSync(newsFile)) {
+    fs.writeFileSync(newsFile, JSON.stringify([], null, 2));
+  }
+  if (!fs.existsSync(pageRegistryFile)) {
+    fs.writeFileSync(pageRegistryFile, JSON.stringify({ "340": { "title": "Cricket Homepage", "type": "homepage" } }, null, 2));
+  }
+}
+
+initializeDataFiles();
 
 // Initialize empty match if doesn't exist
 function initializeMatch() {
@@ -252,6 +270,327 @@ function updateSeriesMatchStatus(matchId, match) {
     console.error('Error updating series match status:', error);
   }
 }
+
+// ===== NEW SERIES MANAGEMENT SYSTEM =====
+
+// Load all series from series directory
+function loadAllSeries() {
+  try {
+    if (!fs.existsSync(seriesDir)) {
+      return [];
+    }
+    const seriesDirs = fs.readdirSync(seriesDir, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+    
+    const allSeries = [];
+    for (const dirName of seriesDirs) {
+      const seriesJsonPath = path.join(seriesDir, dirName, 'series.json');
+      if (fs.existsSync(seriesJsonPath)) {
+        const data = fs.readFileSync(seriesJsonPath, 'utf8');
+        const series = JSON.parse(data);
+        series.dirName = dirName;
+        allSeries.push(series);
+      }
+    }
+    return allSeries;
+  } catch (error) {
+    console.error('Error loading all series:', error);
+    return [];
+  }
+}
+
+// Load a specific series by ID
+function loadSeriesById(seriesId) {
+  try {
+    // Validate seriesId to prevent path traversal
+    if (!seriesId || typeof seriesId !== 'string' || !/^[a-zA-Z0-9\-_]+$/.test(seriesId)) {
+      return null;
+    }
+    
+    const seriesPath = path.join(seriesDir, seriesId, 'series.json');
+    const resolvedPath = path.resolve(seriesPath);
+    const resolvedSeriesDir = path.resolve(seriesDir);
+    
+    if (!resolvedPath.startsWith(resolvedSeriesDir)) {
+      console.error('Path traversal attempt detected:', seriesId);
+      return null;
+    }
+    
+    if (!fs.existsSync(seriesPath)) {
+      return null;
+    }
+    
+    const data = fs.readFileSync(seriesPath, 'utf8');
+    const series = JSON.parse(data);
+    series.id = seriesId;
+    return series;
+  } catch (error) {
+    console.error('Error loading series:', error);
+    return null;
+  }
+}
+
+// Save a series
+function saveSeriesById(seriesId, series) {
+  try {
+    // Validate seriesId
+    if (!seriesId || typeof seriesId !== 'string' || !/^[a-zA-Z0-9\-_]+$/.test(seriesId)) {
+      return false;
+    }
+    
+    const seriesDirPath = path.join(seriesDir, seriesId);
+    const seriesPath = path.join(seriesDirPath, 'series.json');
+    const resolvedPath = path.resolve(seriesPath);
+    const resolvedSeriesDir = path.resolve(seriesDir);
+    
+    if (!resolvedPath.startsWith(resolvedSeriesDir)) {
+      console.error('Path traversal attempt detected:', seriesId);
+      return false;
+    }
+    
+    // Create series directory if doesn't exist
+    if (!fs.existsSync(seriesDirPath)) {
+      fs.mkdirSync(seriesDirPath, { recursive: true });
+    }
+    
+    fs.writeFileSync(seriesPath, JSON.stringify(series, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving series:', error);
+    return false;
+  }
+}
+
+// Load match from series directory
+function loadSeriesMatch(seriesId, matchId) {
+  try {
+    // Validate IDs
+    if (!seriesId || !matchId || typeof seriesId !== 'string' || typeof matchId !== 'string') {
+      return null;
+    }
+    if (!/^[a-zA-Z0-9\-_]+$/.test(seriesId) || !/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      return null;
+    }
+    
+    const matchPath = path.join(seriesDir, seriesId, `${matchId}.json`);
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedSeriesDir = path.resolve(seriesDir);
+    
+    if (!resolvedPath.startsWith(resolvedSeriesDir)) {
+      console.error('Path traversal attempt detected');
+      return null;
+    }
+    
+    if (!fs.existsSync(matchPath)) {
+      return null;
+    }
+    
+    const data = fs.readFileSync(matchPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading series match:', error);
+    return null;
+  }
+}
+
+// Save match to series directory
+function saveSeriesMatch(seriesId, matchId, match) {
+  try {
+    // Validate IDs
+    if (!seriesId || !matchId || typeof seriesId !== 'string' || typeof matchId !== 'string') {
+      return false;
+    }
+    if (!/^[a-zA-Z0-9\-_]+$/.test(seriesId) || !/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      return false;
+    }
+    
+    const matchPath = path.join(seriesDir, seriesId, `${matchId}.json`);
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedSeriesDir = path.resolve(seriesDir);
+    
+    if (!resolvedPath.startsWith(resolvedSeriesDir)) {
+      console.error('Path traversal attempt detected');
+      return false;
+    }
+    
+    fs.writeFileSync(matchPath, JSON.stringify(match, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving series match:', error);
+    return false;
+  }
+}
+
+// Calculate series statistics (leading run scorers and wicket takers)
+function calculateSeriesStats(seriesId) {
+  try {
+    const series = loadSeriesById(seriesId);
+    if (!series || !series.matches) {
+      return;
+    }
+    
+    const batsmen = {};
+    const bowlers = {};
+    
+    // Aggregate stats from all matches
+    for (const matchInfo of series.matches) {
+      const match = loadSeriesMatch(seriesId, matchInfo.id);
+      if (!match || !match.innings) {
+        continue;
+      }
+      
+      // Process each innings
+      for (const innings of match.innings) {
+        if (!innings.allBatsmen || !innings.allBowlers) {
+          continue;
+        }
+        
+        // Aggregate batsmen stats
+        Object.entries(innings.allBatsmen).forEach(([name, stats]) => {
+          if (!batsmen[name]) {
+            batsmen[name] = {
+              name,
+              team: innings.battingTeam,
+              runs: 0,
+              innings: 0,
+              notOuts: 0,
+              highScore: 0,
+              hundreds: 0,
+              fifties: 0,
+              balls: 0,
+              fours: 0,
+              sixes: 0
+            };
+          }
+          
+          batsmen[name].runs += stats.runs || 0;
+          batsmen[name].balls += stats.balls || 0;
+          batsmen[name].fours += stats.fours || 0;
+          batsmen[name].sixes += stats.sixes || 0;
+          batsmen[name].innings++;
+          
+          if (stats.status === 'not out' || stats.status === 'batting') {
+            batsmen[name].notOuts++;
+          }
+          
+          const runsInInnings = stats.runs || 0;
+          if (runsInInnings > batsmen[name].highScore) {
+            batsmen[name].highScore = runsInInnings;
+          }
+          
+          if (runsInInnings >= 100) {
+            batsmen[name].hundreds++;
+          } else if (runsInInnings >= 50) {
+            batsmen[name].fifties++;
+          }
+        });
+        
+        // Aggregate bowler stats
+        Object.entries(innings.allBowlers).forEach(([name, stats]) => {
+          if (!bowlers[name]) {
+            bowlers[name] = {
+              name,
+              team: innings.bowlingTeam,
+              wickets: 0,
+              runs: 0,
+              balls: 0,
+              overs: 0,
+              maidens: 0,
+              bestFigures: { wickets: 0, runs: 999 },
+              fiveWickets: 0,
+              tenWickets: 0
+            };
+          }
+          
+          const wicketsInInnings = stats.wickets || 0;
+          const runsInInnings = stats.runs || 0;
+          
+          bowlers[name].wickets += wicketsInInnings;
+          bowlers[name].runs += runsInInnings;
+          bowlers[name].balls += stats.balls || 0;
+          bowlers[name].overs += stats.overs || 0;
+          bowlers[name].maidens += stats.maidens || 0;
+          
+          // Track best figures
+          if (wicketsInInnings > bowlers[name].bestFigures.wickets || 
+              (wicketsInInnings === bowlers[name].bestFigures.wickets && runsInInnings < bowlers[name].bestFigures.runs)) {
+            bowlers[name].bestFigures = { wickets: wicketsInInnings, runs: runsInInnings };
+          }
+          
+          if (wicketsInInnings >= 5) {
+            bowlers[name].fiveWickets++;
+          }
+        });
+      }
+    }
+    
+    // Calculate averages
+    Object.values(batsmen).forEach(b => {
+      const dismissals = b.innings - b.notOuts;
+      b.average = dismissals > 0 ? (b.runs / dismissals).toFixed(2) : b.runs.toFixed(2);
+    });
+    
+    Object.values(bowlers).forEach(b => {
+      b.average = b.wickets > 0 ? (b.runs / b.wickets).toFixed(2) : '-';
+    });
+    
+    // Sort and store
+    series.stats = {
+      batsmen: Object.values(batsmen).sort((a, b) => b.runs - a.runs),
+      bowlers: Object.values(bowlers).sort((a, b) => b.wickets - a.wickets)
+    };
+    
+    saveSeriesById(seriesId, series);
+  } catch (error) {
+    console.error('Error calculating series stats:', error);
+  }
+}
+
+// News management functions
+function loadNews() {
+  try {
+    const data = fs.readFileSync(newsFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading news:', error);
+    return [];
+  }
+}
+
+function saveNews(news) {
+  try {
+    fs.writeFileSync(newsFile, JSON.stringify(news, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving news:', error);
+    return false;
+  }
+}
+
+// Page registry functions
+function loadPageRegistry() {
+  try {
+    const data = fs.readFileSync(pageRegistryFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading page registry:', error);
+    return { "340": { "title": "Cricket Homepage", "type": "homepage" } };
+  }
+}
+
+function savePageRegistry(registry) {
+  try {
+    fs.writeFileSync(pageRegistryFile, JSON.stringify(registry, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving page registry:', error);
+    return false;
+  }
+}
+
+// ===== END NEW SERIES MANAGEMENT SYSTEM =====
+
 
 // Helper to save both to legacy match.json and new match file
 function saveCurrentMatch(match) {
@@ -1622,6 +1961,671 @@ app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
     res.status(500).json({ error: 'Failed to retire batsman' });
   }
 });
+
+// ===== NEW API ENDPOINTS =====
+
+// Create new series
+app.post('/api/series/create', requireAuth, (req, res) => {
+  const { name, team1, team2, numMatches, startPage } = req.body;
+  
+  // Validate inputs
+  if (!name || !team1 || !team2 || !numMatches || !startPage) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  if (numMatches < 1 || numMatches > 5) {
+    return res.status(400).json({ error: 'Number of matches must be between 1 and 5' });
+  }
+  
+  // Create series ID from name
+  const seriesId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  
+  // Check if series already exists
+  if (loadSeriesById(seriesId)) {
+    return res.status(400).json({ error: 'Series with this name already exists' });
+  }
+  
+  // Check page number conflicts
+  const registry = loadPageRegistry();
+  const pagesToRegister = [];
+  
+  // Each series gets 20 pages: overview, live, scorecard, fixtures, results, stats, etc.
+  for (let i = 0; i < 20; i++) {
+    const pageNum = (parseInt(startPage) + i).toString();
+    if (registry[pageNum]) {
+      return res.status(400).json({ 
+        error: `Page ${pageNum} is already assigned to: ${registry[pageNum].title}` 
+      });
+    }
+    pagesToRegister.push(pageNum);
+  }
+  
+  // Create series object
+  const series = {
+    name,
+    team1,
+    team2,
+    startPage: parseInt(startPage),
+    endPage: parseInt(startPage) + 19,
+    seriesScore: {},
+    matches: [],
+    stats: {
+      batsmen: [],
+      bowlers: []
+    },
+    createdAt: new Date().toISOString()
+  };
+  
+  series.seriesScore[team1] = 0;
+  series.seriesScore[team2] = 0;
+  
+  // Create match placeholders
+  for (let i = 1; i <= numMatches; i++) {
+    series.matches.push({
+      id: `${seriesId}-match-${i}`,
+      number: i,
+      title: `${i}${getOrdinalSuffix(i)} ${name.includes('Test') ? 'Test' : 'Match'}`,
+      venue: null,
+      date: null,
+      status: 'upcoming',
+      result: null
+    });
+  }
+  
+  // Save series
+  if (!saveSeriesById(seriesId, series)) {
+    return res.status(500).json({ error: 'Failed to create series' });
+  }
+  
+  // Register pages
+  const pageNames = ['Overview', 'Live Score', 'Scorecard', 'Fixtures', 'Results', 'Leading Run Scorers', 'Leading Wicket Takers'];
+  pagesToRegister.slice(0, 7).forEach((pageNum, idx) => {
+    registry[pageNum] = {
+      title: `${name} - ${pageNames[idx]}`,
+      type: 'series',
+      seriesId
+    };
+  });
+  
+  savePageRegistry(registry);
+  
+  res.json({ success: true, seriesId, series });
+});
+
+// Get all series
+app.get('/api/series/list', checkRateLimit, (req, res) => {
+  const allSeries = loadAllSeries();
+  res.json(allSeries);
+});
+
+// Get specific series
+app.get('/api/series/:seriesId', checkRateLimit, (req, res) => {
+  const { seriesId } = req.params;
+  const series = loadSeriesById(seriesId);
+  
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  res.json(series);
+});
+
+// Delete series
+app.delete('/api/series/:seriesId', requireAuth, (req, res) => {
+  const { seriesId } = req.params;
+  
+  try {
+    // Validate seriesId
+    if (!seriesId || typeof seriesId !== 'string' || !/^[a-zA-Z0-9\-_]+$/.test(seriesId)) {
+      return res.status(400).json({ error: 'Invalid series ID' });
+    }
+    
+    const seriesDirPath = path.join(seriesDir, seriesId);
+    const resolvedPath = path.resolve(seriesDirPath);
+    const resolvedSeriesDir = path.resolve(seriesDir);
+    
+    if (!resolvedPath.startsWith(resolvedSeriesDir)) {
+      return res.status(403).json({ error: 'Invalid series path' });
+    }
+    
+    // Load series to get page numbers to deregister
+    const series = loadSeriesById(seriesId);
+    if (series && series.startPage) {
+      const registry = loadPageRegistry();
+      for (let i = 0; i < 20; i++) {
+        const pageNum = (series.startPage + i).toString();
+        if (registry[pageNum] && registry[pageNum].seriesId === seriesId) {
+          delete registry[pageNum];
+        }
+      }
+      savePageRegistry(registry);
+    }
+    
+    // Delete series directory
+    if (fs.existsSync(seriesDirPath)) {
+      fs.rmSync(seriesDirPath, { recursive: true, force: true });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting series:', error);
+    res.status(500).json({ error: 'Failed to delete series' });
+  }
+});
+
+// Create match in series
+app.post('/api/series/:seriesId/match/create', requireAuth, (req, res) => {
+  const { seriesId } = req.params;
+  const { matchNumber, venue, date, squad1, squad2 } = req.body;
+  
+  const series = loadSeriesById(seriesId);
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  // Find match in series
+  const matchInfo = series.matches.find(m => m.number === matchNumber);
+  if (!matchInfo) {
+    return res.status(404).json({ error: 'Match not found in series' });
+  }
+  
+  // Validate squads
+  if (!squad1 || !Array.isArray(squad1) || squad1.length !== 11) {
+    return res.status(400).json({ error: `${series.team1} squad must contain exactly 11 players` });
+  }
+  if (!squad2 || !Array.isArray(squad2) || squad2.length !== 11) {
+    return res.status(400).json({ error: `${series.team2} squad must contain exactly 11 players` });
+  }
+  
+  // Create match object
+  const match = {
+    id: matchInfo.id,
+    seriesId,
+    title: matchInfo.title,
+    venue,
+    date,
+    status: 'upcoming',
+    format: 'test',
+    maxInnings: 4,
+    currentInnings: 0,
+    innings: [],
+    squads: {},
+    matchSituation: {
+      lead: null,
+      leadBy: 0,
+      target: null,
+      toWin: null
+    },
+    followOn: {
+      available: false,
+      deficit: 200,
+      enforced: false
+    },
+    result: {
+      status: 'in-progress',
+      winner: null,
+      winType: null,
+      margin: null
+    }
+  };
+  
+  match.squads[series.team1] = squad1;
+  match.squads[series.team2] = squad2;
+  
+  // Save match
+  if (!saveSeriesMatch(seriesId, matchInfo.id, match)) {
+    return res.status(500).json({ error: 'Failed to create match' });
+  }
+  
+  // Update series match info
+  matchInfo.venue = venue;
+  matchInfo.date = date;
+  matchInfo.status = 'upcoming';
+  saveSeriesById(seriesId, series);
+  
+  // Also save to legacy location for current match
+  saveMatch(match);
+  
+  res.json({ success: true, match });
+});
+
+// Get match from series
+app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const match = loadSeriesMatch(seriesId, matchId);
+  
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  res.json(match);
+});
+
+// Record ball in series match (with stats update)
+app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  // Load match from series
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Also load to legacy location for compatibility
+  saveMatch(match);
+  
+  // Use existing ball recording logic by temporarily setting as current match
+  const ballData = req.body;
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { 
+    runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
+  } = ballData;
+  
+  // Prevent prototype pollution in input names
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (bowler && dangerousNames.includes(bowler)) {
+    return res.status(400).json({ error: 'Invalid bowler name' });
+  }
+  if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Record ball using existing logic (simplified version)
+  const striker = currentInnings.striker;
+  const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
+  const ballNumber = isLegalDelivery ? currentInnings.balls + 1 : Math.max(1, currentInnings.balls);
+  
+  const ball = {
+    over: currentInnings.overs,
+    ball: ballNumber,
+    batsman: striker,
+    bowler: bowler || currentInnings.currentBowler.name,
+    runs: parseInt(runs) || 0,
+    overthrows: parseInt(overthrows) || 0,
+    extras: parseInt(extras) || 0,
+    extraType: extraType || null,
+    wicket: wicket || false,
+    wicketType: wicketType || null,
+    dismissedBatsman: dismissedBatsman || null,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Update innings totals
+  currentInnings.runs += (ball.runs + ball.overthrows + ball.extras);
+  
+  // Update batsman stats
+  if (!currentInnings.allBatsmen[striker]) {
+    currentInnings.allBatsmen[striker] = { 
+      name: striker, runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+  }
+  currentInnings.allBatsmen[striker].runs += (ball.runs + ball.overthrows);
+  if (ball.extraType !== 'Wd') {
+    currentInnings.allBatsmen[striker].balls++;
+  }
+  if (ball.runs === 4 && ball.overthrows === 0) currentInnings.allBatsmen[striker].fours++;
+  if (ball.runs === 6 && ball.overthrows === 0) currentInnings.allBatsmen[striker].sixes++;
+  
+  // Update bowler stats
+  const bowlerName = ball.bowler;
+  if (!currentInnings.allBowlers[bowlerName]) {
+    currentInnings.allBowlers[bowlerName] = { 
+      name: bowlerName, balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
+    };
+  }
+  
+  if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
+    currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows + ball.extras);
+  } else {
+    currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows);
+  }
+  if (isLegalDelivery) {
+    currentInnings.allBowlers[bowlerName].balls++;
+  }
+  
+  // Handle wickets
+  if (ball.wicket) {
+    currentInnings.wickets++;
+    const dismissedName = dismissedBatsman || striker;
+    if (currentInnings.allBatsmen[dismissedName]) {
+      currentInnings.allBatsmen[dismissedName].status = 'out';
+      currentInnings.allBatsmen[dismissedName].howOut = wicketType;
+    }
+    currentInnings.allBowlers[bowlerName].wickets++;
+    currentInnings.fallOfWickets.push({
+      runs: currentInnings.runs,
+      wickets: currentInnings.wickets,
+      batsman: dismissedName
+    });
+  }
+  
+  // Rotate strike
+  const totalRunsForStrike = ball.runs + ball.overthrows;
+  if (totalRunsForStrike % 2 === 1) {
+    [currentInnings.striker, currentInnings.nonStriker] = 
+      [currentInnings.nonStriker, currentInnings.striker];
+  }
+  
+  currentInnings.currentOver.push(ball);
+  
+  if (isLegalDelivery) {
+    currentInnings.balls++;
+    if (currentInnings.balls === 6) {
+      currentInnings.overs++;
+      currentInnings.balls = 0;
+      currentInnings.allBowlers[bowlerName].overs = Math.floor(currentInnings.allBowlers[bowlerName].balls / 6);
+      [currentInnings.striker, currentInnings.nonStriker] = 
+        [currentInnings.nonStriker, currentInnings.striker];
+      currentInnings.currentOver = [];
+    }
+  }
+  
+  currentInnings.allBalls.push(ball);
+  
+  // Update match situation
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+  }
+  
+  // Save match to series directory
+  saveSeriesMatch(seriesId, matchId, match);
+  
+  // Also save to legacy location
+  saveMatch(match);
+  
+  // Update series stats after every ball
+  calculateSeriesStats(seriesId);
+  
+  res.json({ match, ball });
+});
+
+// News API endpoints
+app.get('/api/news', checkRateLimit, (req, res) => {
+  const news = loadNews();
+  res.json(news);
+});
+
+app.post('/api/news/create', requireAuth, (req, res) => {
+  const { page, title, date, content, published } = req.body;
+  
+  // Validate page number (341-345)
+  if (!page || page < 341 || page > 345) {
+    return res.status(400).json({ error: 'Page number must be between 341 and 345' });
+  }
+  
+  const news = loadNews();
+  
+  // Check if page is already used
+  if (news.find(n => n.page === page)) {
+    return res.status(400).json({ error: 'Page number already in use' });
+  }
+  
+  // Check max 5 news stories
+  if (news.length >= 5) {
+    return res.status(400).json({ error: 'Maximum 5 news stories allowed' });
+  }
+  
+  const newsItem = {
+    id: `news-${Date.now()}`,
+    page,
+    title,
+    date: date || new Date().toISOString().split('T')[0],
+    content,
+    published: published !== false
+  };
+  
+  news.push(newsItem);
+  
+  if (!saveNews(news)) {
+    return res.status(500).json({ error: 'Failed to create news' });
+  }
+  
+  // Register page
+  const registry = loadPageRegistry();
+  registry[page.toString()] = {
+    title: `News - ${title}`,
+    type: 'news',
+    newsId: newsItem.id
+  };
+  savePageRegistry(registry);
+  
+  res.json({ success: true, newsItem });
+});
+
+app.put('/api/news/:id', requireAuth, (req, res) => {
+  const { id } = req.params;
+  const { title, content, published } = req.body;
+  
+  const news = loadNews();
+  const item = news.find(n => n.id === id);
+  
+  if (!item) {
+    return res.status(404).json({ error: 'News item not found' });
+  }
+  
+  if (title) item.title = title;
+  if (content) item.content = content;
+  if (published !== undefined) item.published = published;
+  
+  if (!saveNews(news)) {
+    return res.status(500).json({ error: 'Failed to update news' });
+  }
+  
+  res.json({ success: true, item });
+});
+
+app.delete('/api/news/:id', requireAuth, (req, res) => {
+  const { id } = req.params;
+  
+  const news = loadNews();
+  const index = news.findIndex(n => n.id === id);
+  
+  if (index === -1) {
+    return res.status(404).json({ error: 'News item not found' });
+  }
+  
+  const item = news[index];
+  news.splice(index, 1);
+  
+  if (!saveNews(news)) {
+    return res.status(500).json({ error: 'Failed to delete news' });
+  }
+  
+  // Deregister page
+  const registry = loadPageRegistry();
+  if (registry[item.page.toString()]) {
+    delete registry[item.page.toString()];
+    savePageRegistry(registry);
+  }
+  
+  res.json({ success: true });
+});
+
+// Page registry endpoint
+app.get('/api/page-registry', checkRateLimit, (req, res) => {
+  const registry = loadPageRegistry();
+  res.json(registry);
+});
+
+// Page data endpoint - serves content for specific page numbers
+app.get('/api/page-data', checkRateLimit, (req, res) => {
+  const { page } = req.query;
+  
+  if (!page) {
+    return res.status(400).json({ error: 'Page number required' });
+  }
+  
+  const pageNum = parseInt(page);
+  
+  // Page 340 - Homepage
+  if (pageNum === 340) {
+    const allSeries = loadAllSeries();
+    const news = loadNews().filter(n => n.published);
+    
+    // Find live matches across all series
+    const liveMatches = [];
+    for (const series of allSeries) {
+      for (const matchInfo of series.matches) {
+        if (matchInfo.status === 'live') {
+          const match = loadSeriesMatch(series.id || series.dirName, matchInfo.id);
+          if (match) {
+            liveMatches.push({
+              ...match,
+              seriesName: series.name,
+              seriesPage: series.startPage + 1 // Live score page
+            });
+          }
+        }
+      }
+    }
+    
+    return res.json({
+      type: 'homepage',
+      page: 340,
+      liveMatches,
+      news,
+      series: allSeries
+    });
+  }
+  
+  // News pages (341-345)
+  if (pageNum >= 341 && pageNum <= 345) {
+    const news = loadNews();
+    const newsItem = news.find(n => n.page === pageNum);
+    
+    if (!newsItem) {
+      return res.status(404).json({ error: 'News not found' });
+    }
+    
+    return res.json({
+      type: 'news',
+      page: pageNum,
+      newsItem
+    });
+  }
+  
+  // Series pages (350+)
+  // Find which series this page belongs to
+  const registry = loadPageRegistry();
+  const pageInfo = registry[pageNum.toString()];
+  
+  if (!pageInfo || pageInfo.type !== 'series') {
+    return res.status(404).json({ error: 'Page not found' });
+  }
+  
+  const series = loadSeriesById(pageInfo.seriesId);
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  const pageOffset = pageNum - series.startPage;
+  
+  // Page +0: Series Overview
+  if (pageOffset === 0) {
+    const currentMatch = series.matches.find(m => m.status === 'live');
+    const nextMatch = series.matches.find(m => m.status === 'upcoming');
+    
+    return res.json({
+      type: 'series-overview',
+      page: pageNum,
+      series,
+      currentMatch,
+      nextMatch
+    });
+  }
+  
+  // Page +1: Live Score
+  if (pageOffset === 1) {
+    const currentMatch = series.matches.find(m => m.status === 'live');
+    if (!currentMatch) {
+      return res.json({
+        type: 'series-live',
+        page: pageNum,
+        series,
+        match: null
+      });
+    }
+    
+    const match = loadSeriesMatch(series.id || pageInfo.seriesId, currentMatch.id);
+    return res.json({
+      type: 'series-live',
+      page: pageNum,
+      series,
+      match
+    });
+  }
+  
+  // Page +2: Full Scorecard
+  if (pageOffset === 2) {
+    const currentMatch = series.matches.find(m => m.status === 'live' || m.status === 'completed');
+    if (!currentMatch) {
+      return res.json({
+        type: 'scorecard',
+        page: pageNum,
+        series,
+        match: null
+      });
+    }
+    
+    const match = loadSeriesMatch(series.id || pageInfo.seriesId, currentMatch.id);
+    return res.json({
+      type: 'scorecard',
+      page: pageNum,
+      series,
+      match
+    });
+  }
+  
+  // Page +3: Fixtures
+  if (pageOffset === 3) {
+    return res.json({
+      type: 'fixtures',
+      page: pageNum,
+      series
+    });
+  }
+  
+  // Page +4: Results
+  if (pageOffset === 4) {
+    const completedMatches = series.matches.filter(m => m.status === 'completed');
+    return res.json({
+      type: 'results',
+      page: pageNum,
+      series,
+      completedMatches
+    });
+  }
+  
+  // Page +5: Leading Run Scorers
+  if (pageOffset === 5) {
+    return res.json({
+      type: 'batting-stats',
+      page: pageNum,
+      series,
+      batsmen: series.stats?.batsmen || []
+    });
+  }
+  
+  // Page +6: Leading Wicket Takers
+  if (pageOffset === 6) {
+    return res.json({
+      type: 'bowling-stats',
+      page: pageNum,
+      series,
+      bowlers: series.stats?.bowlers || []
+    });
+  }
+  
+  return res.status(404).json({ error: 'Page not found' });
+});
+
+// ===== END NEW API ENDPOINTS =====
+
 
 // Serve admin page
 app.get('/admin', checkRateLimit, (req, res) => {
