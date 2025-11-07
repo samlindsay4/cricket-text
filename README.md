@@ -1,10 +1,18 @@
-# Cricket Text - Ashes Scoring App
+# Cricket Text - Series Management & Scoring App
 
-A simplified cricket scoring application for manually scoring Ashes Test matches with authentic Ceefax/Teletext styling.
+A comprehensive cricket series management and scoring application with authentic Ceefax/Teletext styling. Manage multiple Test series, create matches, and score games in real-time.
 
 ![Public Scorecard](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
 
 ## Features
+
+### Series Management System
+- **Create multiple Test series** (e.g., The Ashes, India vs England)
+- **Flexible series configuration**: 1-5 Test matches per series
+- **Series score tracking**: Automatic win/loss tallying
+- **Match status management**: Not created, upcoming, live, completed
+- **Navigation**: All Series → Series Dashboard → Individual Match
+- **No hardcoded data**: All series are user-created and managed
 
 ### Public Scorecard View (Page 340)
 - **Authentic Ceefax styling** with classic color palette
@@ -22,7 +30,8 @@ A simplified cricket scoring application for manually scoring Ashes Test matches
 
 ### Admin Scoring Interface
 - **Password protected** admin access
-- Create new Ashes Test matches
+- **Series-aware match management**
+- Create matches within series with custom squads
 - Start innings (select batting/bowling teams)
 - **Quick-action scoring buttons**:
   - Large buttons: 0, 1, 2, 3, 4, 6
@@ -30,6 +39,7 @@ A simplified cricket scoring application for manually scoring Ashes Test matches
   - Wicket recording with dismissal type
 - Live scorecard preview as you score
 - **Mobile-friendly** for easy scoring on phone
+- **Auto-complete innings** when all out
 
 ## Technology Stack
 
@@ -65,28 +75,46 @@ npm start
 The application will run on http://localhost:3000
 
 - **Public scorecard**: http://localhost:3000
+- **Series management**: http://localhost:3000/series
 - **Admin interface**: http://localhost:3000/admin
 
 ## Usage
 
-### Accessing Admin Interface
+### Managing Series
 
-1. Navigate to http://localhost:3000/admin
+1. Navigate to http://localhost:3000/series
 2. Enter the admin password (default: `ashes2025`)
+3. Click "Create New Series"
+4. Enter series details:
+   - Series name (e.g., "The Ashes 2025")
+   - Team 1 name (e.g., "England")
+   - Team 2 name (e.g., "Australia")
+   - Number of matches (1-5)
+5. Click "Create Series"
 
-### Creating a Match
+### Creating a Match in a Series
 
-1. Login to admin interface
-2. Select test number (1st - 5th Test)
-3. Enter venue (e.g., "The Gabba, Brisbane")
-4. Select date
-5. Click "Create Match"
+1. From the Series Management page, click "View Series" on any series
+2. Click "Create New Match" or "Create Match" on a specific match slot
+3. Select match number
+4. Enter venue (e.g., "The Gabba, Brisbane")
+5. Select date
+6. Enter squads for both teams (11 players each)
+7. Click "Create Match"
+
+### Scoring a Match
+
+1. From the Series Dashboard, click "Score Match" on any created match
+2. The match will be activated and you'll be redirected to the scoring interface
+3. Select batting order and opening bowler
+4. Click "Start Innings"
 
 ### Starting an Innings
 
-1. Select batting team (England or Australia)
-2. Select bowling team
-3. Click "Start Innings"
+1. Select batting team and bowling team
+2. Arrange batting order (drag or use dropdowns)
+3. Select opening bowler
+4. Click "Start Innings"
 
 ### Scoring Balls
 
@@ -104,18 +132,26 @@ The scorecard updates immediately and is visible on the public page.
 
 ```
 cricket-text/
-├── server.js                 # Express server with all routes
+├── server.js                       # Express server with all routes
 ├── public/
-│   ├── index.html           # Public scorecard (Page 340)
-│   ├── admin.html           # Admin scoring interface
+│   ├── index.html                 # Public scorecard (Page 340)
+│   ├── series.html                # Series management home
+│   ├── series-dashboard.html      # Series dashboard with matches
+│   ├── admin.html                 # Admin scoring interface
 │   ├── css/
-│   │   ├── ceefax.css       # Authentic Ceefax styling
-│   │   └── admin.css        # Admin interface styling
+│   │   ├── ceefax.css             # Authentic Ceefax styling
+│   │   └── admin.css              # Admin interface styling
 │   └── js/
-│       ├── scorecard.js     # Frontend logic for public view
-│       └── admin.js         # Frontend logic for admin scoring
+│       ├── scorecard.js           # Frontend logic for public view
+│       └── admin.js               # Frontend logic for admin scoring
 ├── data/
-│   └── match.json           # Current match data storage
+│   ├── match.json                 # Current active match
+│   └── series/                    # Series data directory
+│       └── {series-slug}/
+│           ├── series.json        # Series metadata and scores
+│           ├── match-1.json       # Match 1 data
+│           ├── match-2.json       # Match 2 data
+│           └── ...
 ├── package.json
 ├── .env.example
 └── README.md
@@ -123,15 +159,47 @@ cricket-text/
 
 ## Data Structure
 
-Match data is stored in `data/match.json`:
+### Series Data (`data/series/{slug}/series.json`)
 
 ```javascript
 {
-  "id": "ashes-test-1",
-  "title": "The Ashes - 1st Test",
+  "slug": "the-ashes-2025",
+  "name": "The Ashes 2025",
+  "team1": "England",
+  "team2": "Australia",
+  "numberOfMatches": 5,
+  "createdAt": "2025-11-07T15:07:09.526Z",
+  "score": {
+    "England": 0,
+    "Australia": 0
+  },
+  "matches": [
+    {
+      "number": 1,
+      "title": "1st Test",
+      "status": "upcoming",
+      "venue": "The Gabba, Brisbane",
+      "date": "2025-11-21",
+      "result": null
+    }
+    // ... more matches
+  ]
+}
+```
+
+### Match Data (`data/series/{slug}/match-{n}.json`)
+
+```javascript
+{
+  "id": "the-ashes-2025-match-1",
+  "seriesSlug": "the-ashes-2025",
+  "matchNumber": 1,
+  "title": "The Ashes 2025 - 1st Test",
   "venue": "The Gabba, Brisbane",
   "date": "2025-11-21",
   "status": "live",
+  "format": "test",
+  "maxInnings": 4,
   "currentInnings": 1,
   "innings": [
     {
@@ -158,8 +226,18 @@ Match data is stored in `data/match.json`:
 
 ## API Endpoints
 
-- `GET /api/match` - Get current match data
-- `POST /api/match/create` - Create new Ashes test match (admin)
+### Series Management
+- `GET /api/series/list` - List all series
+- `GET /api/series/:slug` - Get specific series
+- `POST /api/series/create` - Create new series (admin)
+- `DELETE /api/series/:slug` - Delete series (admin)
+- `GET /api/series/:slug/match/:matchNumber` - Get match from series
+- `POST /api/series/:slug/match/create` - Create match in series (admin)
+- `POST /api/series/:slug/match/:matchNumber/activate` - Activate match for scoring (admin)
+
+### Match Operations
+- `GET /api/match` - Get current active match data
+- `POST /api/match/create` - Create new test match (admin, legacy)
 - `POST /api/match/start-innings` - Start new innings (admin)
 - `POST /api/match/ball` - Record a ball (admin)
 - `POST /api/auth/login` - Admin login
@@ -194,6 +272,6 @@ Monospace font with Teletext-style fallbacks for authentic appearance.
 
 ISC
 
-## Ready for The Ashes 2025!
+## Ready for Any Test Series!
 
-This application is ready to use for The Ashes starting November 21, 2025. Simply create a match, start scoring, and enjoy the authentic Ceefax experience!
+This application is ready to manage and score any Test cricket series. Create your series, set up matches, and enjoy the authentic Ceefax experience while tracking multiple tournaments simultaneously!
