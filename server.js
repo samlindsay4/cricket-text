@@ -257,8 +257,8 @@ function processBall(innings, ball, ballIndex) {
       // Clear current over
       innings.currentOver = [];
       
-      // Update current bowler for next over
-      innings.currentBowler = { name: ball.bowler };
+      // BUG FIX #3: Don't auto-update current bowler during recalculation
+      // It will be set to the last ball's bowler after all balls are processed
     }
   }
 }
@@ -282,6 +282,13 @@ function recalculateInnings(innings) {
   innings.allBalls.forEach((ball, index) => {
     processBall(innings, ball, index);
   });
+  
+  // BUG FIX #3: Set current bowler to whoever bowled the LAST ball (not the over-complete bowler)
+  // This ensures edit-ball doesn't incorrectly change the current bowler
+  if (innings.allBalls.length > 0) {
+    const lastBall = innings.allBalls[innings.allBalls.length - 1];
+    innings.currentBowler = { name: lastBall.bowler };
+  }
   
   // Update current batsmen display (keep compatibility with existing code)
   innings.currentBatsmen = [];
