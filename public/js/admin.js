@@ -1107,6 +1107,7 @@ function showChooseBatsmanModal() {
     // BUG FIX #2: Show if batsman is retired hurt with their stats
     if (currentInnings.allBatsmen[name] && currentInnings.allBatsmen[name].status === 'retired hurt') {
       const stats = currentInnings.allBatsmen[name];
+      // Note: * indicates "not out" in cricket scoring notation
       option.textContent = `${name} ⚕️ (Retired hurt - can resume: ${stats.runs}* off ${stats.balls})`;
     } else if (name === nextInOrder) {
       option.textContent = `${name} (Next in order)`;

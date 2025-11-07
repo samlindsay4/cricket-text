@@ -831,9 +831,6 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       batsman: dismissedName
     });
     
-    // BUG FIX #4: Store which batsman position was dismissed for validation
-    currentInnings.dismissedBatsmanPosition = dismissedName === striker ? 'striker' : 'non-striker';
-    
     // BUG FIX #1: Don't auto-add next batsman here
     // User will select incoming batsman via modal (showChooseBatsmanModal)
     // This ensures modal can show ALL remaining batsmen including next in order
