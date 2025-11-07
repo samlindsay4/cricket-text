@@ -20,6 +20,18 @@
             </div>
         </header>
 
+        <!-- Series Header & Match Selector -->
+        <div class="series-header" id="series-header" style="display: none;">
+            <div class="series-title" id="series-title">THE ASHES 2025</div>
+            <div class="series-score" id="series-score-display"></div>
+            <div style="margin-top: 10px;">
+                <label for="public-match-select" style="margin-right: 10px;">Select Match:</label>
+                <select id="public-match-select" onchange="switchPublicMatch()">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+        </div>
+
         <!-- Content Area -->
         <div class="content" id="content">
             <!-- Match content will be loaded here -->

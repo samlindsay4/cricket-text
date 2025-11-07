@@ -26,9 +26,30 @@
             <p>MANUAL SCORING INTERFACE FOR THE ASHES TEST MATCHES</p>
         </div>
 
+        <!-- Series & Match Selector -->
+        <div class="section" id="series-selector-section">
+            <div id="series-info">
+                <h2 id="series-title">The Ashes 2025</h2>
+                <div id="series-score" style="font-size: 18px; font-weight: bold; margin: 10px 0;">
+                    Series Score: <span id="series-score-text">Loading...</span>
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="match-selector">Select Match</label>
+                <select id="match-selector" onchange="switchMatch()">
+                    <option value="">Loading matches...</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" onclick="showCreateMatchForm()" style="margin-top: 10px;">
+                Create New Match
+            </button>
+        </div>
+
         <!-- Match Status -->
         <div class="section">
-            <h2>Current Match</h2>
+            <h2>Current Match Details</h2>
             <div id="match-status">
                 <div class="loading">Loading match data</div>
             </div>

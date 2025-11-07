@@ -17,6 +17,7 @@ app.use(express.static('public'));
 // Data storage
 const dataDir = path.join(__dirname, 'data');
 const matchFile = path.join(dataDir, 'match.json');
+const seriesFile = path.join(dataDir, 'series.json');
 
 // Helper function to check if player is unavailable
 function isPlayerUnavailable(status) {
@@ -64,6 +65,206 @@ function saveMatch(match) {
     console.error('Error saving match:', error);
     return false;
   }
+}
+
+// Series management functions
+function getOrdinalSuffix(num) {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
+}
+
+function createDefaultSeries() {
+  return {
+    name: "The Ashes 2025",
+    matches: [
+      {
+        id: "ashes-test-1",
+        title: "1st Test",
+        venue: "The Gabba, Brisbane",
+        date: "2025-11-21",
+        status: "upcoming"
+      },
+      {
+        id: "ashes-test-2",
+        title: "2nd Test",
+        venue: "Adelaide Oval",
+        date: "2025-12-06",
+        status: "upcoming"
+      },
+      {
+        id: "ashes-test-3",
+        title: "3rd Test",
+        venue: "The WACA, Perth",
+        date: "2025-12-14",
+        status: "upcoming"
+      },
+      {
+        id: "ashes-test-4",
+        title: "4th Test",
+        venue: "MCG, Melbourne",
+        date: "2025-12-26",
+        status: "upcoming"
+      },
+      {
+        id: "ashes-test-5",
+        title: "5th Test",
+        venue: "SCG, Sydney",
+        date: "2026-01-03",
+        status: "upcoming"
+      }
+    ],
+    currentMatch: null,
+    seriesScore: {
+      England: 0,
+      Australia: 0
+    }
+  };
+}
+
+function loadSeries() {
+  try {
+    if (!fs.existsSync(seriesFile)) {
+      const defaultSeries = createDefaultSeries();
+      saveSeries(defaultSeries);
+      return defaultSeries;
+    }
+    const data = fs.readFileSync(seriesFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading series:', error);
+    return createDefaultSeries();
+  }
+}
+
+function saveSeries(series) {
+  try {
+    fs.writeFileSync(seriesFile, JSON.stringify(series, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving series:', error);
+    return false;
+  }
+}
+
+function loadMatchById(matchId) {
+  try {
+    // Validate matchId to prevent path traversal
+    if (!matchId || typeof matchId !== 'string') {
+      return null;
+    }
+    
+    // Only allow alphanumeric, hyphens, and underscores
+    if (!/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      console.error('Invalid matchId format:', matchId);
+      return null;
+    }
+    
+    const matchPath = path.join(dataDir, `${matchId}.json`);
+    
+    // Additional security: ensure the resolved path is within dataDir
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedDataDir = path.resolve(dataDir);
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', matchId);
+      return null;
+    }
+    
+    if (!fs.existsSync(matchPath)) {
+      return null;
+    }
+    const data = fs.readFileSync(matchPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading match:', error);
+    return null;
+  }
+}
+
+function saveMatchById(matchId, match) {
+  try {
+    // Validate matchId to prevent path traversal
+    if (!matchId || typeof matchId !== 'string') {
+      return false;
+    }
+    
+    // Only allow alphanumeric, hyphens, and underscores
+    if (!/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      console.error('Invalid matchId format:', matchId);
+      return false;
+    }
+    
+    const matchPath = path.join(dataDir, `${matchId}.json`);
+    
+    // Additional security: ensure the resolved path is within dataDir
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedDataDir = path.resolve(dataDir);
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', matchId);
+      return false;
+    }
+    
+    fs.writeFileSync(matchPath, JSON.stringify(match, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving match:', error);
+    return false;
+  }
+}
+
+function updateSeriesMatchStatus(matchId, match) {
+  try {
+    const series = loadSeries();
+    const matchIndex = series.matches.findIndex(m => m.id === matchId);
+    
+    if (matchIndex !== -1) {
+      const seriesMatch = series.matches[matchIndex];
+      seriesMatch.status = match.status;
+      seriesMatch.venue = match.venue;
+      seriesMatch.date = match.date;
+      
+      // Update result if match completed
+      if (match.status === 'completed' && match.result && match.result.winner) {
+        // Safely construct result string with null checks
+        const margin = match.result.margin || 0;
+        const winType = match.result.winType || 'unknown';
+        const resultText = `${match.result.winner} won by ${margin} ${winType}`;
+        
+        // Only update series score if this is a new result (not already counted)
+        if (seriesMatch.result !== resultText) {
+          seriesMatch.result = resultText;
+          
+          // Update series score only if not already counted
+          if (match.result.winner === 'England') {
+            series.seriesScore.England++;
+          } else if (match.result.winner === 'Australia') {
+            series.seriesScore.Australia++;
+          }
+        }
+      }
+      
+      saveSeries(series);
+    }
+  } catch (error) {
+    console.error('Error updating series match status:', error);
+  }
+}
+
+// Helper to save both to legacy match.json and new match file
+function saveCurrentMatch(match) {
+  if (!match || !match.id) {
+    return saveMatch(match);
+  }
+  
+  // Save to both locations
+  const legacySaved = saveMatch(match);
+  const newSaved = saveMatchById(match.id, match);
+  updateSeriesMatchStatus(match.id, match);
+  
+  return legacySaved && newSaved;
 }
 
 // Recalculation functions for undo and edit ball functionality
@@ -517,6 +718,43 @@ function requireAuth(req, res, next) {
   }
 }
 
+// Get series information
+app.get('/api/series', checkRateLimit, (req, res) => {
+  const series = loadSeries();
+  res.json(series);
+});
+
+// Get specific match by ID
+app.get('/api/match/:matchId', checkRateLimit, (req, res) => {
+  const { matchId } = req.params;
+  const match = loadMatchById(matchId);
+  if (match) {
+    res.json(match);
+  } else {
+    res.status(404).json({ error: 'Match not found' });
+  }
+});
+
+// Switch active match
+app.post('/api/match/switch', requireAuth, (req, res) => {
+  const { matchId } = req.body;
+  const match = loadMatchById(matchId);
+  
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Update series current match
+  const series = loadSeries();
+  series.currentMatch = matchId;
+  saveSeries(series);
+  
+  // Also save to legacy match.json for backward compatibility
+  saveMatch(match);
+  
+  res.json({ success: true, match });
+});
+
 // Get current match data
 app.get('/api/match', checkRateLimit, (req, res) => {
   const match = loadMatch();
@@ -549,7 +787,7 @@ app.post('/api/match/create', requireAuth, (req, res) => {
   
   const match = {
     id: `ashes-test-${testNumber}`,
-    title: `The Ashes - ${testNumber}${testNumber === 1 ? 'st' : testNumber === 2 ? 'nd' : testNumber === 3 ? 'rd' : 'th'} Test`,
+    title: `The Ashes - ${testNumber}${getOrdinalSuffix(testNumber)} Test`,
     venue: venue,
     date: date,
     status: 'upcoming',
@@ -580,7 +818,23 @@ app.post('/api/match/create', requireAuth, (req, res) => {
     }
   };
   
-  if (saveMatch(match)) {
+  // Save to individual match file
+  const matchId = match.id;
+  if (saveMatchById(matchId, match)) {
+    // Also save to legacy match.json for backward compatibility
+    saveMatch(match);
+    
+    // Update series
+    const series = loadSeries();
+    const matchIndex = series.matches.findIndex(m => m.id === matchId);
+    if (matchIndex !== -1) {
+      series.matches[matchIndex].status = 'upcoming';
+      series.matches[matchIndex].venue = venue;
+      series.matches[matchIndex].date = date;
+    }
+    series.currentMatch = matchId;
+    saveSeries(series);
+    
     res.json(match);
   } else {
     res.status(500).json({ error: 'Failed to create match' });
@@ -677,7 +931,7 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
   match.currentInnings = innings.number;
   match.status = 'live';
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json(match);
   } else {
     res.status(500).json({ error: 'Failed to start innings' });
@@ -902,7 +1156,7 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     calculateMatchSituation(match);
   }
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match, ball });
   } else {
     res.status(500).json({ error: 'Failed to record ball' });
@@ -932,7 +1186,7 @@ app.post('/api/match/undo', requireAuth, (req, res) => {
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to undo' });
@@ -992,7 +1246,7 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to edit ball' });
@@ -1026,7 +1280,7 @@ app.post('/api/match/change-bowler', requireAuth, (req, res) => {
   // Update current bowler (can be any name - handles substitutes)
   currentInnings.currentBowler = { name: bowlerName };
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to change bowler' });
@@ -1111,7 +1365,7 @@ app.post('/api/match/edit-batting-order', requireAuth, (req, res) => {
   
   currentInnings.battingOrder = newBattingOrder;
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to update batting order' });
@@ -1150,7 +1404,7 @@ app.post('/api/match/declare', requireAuth, (req, res) => {
     calculateMatchSituation(match);
   }
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match, message: 'Innings declared. Start next innings.' });
   } else {
     res.status(500).json({ error: 'Failed to declare innings' });
@@ -1181,7 +1435,7 @@ app.post('/api/match/end-innings', requireAuth, (req, res) => {
     match.status = 'completed';
   }
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to end innings' });
@@ -1286,7 +1540,7 @@ app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
     }
   }
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to select batsman' });
@@ -1310,7 +1564,7 @@ app.post('/api/match/swap-strike', requireAuth, (req, res) => {
   [currentInnings.striker, currentInnings.nonStriker] = 
     [currentInnings.nonStriker, currentInnings.striker];
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to swap strike' });
@@ -1362,7 +1616,7 @@ app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
     });
   }
   
-  if (saveMatch(match)) {
+  if (saveCurrentMatch(match)) {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to retire batsman' });

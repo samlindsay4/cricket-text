@@ -2,6 +2,7 @@
 
 let sessionId = null;
 let currentMatch = null;
+let currentSeries = null;
 const BALLS_PER_OVER = 6; // Standard cricket over
 
 // Initialize squad inputs on page load
@@ -55,6 +56,10 @@ async function login() {
 // Load match status
 async function loadMatchStatus() {
   try {
+    // Load series info first
+    await loadSeriesInfo();
+    
+    // Then load current match
     const response = await fetch('/api/match');
     currentMatch = await response.json();
     
@@ -63,6 +68,108 @@ async function loadMatchStatus() {
   } catch (error) {
     console.error('Error loading match:', error);
   }
+}
+
+// Load series information
+async function loadSeriesInfo() {
+  try {
+    const response = await fetch('/api/series');
+    currentSeries = await response.json();
+    
+    // Update series display
+    const seriesScoreText = document.getElementById('series-score-text');
+    if (seriesScoreText) {
+      seriesScoreText.textContent = `Australia ${currentSeries.seriesScore.Australia} - ${currentSeries.seriesScore.England} England`;
+    }
+    
+    // Populate match selector
+    const selector = document.getElementById('match-selector');
+    if (selector) {
+      selector.innerHTML = '';
+      
+      currentSeries.matches.forEach((match, index) => {
+        const option = document.createElement('option');
+        option.value = match.id;
+        
+        // Format display text
+        let statusIcon = '';
+        if (match.status === 'completed') {
+          statusIcon = '✓ ';
+        } else if (match.status === 'live') {
+          statusIcon = '→ ';
+        }
+        
+        let displayText = `${statusIcon}${match.title} - ${match.venue}`;
+        if (match.status === 'completed' && match.result) {
+          displayText += ` (${match.result})`;
+        } else if (match.status === 'live') {
+          displayText += ' (LIVE)';
+        } else if (match.status === 'upcoming') {
+          displayText += ' (Upcoming)';
+        }
+        
+        option.textContent = displayText;
+        
+        // Select current match
+        if (currentSeries.currentMatch === match.id) {
+          option.selected = true;
+        }
+        
+        selector.appendChild(option);
+      });
+      
+      // Add "No match selected" option at the top if no current match
+      if (!currentSeries.currentMatch) {
+        const noneOption = document.createElement('option');
+        noneOption.value = '';
+        noneOption.textContent = 'No match selected';
+        noneOption.selected = true;
+        selector.insertBefore(noneOption, selector.firstChild);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading series:', error);
+  }
+}
+
+// Switch to a different match
+async function switchMatch() {
+  const selector = document.getElementById('match-selector');
+  const matchId = selector.value;
+  
+  if (!matchId) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/switch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ matchId })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      currentMatch = data.match;
+      displayMatchStatus();
+      updateScoringInterface();
+    } else {
+      alert('Failed to switch match');
+    }
+  } catch (error) {
+    console.error('Error switching match:', error);
+    alert('Error switching match: ' + error.message);
+  }
+}
+
+// Show create match form
+function showCreateMatchForm() {
+  const createSection = document.getElementById('create-match-section');
+  createSection.classList.remove('hidden');
+  createSection.scrollIntoView({ behavior: 'smooth' });
 }
 
 // Display match status

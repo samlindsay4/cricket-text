@@ -1,6 +1,7 @@
 // Scorecard JavaScript for Public View (Page 340)
 
 let refreshInterval = null;
+let currentSeries = null;
 const BALLS_PER_OVER = 6; // Standard cricket over
 
 /**
@@ -28,6 +29,9 @@ function formatOvers(overs, balls) {
 // Load and display match data
 async function loadMatch() {
   try {
+    // Load series info first
+    await loadSeriesInfo();
+    
     const response = await fetch('/api/match');
     const match = await response.json();
     
@@ -35,6 +39,93 @@ async function loadMatch() {
     updateRefreshIndicator();
   } catch (error) {
     console.error('Error loading match:', error);
+  }
+}
+
+// Load series information
+async function loadSeriesInfo() {
+  try {
+    const response = await fetch('/api/series');
+    currentSeries = await response.json();
+    
+    // Update series display
+    const seriesHeader = document.getElementById('series-header');
+    const seriesScoreDisplay = document.getElementById('series-score-display');
+    
+    if (currentSeries && currentSeries.matches && currentSeries.matches.length > 0) {
+      seriesHeader.style.display = 'block';
+      seriesScoreDisplay.textContent = `Australia ${currentSeries.seriesScore.Australia} - ${currentSeries.seriesScore.England} England`;
+      
+      // Populate match selector
+      const selector = document.getElementById('public-match-select');
+      selector.innerHTML = '';
+      
+      currentSeries.matches.forEach(match => {
+        const option = document.createElement('option');
+        option.value = match.id;
+        
+        let statusIcon = '';
+        if (match.status === 'completed') statusIcon = '✓ ';
+        else if (match.status === 'live') statusIcon = '→ ';
+        
+        let displayText = `${statusIcon}${match.title} - ${match.venue}`;
+        if (match.status === 'completed' && match.result) {
+          displayText += ` (${match.result})`;
+        } else if (match.status === 'live') {
+          displayText += ' (LIVE)';
+        }
+        
+        option.textContent = displayText;
+        
+        if (currentSeries.currentMatch === match.id) {
+          option.selected = true;
+        }
+        
+        selector.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading series:', error);
+  }
+}
+
+// Switch to a different match on public scorecard
+async function switchPublicMatch() {
+  const selector = document.getElementById('public-match-select');
+  const matchId = selector.value;
+  
+  if (!matchId) return;
+  
+  try {
+    const response = await fetch(`/api/match/${matchId}`);
+    if (response.ok) {
+      const match = await response.json();
+      displayMatch(match);
+    } else {
+      console.error('Failed to switch match:', response.statusText);
+      // Display error message in content area
+      const content = document.getElementById('content');
+      if (content) {
+        content.innerHTML = `
+          <div class="no-match">
+            <p>ERROR LOADING MATCH</p>
+            <p style="margin-top: 20px; font-size: 14px;">Please try again later</p>
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Error switching match:', error);
+    // Display error message
+    const content = document.getElementById('content');
+    if (content) {
+      content.innerHTML = `
+        <div class="no-match">
+          <p>CONNECTION ERROR</p>
+          <p style="margin-top: 20px; font-size: 14px;">Please check your connection</p>
+        </div>
+      `;
+    }
   }
 }
 
