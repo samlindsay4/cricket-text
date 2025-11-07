@@ -2528,6 +2528,56 @@ app.post('/api/series/:seriesId/match/:matchId/swap-strike', requireAuth, (req, 
   res.json(match);
 });
 
+// Retire batsman for series match
+app.post('/api/series/:seriesId/match/:matchId/retire-batsman', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { batsmanName, retireType } = req.body;
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    return res.status(400).json({ error: 'Batsman not found' });
+  }
+  
+  const validRetireTypes = ['retired hurt', 'retired out', 'retired not out'];
+  if (!validRetireTypes.includes(retireType)) {
+    return res.status(400).json({ error: 'Invalid retirement type' });
+  }
+  
+  currentInnings.allBatsmen[batsmanName].status = retireType;
+  currentInnings.allBatsmen[batsmanName].howOut = retireType;
+  
+  if (retireType === 'retired out') {
+    currentInnings.wickets++;
+    currentInnings.fallOfWickets.push({
+      runs: currentInnings.runs,
+      wickets: currentInnings.wickets,
+      batsman: batsmanName
+    });
+  }
+  
+  if (saveSeriesMatch(seriesId, matchId, match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to retire batsman' });
+  }
+});
+
 // Declare innings for series match
 app.post('/api/series/:seriesId/match/:matchId/declare', requireAuth, (req, res) => {
   const { seriesId, matchId } = req.params;
@@ -2915,13 +2965,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
 // ===== END NEW API ENDPOINTS =====
 
 
-// Serve admin page
+// Serve admin dashboard (unified interface)
 app.get('/admin', checkRateLimit, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// Serve admin dashboard (new series management interface)
-app.get('/admin/dashboard', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
 });
 

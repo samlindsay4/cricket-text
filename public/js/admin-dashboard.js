@@ -915,6 +915,14 @@ function updateBallHistory() {
  */
 function setScoringRuns(runs) {
     document.getElementById('scoring-runs').value = runs;
+    
+    // Add visual feedback - highlight selected button
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.textContent.trim() === runs.toString() && btn.onclick && btn.onclick.toString().includes('setScoringRuns')) {
+            btn.style.background = '#00ff00';
+            btn.style.color = '#000';
+        }
+    });
 }
 
 /**
@@ -925,6 +933,21 @@ function setScoringExtra(type) {
     if (type === 'Wd' || type === 'Nb') {
         document.getElementById('scoring-extras').value = '1';
     }
+    
+    // Add visual feedback - highlight selected button
+    const extraButtons = {
+        '': 'None',
+        'Wd': 'Wide',
+        'Nb': 'No Ball',
+        'Bye': 'Bye',
+        'LB': 'Leg Bye'
+    };
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringExtra')) {
+            btn.style.background = '#00ff00';
+            btn.style.color = '#000';
+        }
+    });
 }
 
 /**
@@ -944,6 +967,17 @@ function toggleScoringWicketDetails() {
  * Record ball from dashboard
  */
 async function recordBallFromDashboard() {
+    // Validate that series and match are loaded
+    if (!currentScoringSeriesId) {
+        alert('Error: No series selected. Please select a match to score.');
+        return;
+    }
+    
+    if (!currentScoringMatch || !currentScoringMatch.id) {
+        alert('Error: No match loaded. Please select a match to score.');
+        return;
+    }
+    
     const bowler = document.getElementById('scoring-bowler').value;
     const runs = parseInt(document.getElementById('scoring-runs').value) || 0;
     const overthrows = parseInt(document.getElementById('scoring-overthrows').value) || 0;
@@ -973,13 +1007,19 @@ async function recordBallFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             
-            // Reset form
+            // Reset form and clear visual feedback
             document.getElementById('scoring-runs').value = '0';
             document.getElementById('scoring-overthrows').value = '0';
             document.getElementById('scoring-extra-type').value = '';
             document.getElementById('scoring-extras').value = '0';
             document.getElementById('scoring-wicket').checked = false;
             toggleScoringWicketDetails();
+            
+            // Clear button highlights
+            document.querySelectorAll('.btn-group button').forEach(btn => {
+                btn.style.background = '';
+                btn.style.color = '';
+            });
             
             // Update interface
             setupScoringInterface();
@@ -991,7 +1031,7 @@ async function recordBallFromDashboard() {
         }
     } catch (error) {
         console.error('Error recording ball:', error);
-        alert('Failed to record ball');
+        alert('Failed to record ball: ' + error.message);
     }
 }
 
@@ -1108,5 +1148,89 @@ async function endInningsFromDashboard() {
     } catch (error) {
         console.error('Error ending innings:', error);
         alert('Failed to end innings');
+    }
+}
+
+/**
+ * Show retire batsman modal
+ */
+function showRetireBatsmanModalFromDashboard() {
+    const modal = document.getElementById('dashboard-retire-modal');
+    const select = document.getElementById('dashboard-retire-batsman');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No active innings');
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    
+    select.innerHTML = '<option value="">-- Select batsman --</option>';
+    
+    if (currentInnings.striker) {
+        const option = document.createElement('option');
+        option.value = currentInnings.striker;
+        option.textContent = currentInnings.striker + ' (striker)';
+        select.appendChild(option);
+    }
+    
+    if (currentInnings.nonStriker) {
+        const option = document.createElement('option');
+        option.value = currentInnings.nonStriker;
+        option.textContent = currentInnings.nonStriker + ' (non-striker)';
+        select.appendChild(option);
+    }
+    
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+}
+
+/**
+ * Hide retire batsman modal
+ */
+function hideRetireBatsmanModalFromDashboard() {
+    const modal = document.getElementById('dashboard-retire-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+/**
+ * Confirm retire batsman
+ */
+async function confirmRetireBatsmanFromDashboard() {
+    const batsmanName = document.getElementById('dashboard-retire-batsman').value;
+    const retireType = document.getElementById('dashboard-retire-type').value;
+    
+    if (!batsmanName || !retireType) {
+        alert('Please select batsman and retirement type');
+        return;
+    }
+    
+    if (!confirm(`Retire ${batsmanName} (${retireType})?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/retire-batsman`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ batsmanName, retireType })
+        });
+        
+        if (response.ok) {
+            hideRetireBatsmanModalFromDashboard();
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            alert('Batsman retired!');
+        } else {
+            const error = await response.json();
+            alert('Failed to retire: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error retiring batsman:', error);
+        alert('Failed to retire batsman');
     }
 }
