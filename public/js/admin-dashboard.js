@@ -765,7 +765,6 @@ async function startInningsFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             displayScoringMatchDetails();
-            alert('Innings started!');
         } else {
             const error = await response.json();
             alert('Failed to start innings: ' + (error.error || 'Unknown error'));
@@ -1039,6 +1038,9 @@ async function recordBallFromDashboard() {
             currentScoringMatch = await response.json();
             console.log('Ball recorded successfully');
             
+            // Check if a wicket fell
+            const wicketFell = wicket;
+            
             // Reset form and clear visual feedback
             document.getElementById('scoring-runs').value = '0';
             document.getElementById('scoring-overthrows').value = '0';
@@ -1056,7 +1058,10 @@ async function recordBallFromDashboard() {
             // Update interface
             setupScoringInterface();
             
-            alert('Ball recorded!');
+            // Show incoming batsman modal if a wicket fell
+            if (wicketFell) {
+                showIncomingBatsmanModalFromDashboard(dismissedBatsman);
+            }
         } else {
             const error = await response.json();
             console.error('Server error:', error);
@@ -1086,7 +1091,6 @@ async function undoLastBallFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             setupScoringInterface();
-            alert('Ball undone!');
         } else {
             const error = await response.json();
             alert('Failed to undo: ' + (error.error || 'Unknown error'));
@@ -1115,7 +1119,6 @@ async function swapStrikeFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             setupScoringInterface();
-            alert('Strike swapped!');
         } else {
             const error = await response.json();
             alert('Failed to swap: ' + (error.error || 'Unknown error'));
@@ -1144,7 +1147,6 @@ async function declareInningsFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             displayScoringMatchDetails();
-            alert('Innings declared!');
         } else {
             const error = await response.json();
             alert('Failed to declare: ' + (error.error || 'Unknown error'));
@@ -1173,7 +1175,6 @@ async function endInningsFromDashboard() {
         if (response.ok) {
             currentScoringMatch = await response.json();
             displayScoringMatchDetails();
-            alert('Innings ended!');
         } else {
             const error = await response.json();
             alert('Failed to end innings: ' + (error.error || 'Unknown error'));
@@ -1257,7 +1258,9 @@ async function confirmRetireBatsmanFromDashboard() {
             hideRetireBatsmanModalFromDashboard();
             currentScoringMatch = await response.json();
             setupScoringInterface();
-            alert('Batsman retired!');
+            
+            // Show incoming batsman modal
+            showIncomingBatsmanModalFromDashboard(batsmanName);
         } else {
             const error = await response.json();
             alert('Failed to retire: ' + (error.error || 'Unknown error'));
@@ -1265,5 +1268,100 @@ async function confirmRetireBatsmanFromDashboard() {
     } catch (error) {
         console.error('Error retiring batsman:', error);
         alert('Failed to retire batsman');
+    }
+}
+
+/**
+ * Show incoming batsman modal
+ */
+function showIncomingBatsmanModalFromDashboard(dismissedBatsmanName) {
+    const modal = document.getElementById('dashboard-incoming-batsman-modal');
+    const select = document.getElementById('dashboard-incoming-batsman');
+    const infoDiv = document.getElementById('dismissed-batsman-info');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No active innings');
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    
+    // Update info text
+    if (dismissedBatsmanName) {
+        infoDiv.textContent = `${dismissedBatsmanName} is dismissed/retired. Select the incoming batsman:`;
+    } else {
+        infoDiv.textContent = 'Select the incoming batsman:';
+    }
+    
+    // Get available batsmen (not out, not currently batting, and haven't retired out/retired not out)
+    const availableBatsmen = [];
+    currentInnings.battingOrder.forEach(name => {
+        const batsmanStats = currentInnings.allBatsmen[name];
+        if (!batsmanStats) {
+            // Haven't batted yet
+            availableBatsmen.push(name);
+        } else {
+            const status = batsmanStats.status;
+            // Available if not batted or retired hurt (can resume)
+            if (status === 'not batted' || status === 'retired hurt') {
+                availableBatsmen.push(name);
+            }
+        }
+    });
+    
+    select.innerHTML = '<option value="">-- Select incoming batsman --</option>';
+    availableBatsmen.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        const isRetiredHurt = currentInnings.allBatsmen[name]?.status === 'retired hurt';
+        option.textContent = isRetiredHurt ? `${name} (resuming)` : name;
+        select.appendChild(option);
+    });
+    
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+}
+
+/**
+ * Hide incoming batsman modal
+ */
+function hideIncomingBatsmanModalFromDashboard() {
+    const modal = document.getElementById('dashboard-incoming-batsman-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+/**
+ * Confirm incoming batsman selection
+ */
+async function confirmIncomingBatsmanFromDashboard() {
+    const batsmanName = document.getElementById('dashboard-incoming-batsman').value;
+    
+    if (!batsmanName) {
+        alert('Please select a batsman');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/select-incoming-batsman`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ batsmanName })
+        });
+        
+        if (response.ok) {
+            hideIncomingBatsmanModalFromDashboard();
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+        } else {
+            const error = await response.json();
+            alert('Failed to select batsman: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error selecting batsman:', error);
+        alert('Failed to select batsman');
     }
 }
