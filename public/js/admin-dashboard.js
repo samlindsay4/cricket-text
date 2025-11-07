@@ -165,12 +165,12 @@ async function viewSeries(seriesId) {
                     </div>
                     ${match.result ? `<div style="color: #00ff00; margin-top: 5px;">${match.result}</div>` : ''}
                     <div class="btn-group">
-                        ${match.status === 'upcoming' ? `
+                        ${match.status === 'upcoming' && !match.venue ? `
                             <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, '${series.team1}', '${series.team2}')">Setup Match</button>
                         ` : `
                             <button class="btn btn-primary btn-small" onclick="manageMatch('${seriesId}', '${match.id}')">Manage Match</button>
                         `}
-                        ${match.status !== 'upcoming' ? `
+                        ${match.status !== 'upcoming' || match.venue ? `
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Live Score</button>
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 2}', '_blank')">View Scorecard</button>
                         ` : ''}
