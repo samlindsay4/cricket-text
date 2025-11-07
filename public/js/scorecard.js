@@ -216,9 +216,19 @@ function displayMatch(match) {
     match.innings.forEach((inn, idx) => {
       const isDeclared = inn.declared ? ' dec' : '';
       const isLive = inn.status === 'live' ? ' *' : '';
+      
+      // BUG FIX #9: Indicate follow-on when team bats twice in a row
+      let followOnIndicator = '';
+      if (idx === 2 && match.innings.length >= 3) {
+        // Check if 3rd innings is same team as 2nd innings (follow-on)
+        if (match.innings[2].battingTeam === match.innings[1].battingTeam) {
+          followOnIndicator = ' (fo)';
+        }
+      }
+      
       html += `
         <div style="margin-bottom: 3px;">
-          ${inn.battingTeam}: ${inn.runs}/${inn.wickets}${isDeclared}${isLive}
+          ${inn.battingTeam}: ${inn.runs}/${inn.wickets}${isDeclared}${isLive}${followOnIndicator}
         </div>
       `;
     });

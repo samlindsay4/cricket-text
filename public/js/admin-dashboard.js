@@ -788,8 +788,11 @@ function setupScoringInterface() {
     // Update scorecard preview
     updateScorecardPreview();
     
-    // Populate bowler dropdown
+    // BUG FIX #2: Store current bowler value BEFORE repopulating dropdown
     const bowlerSelect = document.getElementById('scoring-bowler');
+    const currentBowlerName = currentInnings.currentBowler?.name || bowlerSelect.value;
+    
+    // Populate bowler dropdown
     const bowlingSquad = currentScoringMatch.squads[currentInnings.bowlingTeam] || [];
     const allBowlers = Object.keys(currentInnings.allBowlers || {});
     const bowlerOptions = [...new Set([...bowlingSquad, ...allBowlers])];
@@ -799,15 +802,12 @@ function setupScoringInterface() {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        if (currentInnings.currentBowler && currentInnings.currentBowler.name === name) {
-            option.selected = true;
-        }
         bowlerSelect.appendChild(option);
     });
     
-    // BUG FIX #2: Explicitly set the select element's value to ensure the current bowler is selected
-    if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
-        bowlerSelect.value = currentInnings.currentBowler.name;
+    // BUG FIX #2: Restore the current bowler value AFTER repopulating
+    if (currentBowlerName) {
+        bowlerSelect.value = currentBowlerName;
     }
     
     // Populate dismissed batsman dropdown
@@ -1124,9 +1124,11 @@ async function recordBallFromDashboard() {
             // Check if a wicket fell
             const wicketFell = wicket;
             
-            // Check if over is complete (balls === 0 and overs just incremented)
+            // BUG FIX #5: Check if over is complete - only if it was a legal delivery
+            // Wide (Wd) and No-ball (Nb) are illegal deliveries
+            const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
             const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
-            const overComplete = currentInnings && currentInnings.balls === 0 && currentInnings.overs > 0;
+            const overComplete = isLegalDelivery && currentInnings && currentInnings.balls === 0 && currentInnings.overs > 0;
             
             // Reset form and clear visual feedback
             document.getElementById('scoring-runs').value = '0';
