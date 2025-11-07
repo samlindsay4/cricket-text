@@ -243,6 +243,22 @@
             <h3>Edit Ball <span id="edit-ball-title"></span></h3>
             <input type="hidden" id="edit-ball-index">
             
+            <!-- BUG FIX #3: Add bowler dropdown -->
+            <div class="form-group">
+                <label for="edit-bowler">Bowler</label>
+                <select id="edit-bowler">
+                    <option value="">Select bowler...</option>
+                </select>
+            </div>
+            
+            <!-- BUG FIX #3: Add batsman facing dropdown -->
+            <div class="form-group">
+                <label for="edit-batsman">Batsman Facing</label>
+                <select id="edit-batsman">
+                    <option value="">Select batsman...</option>
+                </select>
+            </div>
+            
             <div class="form-group">
                 <label for="edit-runs">Runs</label>
                 <input type="number" id="edit-runs" min="0" max="6" value="0">

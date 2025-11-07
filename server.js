@@ -90,7 +90,11 @@ function processBall(innings, ball, ballIndex) {
   }
   
   innings.allBatsmen[ball.batsman].runs += (ball.runs + overthrows);
-  if (isLegal) innings.allBatsmen[ball.batsman].balls++;
+  // BUG FIX #2: No-ball counts for batsman (they faced it), but not for over
+  // Wide doesn't count for batsman or over
+  if (ball.extraType !== 'Wd') {
+    innings.allBatsmen[ball.batsman].balls++;
+  }
   // Check for boundaries (without overthrows)
   if (ball.runs === 4 && overthrows === 0) innings.allBatsmen[ball.batsman].fours++;
   if (ball.runs === 6 && overthrows === 0) innings.allBatsmen[ball.batsman].sixes++;
@@ -134,10 +138,51 @@ function processBall(innings, ball, ballIndex) {
       batsman: ball.dismissedBatsman
     });
     
-    // Bring in next batsman
-    if (innings.nextBatsmanIndex < innings.battingOrder.length) {
+    // BUG FIX #1: Use incomingBatsman from ball record if available
+    // This ensures recalculation uses the batsman selected by the user, not just next in order
+    if (ball.incomingBatsman) {
+      const nextBat = ball.incomingBatsman;
+      
+      // Initialize batsman if not already in allBatsmen
+      if (!innings.allBatsmen[nextBat]) {
+        innings.allBatsmen[nextBat] = { 
+          name: nextBat,
+          runs: 0, 
+          balls: 0, 
+          fours: 0, 
+          sixes: 0, 
+          status: 'batting' 
+        };
+      }
+      
+      // Replace dismissed batsman
+      if (ball.dismissedBatsman === innings.striker) {
+        innings.striker = nextBat;
+      } else {
+        innings.nonStriker = nextBat;
+      }
+      
+      // Update nextBatsmanIndex if this was the next in order
+      const batsmanIndex = innings.battingOrder.indexOf(nextBat);
+      if (batsmanIndex === innings.nextBatsmanIndex) {
+        innings.nextBatsmanIndex++;
+      }
+    }
+    // Fallback: If no incomingBatsman stored (old balls), use next in order
+    else if (innings.nextBatsmanIndex < innings.battingOrder.length) {
       const nextBat = innings.battingOrder[innings.nextBatsmanIndex];
       innings.nextBatsmanIndex++;
+      
+      if (!innings.allBatsmen[nextBat]) {
+        innings.allBatsmen[nextBat] = { 
+          name: nextBat,
+          runs: 0, 
+          balls: 0, 
+          fours: 0, 
+          sixes: 0, 
+          status: 'batting' 
+        };
+      }
       
       // Replace dismissed batsman
       if (ball.dismissedBatsman === innings.striker) {
@@ -246,8 +291,8 @@ function calculateMatchSituation(match) {
   
   const innings = match.innings;
   
-  // After 2 innings: Check lead/trail and follow-on
-  if (innings.length === 2 && innings[1].status === 'completed') {
+  // BUG FIX #4: Update lead/trail during 2nd innings (not just when completed)
+  if (innings.length >= 2) {
     const innings1 = innings[0];
     const innings2 = innings[1];
     
@@ -255,10 +300,12 @@ function calculateMatchSituation(match) {
     const team2Score = innings2.runs;
     const deficit = team1Score - team2Score;
     
-    if (deficit >= match.followOn.deficit) {
+    // Check follow-on availability when 2nd innings completes
+    if (innings[1].status === 'completed' && deficit >= match.followOn.deficit) {
       match.followOn.available = true;
     }
     
+    // Update lead/trail situation
     if (team1Score > team2Score) {
       match.matchSituation.lead = innings1.battingTeam;
       match.matchSituation.leadBy = deficit;
@@ -271,16 +318,16 @@ function calculateMatchSituation(match) {
     }
   }
   
-  // After 3 innings: Calculate target for 4th innings
-  if (innings.length === 3 && innings[2].status === 'completed') {
+  // BUG FIX #4: Calculate target during 3rd innings (not just when completed)
+  if (innings.length >= 3) {
     const innings1 = innings[0];
     const innings2 = innings[1];
     const innings3 = innings[2];
     
-    // Team that batted first's total (innings 1 + innings 3)
+    // Team that batted first's total (innings 1 + innings 3 if applicable)
     const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
     
-    // Team that batted second's total (innings 2 + innings 3 if they batted in innings 3)
+    // Team that batted second's total (innings 2 + innings 3 if applicable)
     const team2Total = innings2.runs + (innings3.battingTeam === innings2.battingTeam ? innings3.runs : 0);
     
     // Target is the deficit + 1
@@ -297,7 +344,7 @@ function calculateMatchSituation(match) {
     }
   }
   
-  // During 4th innings: Update chase situation
+  // BUG FIX #4: Update chase situation during 4th innings
   if (innings.length === 4) {
     const innings4 = innings[3];
     if (match.matchSituation.target) {
@@ -662,7 +709,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   
   // 4. Update striker stats (include overthrows in batsman's runs)
   currentInnings.allBatsmen[striker].runs += (ball.runs + ball.overthrows);
-  if (isLegalDelivery) {
+  // BUG FIX #2: No-ball counts for batsman (they faced it), but not for over
+  // Wide doesn't count for batsman or over
+  if (ball.extraType !== 'Wd') {
     currentInnings.allBatsmen[striker].balls++;
   }
   // Check for boundaries (without overthrows)
@@ -715,23 +764,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       batsman: dismissedName
     });
     
-    // Bring in next batsman (if available and not all out)
-    if (currentInnings.nextBatsmanIndex < 11 && currentInnings.wickets < 10) {
-      const nextBatsman = currentInnings.battingOrder[currentInnings.nextBatsmanIndex];
-      currentInnings.nextBatsmanIndex++;
-      
-      // Initialize next batsman stats
-      currentInnings.allBatsmen[nextBatsman] = { 
-        runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
-      };
-      
-      // Replace dismissed batsman (maintain striker/non-striker correctly)
-      if (dismissedName === striker) {
-        currentInnings.striker = nextBatsman;
-      } else {
-        currentInnings.nonStriker = nextBatsman;
-      }
-    }
+    // BUG FIX #1: Don't auto-add next batsman here
+    // User will select incoming batsman via modal (showChooseBatsmanModal)
+    // This ensures modal can show ALL remaining batsmen including next in order
   }
   
   // 7. Rotate strike if odd total runs (runs + overthrows)
@@ -792,8 +827,8 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   // 11. Store in all balls
   currentInnings.allBalls.push(ball);
   
-  // 12. Update match situation if in 4th innings (Test Match)
-  if (match.format === 'test' && currentInnings.number === 4) {
+  // BUG FIX #4: Update match situation after EVERY ball (not just 4th innings)
+  if (match.format === 'test') {
     calculateMatchSituation(match);
   }
   
@@ -846,7 +881,7 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   }
   
   const currentInnings = match.innings[match.innings.length - 1];
-  const { ballIndex, runs, extras, extraType, wicket, wicketType, dismissedBatsman } = req.body;
+  const { ballIndex, runs, extras, extraType, wicket, wicketType, dismissedBatsman, bowler, batsman } = req.body;
   
   if (ballIndex < 0 || ballIndex >= currentInnings.allBalls.length) {
     return res.status(400).json({ error: 'Invalid ball index' });
@@ -855,6 +890,13 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   // Prevent prototype pollution
   const dangerousNames = ['__proto__', 'constructor', 'prototype'];
   if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  // BUG FIX #3: Add validation for bowler and batsman
+  if (bowler && dangerousNames.includes(bowler)) {
+    return res.status(400).json({ error: 'Invalid bowler name' });
+  }
+  if (batsman && dangerousNames.includes(batsman)) {
     return res.status(400).json({ error: 'Invalid batsman name' });
   }
   
@@ -866,6 +908,9 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   ball.wicket = wicket || false;
   ball.wicketType = wicketType || null;
   ball.dismissedBatsman = dismissedBatsman || null;
+  // BUG FIX #3: Allow editing bowler and batsman facing
+  if (bowler) ball.bowler = bowler;
+  if (batsman) ball.batsman = batsman;
   
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
@@ -1143,6 +1188,14 @@ app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
   const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
   if (batsmanIndex === currentInnings.nextBatsmanIndex) {
     currentInnings.nextBatsmanIndex++;
+  }
+  
+  // BUG FIX #1: Store incoming batsman in last ball record (if it was a wicket)
+  if (currentInnings.allBalls && currentInnings.allBalls.length > 0) {
+    const lastBall = currentInnings.allBalls[currentInnings.allBalls.length - 1];
+    if (lastBall.wicket) {
+      lastBall.incomingBatsman = batsmanName;
+    }
   }
   
   if (saveMatch(match)) {
