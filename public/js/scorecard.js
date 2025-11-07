@@ -1,6 +1,7 @@
 // Scorecard JavaScript for Public View (Page 340)
 
 let refreshInterval = null;
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 /**
  * Updates the Ceefax header with current date and time
@@ -61,6 +62,65 @@ function displayMatch(match) {
       <div>Date: ${formatDate(match.date)}</div>
     </div>
   `;
+  
+  // Display all innings scores (Test Match)
+  if (match.format === 'test' && match.innings && match.innings.length > 0) {
+    html += `<div class="innings-summary">`;
+    match.innings.forEach((inn, idx) => {
+      const isDeclared = inn.declared ? ' dec' : '';
+      const isLive = inn.status === 'live' ? ' *' : '';
+      html += `
+        <div style="margin-bottom: 3px;">
+          ${inn.battingTeam}: ${inn.runs}/${inn.wickets}${isDeclared}${isLive}
+        </div>
+      `;
+    });
+    html += `</div>`;
+    
+    // Show match situation
+    if (match.matchSituation) {
+      const sit = match.matchSituation;
+      
+      if (sit.lead && sit.leadBy > 0 && match.innings.length < 4) {
+        html += `<div class="match-situation">
+          ${sit.lead} lead by ${sit.leadBy} runs
+        </div>`;
+      }
+      
+      // Show chase situation in 4th innings
+      if (match.innings.length === 4 && sit.target && currentInnings && currentInnings.status === 'live') {
+        const runsNeeded = sit.target - currentInnings.runs;
+        const wicketsLeft = 10 - currentInnings.wickets;
+        
+        // Calculate run rates
+        const totalBalls = currentInnings.overs * BALLS_PER_OVER + currentInnings.balls;
+        const currentRR = totalBalls > 0 ? (currentInnings.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
+        
+        html += `<div class="chase-info">
+          <div style="font-weight: bold; margin-bottom: 5px;">TARGET: ${sit.target}</div>
+          <div>Need ${runsNeeded} runs</div>
+          <div>${wicketsLeft} wickets remaining</div>
+          <div>Current RR: ${currentRR}</div>
+        </div>`;
+      }
+    }
+    
+    // Show result if match completed
+    if (match.result && match.result.status === 'completed') {
+      let resultText = '';
+      if (match.result.winType === 'wickets') {
+        resultText = `${match.result.winner} won by ${match.result.margin} wickets`;
+      } else if (match.result.winType === 'runs') {
+        resultText = `${match.result.winner} won by ${match.result.margin} runs`;
+      } else if (match.result.winType === 'innings') {
+        resultText = `${match.result.winner} won by an innings and ${match.result.margin} runs`;
+      }
+      
+      html += `<div class="match-result">
+        ${resultText}
+      </div>`;
+    }
+  }
   
   if (currentInnings) {
     // Score Display

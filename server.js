@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_RECENT_OVERS = 10; // Maximum number of recent overs to keep
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 // Middleware
 app.use(express.json());
@@ -16,6 +17,11 @@ app.use(express.static('public'));
 // Data storage
 const dataDir = path.join(__dirname, 'data');
 const matchFile = path.join(dataDir, 'match.json');
+
+// Helper function to check if player is unavailable
+function isPlayerUnavailable(status) {
+  return status === 'out' || status === 'retired hurt' || status === 'retired out' || status === 'retired not out';
+}
 
 // Ensure data directory exists
 if (!fs.existsSync(dataDir)) {
@@ -232,6 +238,120 @@ function recalculateInnings(innings) {
   return innings;
 }
 
+// Calculate match situation for Test Match
+function calculateMatchSituation(match) {
+  if (!match || !match.innings || match.innings.length === 0) {
+    return;
+  }
+  
+  const innings = match.innings;
+  
+  // After 2 innings: Check lead/trail and follow-on
+  if (innings.length === 2 && innings[1].status === 'completed') {
+    const innings1 = innings[0];
+    const innings2 = innings[1];
+    
+    const team1Score = innings1.runs;
+    const team2Score = innings2.runs;
+    const deficit = team1Score - team2Score;
+    
+    if (deficit >= match.followOn.deficit) {
+      match.followOn.available = true;
+    }
+    
+    if (team1Score > team2Score) {
+      match.matchSituation.lead = innings1.battingTeam;
+      match.matchSituation.leadBy = deficit;
+    } else if (team2Score > team1Score) {
+      match.matchSituation.lead = innings2.battingTeam;
+      match.matchSituation.leadBy = team2Score - team1Score;
+    } else {
+      match.matchSituation.lead = null;
+      match.matchSituation.leadBy = 0;
+    }
+  }
+  
+  // After 3 innings: Calculate target for 4th innings
+  if (innings.length === 3 && innings[2].status === 'completed') {
+    const innings1 = innings[0];
+    const innings2 = innings[1];
+    const innings3 = innings[2];
+    
+    // Team that batted first's total (innings 1 + innings 3)
+    const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
+    
+    // Team that batted second's total (innings 2 + innings 3 if they batted in innings 3)
+    const team2Total = innings2.runs + (innings3.battingTeam === innings2.battingTeam ? innings3.runs : 0);
+    
+    // Target is the deficit + 1
+    if (team1Total > team2Total) {
+      match.matchSituation.target = team1Total - team2Total + 1;
+      match.matchSituation.toWin = match.matchSituation.target;
+      match.matchSituation.lead = innings1.battingTeam;
+      match.matchSituation.leadBy = team1Total - team2Total;
+    } else if (team2Total > team1Total) {
+      match.matchSituation.target = team2Total - team1Total + 1;
+      match.matchSituation.toWin = match.matchSituation.target;
+      match.matchSituation.lead = innings2.battingTeam;
+      match.matchSituation.leadBy = team2Total - team1Total;
+    }
+  }
+  
+  // During 4th innings: Update chase situation
+  if (innings.length === 4) {
+    const innings4 = innings[3];
+    if (match.matchSituation.target) {
+      match.matchSituation.toWin = match.matchSituation.target - innings4.runs;
+    }
+    
+    // Check if match is over
+    if (innings4.status === 'completed' || innings4.wickets >= 10) {
+      calculateMatchResult(match);
+    }
+  }
+}
+
+// Calculate match result
+function calculateMatchResult(match) {
+  if (!match || !match.innings || match.innings.length < 2) {
+    return;
+  }
+  
+  const innings = match.innings;
+  
+  // Match can end after 4 innings or if team batting 4th is all out or declares
+  if (innings.length === 4 && (innings[3].status === 'completed' || innings[3].wickets >= 10)) {
+    const innings4 = innings[3];
+    const target = match.matchSituation.target || 0;
+    
+    if (innings4.runs >= target) {
+      // Batting team won
+      match.result.status = 'completed';
+      match.result.winner = innings4.battingTeam;
+      match.result.winType = 'wickets';
+      match.result.margin = 10 - innings4.wickets;
+    } else {
+      // Bowling team won
+      match.result.status = 'completed';
+      match.result.winner = innings4.bowlingTeam;
+      match.result.winType = 'runs';
+      match.result.margin = target - innings4.runs - 1;
+    }
+    
+    match.status = 'completed';
+  } else if (innings.length === 2 && innings[1].status === 'completed' && innings[1].wickets >= 10) {
+    // If batting second and all out with deficit, batting first team wins
+    const deficit = innings[0].runs - innings[1].runs;
+    if (deficit > 0) {
+      match.result.status = 'completed';
+      match.result.winner = innings[0].battingTeam;
+      match.result.winType = 'innings';
+      match.result.margin = deficit;
+      match.status = 'completed';
+    }
+  }
+}
+
 // Simple session storage (in-memory for simplicity)
 // NOTE: Sessions are lost on server restart. For production, consider using
 // a persistent session store like Redis or a database-backed session store.
@@ -344,11 +464,30 @@ app.post('/api/match/create', requireAuth, (req, res) => {
     venue: venue,
     date: date,
     status: 'upcoming',
+    format: 'test',
+    maxInnings: 4,
     currentInnings: 0,
     innings: [],
     squads: {
       England: englandSquad,
       Australia: australiaSquad
+    },
+    matchSituation: {
+      lead: null,
+      leadBy: 0,
+      target: null,
+      toWin: null
+    },
+    followOn: {
+      available: false,
+      deficit: 200,
+      enforced: false
+    },
+    result: {
+      status: 'in-progress',
+      winner: null,
+      winType: null,
+      margin: null
     }
   };
   
@@ -366,7 +505,12 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'No match found' });
   }
   
-  const { battingTeam, bowlingTeam, battingOrder, openingBowler } = req.body;
+  // For Test Match: Block 5th innings
+  if (match.format === 'test' && match.innings.length >= match.maxInnings) {
+    return res.status(400).json({ error: 'Maximum 4 innings allowed in Test Match' });
+  }
+  
+  const { battingTeam, bowlingTeam, battingOrder, openingBowler, enforceFollowOn } = req.body;
   
   // Validate batting order
   if (!battingOrder || battingOrder.length !== 11) {
@@ -391,6 +535,11 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
   // Just prevent prototype pollution in bowler name
   if (openingBowler && dangerousNames.includes(openingBowler)) {
     return res.status(400).json({ error: 'Invalid bowler name detected' });
+  }
+  
+  // Handle follow-on enforcement
+  if (enforceFollowOn && match.followOn.available) {
+    match.followOn.enforced = true;
   }
   
   const innings = {
@@ -643,6 +792,11 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   // 11. Store in all balls
   currentInnings.allBalls.push(ball);
   
+  // 12. Update match situation if in 4th innings (Test Match)
+  if (match.format === 'test' && currentInnings.number === 4) {
+    calculateMatchSituation(match);
+  }
+  
   if (saveMatch(match)) {
     res.json({ match, ball });
   } else {
@@ -869,6 +1023,11 @@ app.post('/api/match/declare', requireAuth, (req, res) => {
     }
   });
   
+  // Calculate match situation after innings ends
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+  }
+  
   if (saveMatch(match)) {
     res.json({ match, message: 'Innings declared. Start next innings.' });
   } else {
@@ -889,6 +1048,11 @@ app.post('/api/match/end-innings', requireAuth, (req, res) => {
   
   const currentInnings = match.innings[match.innings.length - 1];
   currentInnings.status = 'completed';
+  
+  // Calculate match situation after innings ends
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+  }
   
   // If 4 innings complete, mark match as completed
   if (match.innings.length >= 4) {
@@ -919,6 +1083,148 @@ app.post('/api/match/delete', requireAuth, (req, res) => {
     res.json({ success: true });
   } else {
     res.status(500).json({ error: 'Failed to delete match' });
+  }
+});
+
+// Select incoming batsman (admin only)
+app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { batsmanName } = req.body;
+  
+  // Validate batsman is in batting order
+  if (!currentInnings.battingOrder.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Batsman not in batting order' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Check if batsman hasn't batted yet
+  if (currentInnings.allBatsmen[batsmanName] && currentInnings.allBatsmen[batsmanName].status !== 'not batted') {
+    return res.status(400).json({ error: 'Batsman has already batted' });
+  }
+  
+  // Initialize batsman stats
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    currentInnings.allBatsmen[batsmanName] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+  } else {
+    currentInnings.allBatsmen[batsmanName].status = 'batting';
+  }
+  
+  // Replace the appropriate batsman (keep the one who's still batting)
+  // If striker is out, replace striker; if non-striker is out, replace non-striker
+  const strikerStatus = currentInnings.allBatsmen[currentInnings.striker]?.status;
+  const nonStrikerStatus = currentInnings.allBatsmen[currentInnings.nonStriker]?.status;
+  
+  if (isPlayerUnavailable(strikerStatus)) {
+    currentInnings.striker = batsmanName;
+  } else if (isPlayerUnavailable(nonStrikerStatus)) {
+    currentInnings.nonStriker = batsmanName;
+  } else {
+    // Fallback: replace striker
+    currentInnings.striker = batsmanName;
+  }
+  
+  // Update next batsman index if this was the next batsman in order
+  const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
+  if (batsmanIndex === currentInnings.nextBatsmanIndex) {
+    currentInnings.nextBatsmanIndex++;
+  }
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to select batsman' });
+  }
+});
+
+// Swap strike (admin only)
+app.post('/api/match/swap-strike', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  // Swap striker and non-striker
+  [currentInnings.striker, currentInnings.nonStriker] = 
+    [currentInnings.nonStriker, currentInnings.striker];
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to swap strike' });
+  }
+});
+
+// Retire batsman (admin only)
+app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { batsmanName, retireType } = req.body;
+  
+  // Validate batsman exists
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    return res.status(400).json({ error: 'Batsman not found' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Validate retire type
+  const validRetireTypes = ['retired hurt', 'retired out', 'retired not out'];
+  if (!validRetireTypes.includes(retireType)) {
+    return res.status(400).json({ error: 'Invalid retirement type' });
+  }
+  
+  // Update batsman status
+  currentInnings.allBatsmen[batsmanName].status = retireType;
+  currentInnings.allBatsmen[batsmanName].howOut = retireType;
+  
+  // If retired out, count as a wicket
+  if (retireType === 'retired out') {
+    currentInnings.wickets++;
+    currentInnings.fallOfWickets.push({
+      runs: currentInnings.runs,
+      wickets: currentInnings.wickets,
+      batsman: batsmanName
+    });
+  }
+  
+  if (saveMatch(match)) {
+    res.json({ match });
+  } else {
+    res.status(500).json({ error: 'Failed to retire batsman' });
   }
 });
 

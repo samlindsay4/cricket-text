@@ -2,6 +2,7 @@
 
 let sessionId = null;
 let currentMatch = null;
+const BALLS_PER_OVER = 6; // Standard cricket over
 
 // Initialize squad inputs on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -83,6 +84,79 @@ function displayMatchStatus() {
   } else {
     const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
     
+    let matchSituationHtml = '';
+    
+    // Display all innings scores
+    if (currentMatch.innings && currentMatch.innings.length > 0) {
+      matchSituationHtml += '<div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px;">';
+      matchSituationHtml += '<h4 style="margin: 0 0 10px 0;">Match Situation</h4>';
+      
+      currentMatch.innings.forEach((inn, idx) => {
+        const isDeclared = inn.declared ? ' dec' : '';
+        matchSituationHtml += `
+          <div style="margin-bottom: 5px;">
+            <strong>Innings ${inn.number}:</strong> ${inn.battingTeam} ${inn.runs}/${inn.wickets}${isDeclared}
+            ${inn.status === 'completed' ? ' (completed)' : inn.status === 'live' ? ' (live)' : ''}
+          </div>
+        `;
+      });
+      
+      // Show match situation for Test Match
+      if (currentMatch.format === 'test' && currentMatch.matchSituation) {
+        const sit = currentMatch.matchSituation;
+        
+        if (sit.lead && sit.leadBy > 0) {
+          matchSituationHtml += `<div style="margin-top: 10px; padding: 8px; background: #e3f2fd; border-left: 4px solid #2196f3;">
+            <strong>${sit.lead} lead by ${sit.leadBy} runs</strong>
+          </div>`;
+        }
+        
+        // Show target in 4th innings
+        if (currentMatch.innings.length === 4 && sit.target) {
+          const innings4 = currentMatch.innings[3];
+          if (innings4.status === 'live') {
+            const runsNeeded = sit.target - innings4.runs;
+            const wicketsLeft = 10 - innings4.wickets;
+            
+            // Calculate run rates
+            const totalBalls = innings4.overs * BALLS_PER_OVER + innings4.balls;
+            const currentRR = totalBalls > 0 ? (innings4.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
+            
+            matchSituationHtml += `<div style="margin-top: 10px; padding: 8px; background: #fff3e0; border-left: 4px solid #ff9800;">
+              <strong>Target: ${sit.target}</strong><br>
+              Need ${runsNeeded} runs with ${wicketsLeft} wickets remaining<br>
+              Current RR: ${currentRR}
+            </div>`;
+          }
+        }
+      }
+      
+      // Show follow-on availability
+      if (currentMatch.format === 'test' && currentMatch.followOn && currentMatch.followOn.available && currentMatch.innings.length === 2) {
+        matchSituationHtml += `<div style="margin-top: 10px; padding: 8px; background: #ffebee; border-left: 4px solid #f44336;">
+          <strong>Follow-on available!</strong> (Deficit: ${currentMatch.followOn.deficit}+ runs)
+        </div>`;
+      }
+      
+      // Show result if match completed
+      if (currentMatch.result && currentMatch.result.status === 'completed') {
+        let resultText = '';
+        if (currentMatch.result.winType === 'wickets') {
+          resultText = `${currentMatch.result.winner} won by ${currentMatch.result.margin} wickets`;
+        } else if (currentMatch.result.winType === 'runs') {
+          resultText = `${currentMatch.result.winner} won by ${currentMatch.result.margin} runs`;
+        } else if (currentMatch.result.winType === 'innings') {
+          resultText = `${currentMatch.result.winner} won by an innings and ${currentMatch.result.margin} runs`;
+        }
+        
+        matchSituationHtml += `<div style="margin-top: 10px; padding: 12px; background: #4caf50; color: white; border-radius: 4px; font-size: 16px;">
+          <strong>${resultText}</strong>
+        </div>`;
+      }
+      
+      matchSituationHtml += '</div>';
+    }
+    
     statusDiv.innerHTML = `
       <div class="match-info">
         <h3>${currentMatch.title}</h3>
@@ -94,6 +168,7 @@ function displayMatchStatus() {
             (${currentInnings.overs}.${currentInnings.balls} overs)
           </p>
         ` : ''}
+        ${matchSituationHtml}
       </div>
     `;
     
@@ -104,16 +179,60 @@ function displayMatchStatus() {
     // - No current innings exists, OR
     // - Current innings is all out (10 wickets), OR
     // - Current innings is declared or completed
+    // BUT NOT if match is completed
     const inningsCompleted = currentInnings && (currentInnings.status === 'completed' || currentInnings.declared);
-    if (currentMatch.status === 'upcoming' || !currentInnings || currentInnings.wickets >= 10 || inningsCompleted) {
+    const matchCompleted = currentMatch.result && currentMatch.result.status === 'completed';
+    
+    if (!matchCompleted && (currentMatch.status === 'upcoming' || !currentInnings || currentInnings.wickets >= 10 || inningsCompleted)) {
       inningsSection.classList.remove('hidden');
       scoringSection.classList.add('hidden');
       // Initialize batting order and opening bowler dropdowns when showing start innings section
       initializeBattingOrderDropdowns();
       initializeOpeningBowlerDropdown();
+      
+      // Show follow-on option if available
+      displayFollowOnOption();
     } else {
       inningsSection.classList.add('hidden');
-      scoringSection.classList.remove('hidden');
+      if (!matchCompleted) {
+        scoringSection.classList.remove('hidden');
+      } else {
+        scoringSection.classList.add('hidden');
+      }
+    }
+  }
+}
+
+// Display follow-on option in start innings section
+function displayFollowOnOption() {
+  if (!currentMatch || !currentMatch.followOn) return;
+  
+  const inningsSection = document.getElementById('start-innings-section');
+  
+  // Remove existing follow-on option if present
+  const existingFollowOn = document.getElementById('follow-on-option');
+  if (existingFollowOn) {
+    existingFollowOn.remove();
+  }
+  
+  // Add follow-on option if available
+  if (currentMatch.followOn.available && currentMatch.innings.length === 2) {
+    const followOnHtml = `
+      <div id="follow-on-option" style="margin-top: 15px; padding: 10px; background: #ffebee; border: 2px solid #f44336; border-radius: 4px;">
+        <label style="font-weight: bold; color: #d32f2f;">
+          <input type="checkbox" id="enforce-follow-on" style="margin-right: 8px;">
+          Enforce Follow-On
+        </label>
+        <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">
+          The trailing team is ${currentMatch.matchSituation.leadBy}+ runs behind. 
+          You can enforce the follow-on to make them bat again immediately.
+        </p>
+      </div>
+    `;
+    
+    const startButton = inningsSection.querySelector('button[onclick="startInnings()"]');
+    if (startButton) {
+      startButton.insertAdjacentHTML('beforebegin', followOnHtml);
     }
   }
 }
@@ -385,6 +504,10 @@ async function startInnings() {
     return;
   }
   
+  // Check if follow-on is being enforced
+  const enforceFollowOnCheckbox = document.getElementById('enforce-follow-on');
+  const enforceFollowOn = enforceFollowOnCheckbox ? enforceFollowOnCheckbox.checked : false;
+  
   try {
     const response = await fetch('/api/match/start-innings', {
       method: 'POST',
@@ -396,7 +519,8 @@ async function startInnings() {
         battingTeam, 
         bowlingTeam, 
         battingOrder,
-        openingBowler 
+        openingBowler,
+        enforceFollowOn
       })
     });
     
@@ -520,8 +644,17 @@ async function recordBall() {
         btn.style.opacity = '1';
       });
       
-      // Reload match data
-      loadMatchStatus();
+      // Reload match data and handle wicket modal
+      await loadMatchStatus();
+      
+      // If wicket was taken and not all out, show choose batsman modal
+      // loadMatchStatus has already refreshed currentMatch, so we can use it directly
+      if (wicket && currentMatch && currentMatch.innings && currentMatch.innings.length > 0) {
+        const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+        if (currentInnings.wickets < 10) {
+          showChooseBatsmanModal();
+        }
+      }
     } else {
       const error = await response.json();
       showMessage('Failed to record ball: ' + (error.error || 'Unknown error'), 'error');
@@ -893,4 +1026,179 @@ function updateUndoButton() {
   }
   
   undoBtn.disabled = true;
+}
+
+// Show choose batsman modal after wicket
+function showChooseBatsmanModal() {
+  const modal = document.getElementById('choose-batsman-modal');
+  const select = document.getElementById('incoming-batsman');
+  
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  
+  // Get remaining batsmen (not yet batted)
+  const remainingBatsmen = currentInnings.battingOrder.filter(name => {
+    return !currentInnings.allBatsmen[name] || currentInnings.allBatsmen[name].status === 'not batted';
+  });
+  
+  // Populate dropdown
+  select.innerHTML = '<option value="">-- Select batsman --</option>';
+  
+  // Add next batsman as default (if available)
+  const nextInOrder = currentInnings.nextBatsmanIndex < currentInnings.battingOrder.length 
+    ? currentInnings.battingOrder[currentInnings.nextBatsmanIndex] 
+    : null;
+  
+  remainingBatsmen.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    if (name === nextInOrder) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  
+  modal.classList.remove('hidden');
+}
+
+// Confirm incoming batsman selection
+async function confirmIncomingBatsman() {
+  const batsmanName = document.getElementById('incoming-batsman').value;
+  
+  if (!batsmanName) {
+    showMessage('Please select a batsman', 'error');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/select-incoming-batsman', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ batsmanName })
+    });
+    
+    if (response.ok) {
+      const modal = document.getElementById('choose-batsman-modal');
+      modal.classList.add('hidden');
+      showMessage('Batsman selected!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to select batsman: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Swap strike manually
+async function swapStrike() {
+  if (!confirm('Swap striker and non-striker?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/swap-strike', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      }
+    });
+    
+    if (response.ok) {
+      showMessage('Strike swapped!', 'success');
+      loadMatchStatus();
+    } else {
+      const error = await response.json();
+      showMessage('Failed to swap strike: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+// Show retire batsman modal
+function showRetireBatsmanModal() {
+  const modal = document.getElementById('retire-batsman-modal');
+  const select = document.getElementById('retire-batsman-select');
+  
+  if (!currentMatch || !currentMatch.innings || currentMatch.innings.length === 0) {
+    showMessage('No active innings', 'error');
+    return;
+  }
+  
+  const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
+  
+  // Get current batsmen
+  select.innerHTML = '<option value="">-- Select batsman --</option>';
+  
+  if (currentInnings.striker) {
+    const option = document.createElement('option');
+    option.value = currentInnings.striker;
+    option.textContent = currentInnings.striker + ' (striker)';
+    select.appendChild(option);
+  }
+  
+  if (currentInnings.nonStriker) {
+    const option = document.createElement('option');
+    option.value = currentInnings.nonStriker;
+    option.textContent = currentInnings.nonStriker + ' (non-striker)';
+    select.appendChild(option);
+  }
+  
+  modal.classList.remove('hidden');
+}
+
+function hideRetireBatsmanModal() {
+  const modal = document.getElementById('retire-batsman-modal');
+  modal.classList.add('hidden');
+}
+
+// Confirm retire batsman
+async function confirmRetireBatsman() {
+  const batsmanName = document.getElementById('retire-batsman-select').value;
+  const retireType = document.getElementById('retire-type').value;
+  
+  if (!batsmanName || !retireType) {
+    showMessage('Please select batsman and retirement type', 'error');
+    return;
+  }
+  
+  if (!confirm(`Retire ${batsmanName} (${retireType})?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/match/retire-batsman', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId
+      },
+      body: JSON.stringify({ batsmanName, retireType })
+    });
+    
+    if (response.ok) {
+      hideRetireBatsmanModal();
+      showMessage('Batsman retired!', 'success');
+      
+      // Show choose batsman modal to select replacement
+      setTimeout(() => {
+        showChooseBatsmanModal();
+      }, 500);
+    } else {
+      const error = await response.json();
+      showMessage('Failed to retire batsman: ' + (error.error || 'Unknown error'), 'error');
+    }
+  } catch (error) {
+    showMessage('Error: ' + error.message, 'error');
+  }
 }
