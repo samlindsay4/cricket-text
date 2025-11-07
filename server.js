@@ -2383,6 +2383,8 @@ app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req
     allBowlers: {
       [openingBowler]: { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 }
     },
+    currentOver: [],
+    fallOfWickets: [],
     allBalls: [],
     followOnEnforced: enforceFollowOn || false
   };
