@@ -228,8 +228,11 @@
                 if (data.success) {
                     sessionId = data.sessionId;
                     localStorage.setItem('sessionId', sessionId);
-                    document.getElementById('login-section').style.display = 'none';
-                    document.getElementById('series-section').style.display = 'block';
+                    const loginSection = document.getElementById('login-section');
+                    const seriesSection = document.getElementById('series-section');
+                    loginSection.style.display = 'none';
+                    seriesSection.classList.remove('hidden');
+                    seriesSection.style.display = 'block';
                     loadAllSeries();
                 } else {
                     errorDiv.textContent = 'Invalid password';
