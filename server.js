@@ -2632,6 +2632,11 @@ app.get('/admin', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// Serve admin dashboard (new series management interface)
+app.get('/admin/dashboard', checkRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+});
+
 // Serve legacy scorecard (redirect to page viewer)
 app.get('/scorecard', checkRateLimit, (req, res) => {
   res.redirect('/?page=351');
