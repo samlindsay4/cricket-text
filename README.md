@@ -91,8 +91,7 @@ The application will run on http://localhost:3000
 ## 📍 Key URLs
 
 - **Homepage**: http://localhost:3000/?page=340
-- **Admin Dashboard**: http://localhost:3000/admin/dashboard (series & news management)
-- **Legacy Admin**: http://localhost:3000/admin (match scoring)
+- **Admin Dashboard**: http://localhost:3000/admin-dashboard.html (unified management interface)
 
 **Default admin password**: `ashes2025`
 
@@ -123,10 +122,14 @@ The application will run on http://localhost:3000
 
 ### Scoring a Match
 
-1. Go to http://localhost:3000/admin (legacy interface)
-2. Use the existing scoring interface to record balls
-3. Match data saves to both legacy and series locations
-4. Statistics auto-update on pages 355-356
+1. In Series tab, click **View Matches** for your series
+2. Click **Manage Match** for the match you want to score
+3. Use the integrated scoring interface to:
+   - Start innings (select batting/bowling teams, set batting order, choose opening bowler)
+   - Record balls (runs, extras, wickets)
+   - Use admin actions (undo, swap strike, declare, end innings)
+4. Match data saves automatically
+5. Statistics auto-update on pages 355-356
 
 ### Creating News
 
@@ -155,15 +158,15 @@ cricket-text/
 ├── server.js                   # Express server with all routes & API
 ├── public/
 │   ├── page.html              # Main page viewer
-│   ├── admin.html             # Legacy admin (scoring)
-│   ├── admin-dashboard.html   # New admin dashboard
+│   ├── admin.html             # Legacy admin (deprecated - use admin-dashboard.html)
+│   ├── admin-dashboard.html   # Unified admin dashboard
 │   ├── css/
 │   │   ├── ceefax.css        # Authentic Ceefax styling
 │   │   └── admin.css         # Admin interface styling
 │   └── js/
 │       ├── page-viewer.js    # Page navigation & rendering
-│       ├── admin-dashboard.js # Dashboard functionality
-│       ├── admin.js          # Legacy scoring interface
+│       ├── admin-dashboard.js # Dashboard functionality (includes scoring)
+│       ├── admin.js          # Legacy scoring interface (deprecated)
 │       └── scorecard.js      # Legacy scorecard display
 ├── data/
 │   ├── series/               # Series data
@@ -275,13 +278,11 @@ See [GUIDE.md](GUIDE.md) for comprehensive documentation including:
 
 ## 🐛 Known Issues
 
-- Legacy admin scoring interface needs full integration with series system
-- Match switching between series could be smoother
 - Mobile admin interface could be improved
+- Some edge cases in match scoring may need refinement
 
 ## 🚧 Future Enhancements
 
-- Full series-aware scoring interface
 - WebSocket real-time updates
 - Player profiles and career stats
 - Commentary system
