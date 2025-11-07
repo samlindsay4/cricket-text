@@ -909,8 +909,8 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   ball.wicketType = wicketType || null;
   ball.dismissedBatsman = dismissedBatsman || null;
   // BUG FIX #3: Allow editing bowler and batsman facing
-  if (bowler) ball.bowler = bowler;
-  if (batsman) ball.batsman = batsman;
+  if (bowler && bowler.trim()) ball.bowler = bowler;
+  if (batsman && batsman.trim()) ball.batsman = batsman;
   
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
