@@ -2076,7 +2076,7 @@ app.get('/api/series/:seriesId', checkRateLimit, (req, res) => {
 });
 
 // Delete series
-app.delete('/api/series/:seriesId', requireAuth, (req, res) => {
+app.delete('/api/series/:seriesId', requireAuth, checkRateLimit, (req, res) => {
   const { seriesId } = req.params;
   
   try {
