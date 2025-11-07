@@ -943,6 +943,18 @@ function setScoringExtra(type) {
         document.getElementById('scoring-extras').value = '5';
     }
     
+    // Show "Add" button for No Ball or Wide (can be combined with Byes/LB)
+    const addBtn = document.getElementById('add-second-extra-btn');
+    if (type === 'Nb' || type === 'Wd') {
+        addBtn.style.display = 'inline-block';
+    } else {
+        addBtn.style.display = 'none';
+        // Hide second extra container if not Nb or Wd
+        document.getElementById('second-extra-container').classList.add('hidden');
+        document.getElementById('scoring-second-extra-type').value = '';
+        document.getElementById('scoring-second-extras').value = '0';
+    }
+    
     // Clear all extra button highlights first
     const extraButtons = {
         '': 'None',
@@ -963,6 +975,54 @@ function setScoringExtra(type) {
     // Add visual feedback - highlight selected button
     document.querySelectorAll('.btn-group button').forEach(btn => {
         if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringExtra')) {
+            btn.style.background = '#00ff00';
+            btn.style.color = '#000';
+        }
+    });
+}
+
+/**
+ * Toggle second extra type section
+ */
+function toggleSecondExtra() {
+    const container = document.getElementById('second-extra-container');
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+        document.getElementById('scoring-second-extra-type').value = '';
+        document.getElementById('scoring-second-extras').value = '0';
+    }
+}
+
+/**
+ * Set second extra type (for combinations like Nb + Bye)
+ */
+function setScoringSecondExtra(type) {
+    document.getElementById('scoring-second-extra-type').value = type;
+    if (type) {
+        document.getElementById('scoring-second-extras').value = '1';
+    }
+    
+    // Clear all extra button highlights first
+    const extraButtons = {
+        '': 'None',
+        'Bye': 'Bye',
+        'LB': 'Leg Bye'
+    };
+    
+    // Clear highlights
+    const container = document.getElementById('second-extra-container');
+    container.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes('setScoringSecondExtra')) {
+            btn.style.background = '';
+            btn.style.color = '';
+        }
+    });
+    
+    // Add visual feedback - highlight selected button
+    container.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringSecondExtra')) {
             btn.style.background = '#00ff00';
             btn.style.color = '#000';
         }
@@ -1009,11 +1069,13 @@ async function recordBallFromDashboard() {
     const overthrows = parseInt(document.getElementById('scoring-overthrows').value) || 0;
     const extraType = document.getElementById('scoring-extra-type').value;
     const extras = parseInt(document.getElementById('scoring-extras').value) || 0;
+    const secondExtraType = document.getElementById('scoring-second-extra-type').value;
+    const secondExtras = parseInt(document.getElementById('scoring-second-extras').value) || 0;
     const wicket = document.getElementById('scoring-wicket').checked;
     const wicketType = wicket ? document.getElementById('scoring-wicket-type').value : null;
     const dismissedBatsman = wicket ? document.getElementById('scoring-dismissed-batsman').value : null;
     
-    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman });
+    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman });
     
     if (!bowler) {
         alert('Please select a bowler');
@@ -1031,7 +1093,7 @@ async function recordBallFromDashboard() {
                 'X-Session-Id': sessionId
             },
             body: JSON.stringify({
-                bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman
+                bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman
             })
         });
         
@@ -1053,6 +1115,10 @@ async function recordBallFromDashboard() {
             document.getElementById('scoring-overthrows').value = '0';
             document.getElementById('scoring-extra-type').value = '';
             document.getElementById('scoring-extras').value = '0';
+            document.getElementById('scoring-second-extra-type').value = '';
+            document.getElementById('scoring-second-extras').value = '0';
+            document.getElementById('second-extra-container').classList.add('hidden');
+            document.getElementById('add-second-extra-btn').style.display = 'none';
             document.getElementById('scoring-wicket').checked = false;
             toggleScoringWicketDetails();
             
@@ -1482,8 +1548,16 @@ function updateBallHistory() {
         if (ball.extras) {
             runsText += `+${ball.extras}`;
         }
+        if (ball.secondExtras && ball.secondExtras > 0) {
+            runsText += `+${ball.secondExtras}`;
+        }
         
-        const extraText = ball.extraType ? ` (${ball.extraType})` : '';
+        let extraText = ball.extraType ? ` (${ball.extraType}` : '';
+        if (ball.secondExtraType) {
+            extraText += ` + ${ball.secondExtraType}`;
+        }
+        if (extraText) extraText += ')';
+        
         const wicketText = ball.wicket ? ' 🔴 W' : '';
         
         html += `

@@ -2228,7 +2228,7 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   
   const currentInnings = match.innings[match.innings.length - 1];
   const { 
-    runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler
+    runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman, bowler
   } = ballData;
   
   // Prevent prototype pollution in input names
@@ -2254,14 +2254,16 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     overthrows: parseInt(overthrows) || 0,
     extras: parseInt(extras) || 0,
     extraType: extraType || null,
+    secondExtras: parseInt(secondExtras) || 0,
+    secondExtraType: secondExtraType || null,
     wicket: wicket || false,
     wicketType: wicketType || null,
     dismissedBatsman: dismissedBatsman || null,
     timestamp: new Date().toISOString()
   };
   
-  // Update innings totals
-  currentInnings.runs += (ball.runs + ball.overthrows + ball.extras);
+  // Update innings totals (including second extras)
+  currentInnings.runs += (ball.runs + ball.overthrows + ball.extras + ball.secondExtras);
   
   // Update batsman stats (penalty runs and byes/leg byes don't count for batsman)
   if (!currentInnings.allBatsmen[striker]) {
@@ -2290,8 +2292,11 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     // Penalty runs don't count against the bowler at all
     // They're just added to the team total
   } else if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
-    currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows + ball.extras);
+    // Wides and No Balls: the extra + any runs + overthrows count against bowler
+    // Second extras (like byes on a no ball) also count against bowler
+    currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows + ball.extras + ball.secondExtras);
   } else {
+    // Normal deliveries: runs + overthrows count, but not byes/leg byes (they're in extras field)
     currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows);
   }
   if (isLegalDelivery) {
