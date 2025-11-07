@@ -29,16 +29,72 @@ function formatOvers(overs, balls) {
 // Load and display match data
 async function loadMatch() {
   try {
-    // Load series info first
-    await loadSeriesInfo();
+    // Check if we have a page parameter for series match viewing
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageParam = urlParams.get('page');
     
-    const response = await fetch('/api/match');
-    const match = await response.json();
-    
-    displayMatch(match);
-    updateRefreshIndicator();
+    if (pageParam) {
+      // Load from page-data API (series match with Ceefax style)
+      await loadPageData(pageParam);
+    } else {
+      // Load legacy match data
+      await loadSeriesInfo();
+      
+      const response = await fetch('/api/match');
+      const match = await response.json();
+      
+      displayMatch(match);
+      updateRefreshIndicator();
+    }
   } catch (error) {
     console.error('Error loading match:', error);
+  }
+}
+
+// Load page data for series matches (Ceefax style)
+async function loadPageData(pageNumber) {
+  try {
+    // Update page number display
+    const pageNumberDisplay = document.getElementById('page-number-display');
+    const pageTitleTag = document.getElementById('page-title-tag');
+    if (pageNumberDisplay) {
+      pageNumberDisplay.textContent = `P${pageNumber}`;
+    }
+    if (pageTitleTag) {
+      pageTitleTag.textContent = `BBC CEEFAX - Cricket Page ${pageNumber}`;
+    }
+    
+    const response = await fetch(`/api/page-data?page=${pageNumber}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to load page data');
+    }
+    
+    const pageData = await response.json();
+    
+    // Display based on page type
+    if (pageData.type === 'series' && pageData.matchData) {
+      displayMatch(pageData.matchData);
+      updateRefreshIndicator();
+    } else {
+      // Handle other page types or errors
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="no-match">
+          <p>PAGE NOT FOUND</p>
+          <p style="margin-top: 20px; font-size: 14px;">Please check the page number</p>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading page data:', error);
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="no-match">
+        <p>ERROR LOADING PAGE</p>
+        <p style="margin-top: 20px; font-size: 14px;">Please try again later</p>
+      </div>
+    `;
   }
 }
 
