@@ -2632,9 +2632,19 @@ app.get('/admin', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Serve main page (Page 340)
+// Serve legacy scorecard (redirect to page viewer)
+app.get('/scorecard', checkRateLimit, (req, res) => {
+  res.redirect('/?page=351');
+});
+
+// Serve main page (Page viewer with ?page parameter)
 app.get('/', checkRateLimit, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const page = req.query.page;
+  if (!page) {
+    // Default to homepage (340)
+    return res.redirect('/?page=340');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'page.html'));
 });
 
 app.listen(PORT, () => {
