@@ -87,20 +87,15 @@ function displayMatch(match) {
         </div>`;
       }
       
-      // Show chase situation in 4th innings
+      // BUG FIX #6: Show chase situation in 4th innings (without run rate)
       if (match.innings.length === 4 && sit.target && currentInnings && currentInnings.status === 'live') {
         const runsNeeded = sit.target - currentInnings.runs;
         const wicketsLeft = 10 - currentInnings.wickets;
         
-        // Calculate run rates
-        const totalBalls = currentInnings.overs * BALLS_PER_OVER + currentInnings.balls;
-        const currentRR = totalBalls > 0 ? (currentInnings.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
-        
         html += `<div class="chase-info">
           <div style="font-weight: bold; margin-bottom: 5px;">TARGET: ${sit.target}</div>
-          <div>Need ${runsNeeded} runs</div>
-          <div>${wicketsLeft} wickets remaining</div>
-          <div>Current RR: ${currentRR}</div>
+          <div>${currentInnings.battingTeam} need ${runsNeeded} run${runsNeeded !== 1 ? 's' : ''} to win</div>
+          <div>${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''} remaining</div>
         </div>`;
       }
     }

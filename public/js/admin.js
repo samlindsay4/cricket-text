@@ -111,21 +111,17 @@ function displayMatchStatus() {
           </div>`;
         }
         
-        // Show target in 4th innings
+        // BUG FIX #6: Show target in 4th innings (without run rate)
         if (currentMatch.innings.length === 4 && sit.target) {
           const innings4 = currentMatch.innings[3];
           if (innings4.status === 'live') {
             const runsNeeded = sit.target - innings4.runs;
             const wicketsLeft = 10 - innings4.wickets;
             
-            // Calculate run rates
-            const totalBalls = innings4.overs * BALLS_PER_OVER + innings4.balls;
-            const currentRR = totalBalls > 0 ? (innings4.runs / totalBalls * BALLS_PER_OVER).toFixed(2) : '0.00';
-            
             matchSituationHtml += `<div style="margin-top: 10px; padding: 8px; background: #fff3e0; border-left: 4px solid #ff9800;">
               <strong>Target: ${sit.target}</strong><br>
-              Need ${runsNeeded} runs with ${wicketsLeft} wickets remaining<br>
-              Current RR: ${currentRR}
+              ${innings4.battingTeam} need ${runsNeeded} run${runsNeeded !== 1 ? 's' : ''} to win<br>
+              ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''} remaining
             </div>`;
           }
         }
@@ -1084,15 +1080,16 @@ function showChooseBatsmanModal() {
   
   const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
   
-  // BUG FIX #1: Get ALL remaining batsmen (not yet batted)
-  // This includes the next batsman in order since we no longer auto-add them
+  // BUG FIX #2: Get ALL available batsmen (not yet batted OR retired hurt)
+  // This includes the next batsman in order AND retired hurt batsmen who can resume
   const remainingBatsmen = currentInnings.battingOrder.filter(name => {
-    // Include batsmen who haven't batted at all OR have status 'not batted'
+    // Include batsmen who haven't batted at all
     if (!currentInnings.allBatsmen[name]) {
       return true; // Not in allBatsmen yet, so hasn't batted
     }
     const status = currentInnings.allBatsmen[name].status;
-    return status === 'not batted' || (!status && currentInnings.allBatsmen[name].balls === 0);
+    // Include: not batted, retired hurt (can resume)
+    return status === 'not batted' || status === 'retired hurt' || (!status && currentInnings.allBatsmen[name].balls === 0);
   });
   
   // Populate dropdown
@@ -1106,7 +1103,18 @@ function showChooseBatsmanModal() {
   remainingBatsmen.forEach(name => {
     const option = document.createElement('option');
     option.value = name;
-    option.textContent = name;
+    
+    // BUG FIX #2: Show if batsman is retired hurt with their stats
+    if (currentInnings.allBatsmen[name] && currentInnings.allBatsmen[name].status === 'retired hurt') {
+      const stats = currentInnings.allBatsmen[name];
+      // Note: * indicates "not out" in cricket scoring notation
+      option.textContent = `${name} ⚕️ (Retired hurt - can resume: ${stats.runs}* off ${stats.balls})`;
+    } else if (name === nextInOrder) {
+      option.textContent = `${name} (Next in order)`;
+    } else {
+      option.textContent = name;
+    }
+    
     if (name === nextInOrder) {
       option.selected = true;
     }
