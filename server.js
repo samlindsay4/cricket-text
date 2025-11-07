@@ -278,9 +278,13 @@ function saveCurrentMatch(match) {
 
 // Helper to create slug from name
 function createSlug(name) {
-  return name.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  if (!name || typeof name !== 'string') return '';
+  // Limit input length to prevent DoS
+  const truncated = name.substring(0, 100);
+  return truncated.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')  // Replace non-alphanumeric with hyphen
+    .replace(/-+/g, '-')          // Collapse multiple hyphens
+    .replace(/^-|-$/g, '');       // Remove leading/trailing hyphens
 }
 
 // List all series
