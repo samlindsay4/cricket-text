@@ -514,8 +514,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="dashboard-new-bowler-manual">Or enter manually (for substitutes):</label>
-                <input type="text" id="dashboard-new-bowler-manual" placeholder="Enter bowler name">
+                <label for="dashboard-new-bowler-manual" id="bowler-manual-label">Or enter manually (for substitutes):</label>
+                <input type="text" id="dashboard-new-bowler-manual" placeholder="Enter bowler name" aria-describedby="bowler-manual-label">
             </div>
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button class="btn btn-primary" onclick="confirmNewBowlerFromDashboard()">Set Bowler</button>

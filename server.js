@@ -2265,22 +2265,36 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // Update innings totals (including second extras)
   currentInnings.runs += (ball.runs + ball.overthrows + ball.extras + ball.secondExtras);
   
-  // Update batsman stats (penalty runs and byes/leg byes don't count for batsman)
+  // Update batsman stats
+  // - Runs off bat (ball.runs) count for batsman except for penalties/byes/leg byes
+  // - Overthrows after hitting the ball count for batsman
+  // - Byes/leg byes are in ball.extras and don't count for batsman
   if (!currentInnings.allBatsmen[striker]) {
     currentInnings.allBatsmen[striker] = { 
       name: striker, runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
     };
   }
+  
+  // Only count runs off bat for batsman (not penalties or byes/leg byes)
   if (ball.extraType !== 'Penalty' && ball.extraType !== 'Bye' && ball.extraType !== 'LB') {
     currentInnings.allBatsmen[striker].runs += (ball.runs + ball.overthrows);
   }
+  
+  // Ball counts toward batsman's balls faced unless it's a wide or penalty
   if (ball.extraType !== 'Wd' && ball.extraType !== 'Penalty') {
     currentInnings.allBatsmen[striker].balls++;
   }
-  if (ball.runs === 4 && ball.overthrows === 0 && ball.extraType !== 'Penalty' && ball.extraType !== 'Bye' && ball.extraType !== 'LB') currentInnings.allBatsmen[striker].fours++;
-  if (ball.runs === 6 && ball.overthrows === 0 && ball.extraType !== 'Penalty' && ball.extraType !== 'Bye' && ball.extraType !== 'LB') currentInnings.allBatsmen[striker].sixes++;
   
-  // Update bowler stats (penalty runs don't count against bowler)
+  // Boundaries only count if runs were scored off the bat
+  const isBoundaryOffBat = ball.extraType !== 'Penalty' && ball.extraType !== 'Bye' && ball.extraType !== 'LB';
+  if (ball.runs === 4 && ball.overthrows === 0 && isBoundaryOffBat) {
+    currentInnings.allBatsmen[striker].fours++;
+  }
+  if (ball.runs === 6 && ball.overthrows === 0 && isBoundaryOffBat) {
+    currentInnings.allBatsmen[striker].sixes++;
+  }
+  
+  // Update bowler stats
   const bowlerName = ball.bowler;
   if (!currentInnings.allBowlers[bowlerName]) {
     currentInnings.allBowlers[bowlerName] = { 
@@ -2288,15 +2302,21 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     };
   }
   
+  // Bowler concedes:
+  // - Wides and No Balls: all runs (including overthrows and second extras)
+  // - Byes/Leg Byes: nothing (these are in ball.extras)
+  // - Normal deliveries: runs off bat + overthrows
+  // - Penalties: nothing
   if (ball.extraType === 'Penalty') {
-    // Penalty runs don't count against the bowler at all
-    // They're just added to the team total
+    // Penalty runs don't count against the bowler
   } else if (ball.extraType === 'Wd' || ball.extraType === 'Nb') {
-    // Wides and No Balls: the extra + any runs + overthrows count against bowler
-    // Second extras (like byes on a no ball) also count against bowler
+    // Wides and No Balls: all runs including second extras
     currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows + ball.extras + ball.secondExtras);
+  } else if (ball.extraType === 'Bye' || ball.extraType === 'LB') {
+    // Byes and Leg Byes: don't count against bowler
+    // Nothing added to bowler's runs
   } else {
-    // Normal deliveries: runs + overthrows count, but not byes/leg byes (they're in extras field)
+    // Normal deliveries: runs off bat + overthrows
     currentInnings.allBowlers[bowlerName].runs += (ball.runs + ball.overthrows);
   }
   if (isLegalDelivery) {
@@ -2808,17 +2828,39 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
     return res.status(400).json({ error: 'Invalid wicket type' });
   }
   
-  // Update ball at index
+  // Validate ball exists
   const ball = currentInnings.allBalls[ballIndex];
-  ball.runs = parseInt(runs) || 0;
-  ball.overthrows = parseInt(overthrows) || 0;
-  ball.extras = parseInt(extras) || 0;
-  ball.extraType = extraType || null;
-  ball.wicket = wicket || false;
-  ball.wicketType = wicketType || null;
-  ball.dismissedBatsman = dismissedBatsman || null;
-  if (bowler && bowler.trim()) ball.bowler = bowler;
-  if (batsman && batsman.trim()) ball.batsman = batsman;
+  if (!ball || typeof ball !== 'object') {
+    return res.status(400).json({ error: 'Invalid ball' });
+  }
+  
+  // Update ball at index (create safe copy to avoid prototype pollution)
+  const safeProps = {
+    runs: parseInt(runs) || 0,
+    overthrows: parseInt(overthrows) || 0,
+    extras: parseInt(extras) || 0,
+    extraType: extraType || null,
+    wicket: wicket || false,
+    wicketType: wicketType || null,
+    dismissedBatsman: dismissedBatsman || null
+  };
+  
+  // Update ball properties safely using direct assignment (validated above)
+  ball.runs = safeProps.runs;
+  ball.overthrows = safeProps.overthrows;
+  ball.extras = safeProps.extras;
+  ball.extraType = safeProps.extraType;
+  ball.wicket = safeProps.wicket;
+  ball.wicketType = safeProps.wicketType;
+  ball.dismissedBatsman = safeProps.dismissedBatsman;
+  
+  // Update bowler and batsman if provided (already validated as not dangerous)
+  if (bowler && bowler.trim()) {
+    ball.bowler = bowler.trim();
+  }
+  if (batsman && batsman.trim()) {
+    ball.batsman = batsman.trim();
+  }
   
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
