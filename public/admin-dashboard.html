@@ -144,9 +144,145 @@
         <!-- Match Scoring Tab -->
         <div id="scoring-tab" class="tab-content hidden">
             <div class="section">
-                <h2>Match Scoring</h2>
-                <p>Use the <a href="/admin" style="color: #00ffff;">legacy admin interface</a> for match scoring.</p>
-                <p style="margin-top: 10px; color: #ffff00;">Note: The legacy interface will be updated to work with series-based matches in a future update.</p>
+                <h2>Match Management</h2>
+                <div id="scoring-match-info">
+                    <p style="color: #ffff00;">Select a match from the Series tab to manage and score it.</p>
+                </div>
+                
+                <!-- Match Status -->
+                <div id="scoring-match-status" class="hidden">
+                    <h3>Match Details</h3>
+                    <div id="match-details-display"></div>
+                </div>
+                
+                <!-- Start Innings Section -->
+                <div id="scoring-start-innings" class="hidden">
+                    <h3 style="margin-top: 20px;">Start New Innings</h3>
+                    <div class="form-group">
+                        <label for="scoring-batting-team">Batting Team</label>
+                        <select id="scoring-batting-team" onchange="updateScoringBattingOrder()">
+                            <option value="">Select team...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scoring-bowling-team">Bowling Team</label>
+                        <select id="scoring-bowling-team" onchange="updateScoringBowlingOptions()">
+                            <option value="">Select team...</option>
+                        </select>
+                    </div>
+                    
+                    <h4 style="margin-top: 15px;">Batting Order</h4>
+                    <div id="scoring-batting-order"></div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="scoring-opening-bowler">Opening Bowler</label>
+                        <select id="scoring-opening-bowler">
+                            <option value="">Select bowler...</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="startInningsFromDashboard()" style="margin-top: 15px;">Start Innings</button>
+                </div>
+                
+                <!-- Scoring Interface -->
+                <div id="scoring-interface" class="hidden">
+                    <h3 style="margin-top: 20px;">Score Ball</h3>
+                    
+                    <!-- Current Match Situation -->
+                    <div id="scoring-scorecard-preview" style="background: #0a0a0a; padding: 15px; margin: 15px 0; border: 1px solid #00ff00; border-radius: 4px;">
+                        <div class="loading">Loading scorecard...</div>
+                    </div>
+                    
+                    <!-- Ball Recording Form -->
+                    <div class="form-group">
+                        <label for="scoring-bowler">Bowler</label>
+                        <select id="scoring-bowler">
+                            <option value="">Select bowler...</option>
+                        </select>
+                    </div>
+                    
+                    <label>Runs off Bat</label>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(0)">0</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(1)">1</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(2)">2</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(3)">3</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(4)">4</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringRuns(6)">6</button>
+                    </div>
+                    <input type="hidden" id="scoring-runs" value="0">
+                    
+                    <div class="form-group">
+                        <label for="scoring-overthrows">Overthrows</label>
+                        <input type="number" id="scoring-overthrows" value="0" min="0" max="6">
+                    </div>
+                    
+                    <label>Extras</label>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('')">None</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Wd')">Wide</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Nb')">No Ball</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Bye')">Bye</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('LB')">Leg Bye</button>
+                    </div>
+                    <input type="hidden" id="scoring-extra-type" value="">
+                    
+                    <div class="form-group">
+                        <label for="scoring-extras">Extra Runs</label>
+                        <input type="number" id="scoring-extras" value="0" min="0" max="7">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="scoring-wicket" onchange="toggleScoringWicketDetails()">
+                            Wicket
+                        </label>
+                    </div>
+                    
+                    <div id="scoring-wicket-details" class="hidden">
+                        <div class="form-group">
+                            <label for="scoring-dismissed-batsman">Dismissed Batsman</label>
+                            <select id="scoring-dismissed-batsman">
+                                <option value="">Select batsman...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scoring-wicket-type">How Out</label>
+                            <select id="scoring-wicket-type">
+                                <option value="bowled">Bowled</option>
+                                <option value="caught">Caught</option>
+                                <option value="lbw">LBW</option>
+                                <option value="run out">Run Out</option>
+                                <option value="stumped">Stumped</option>
+                                <option value="hit wicket">Hit Wicket</option>
+                                <option value="caught and bowled">Caught & Bowled</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="recordBallFromDashboard()" style="margin-top: 15px; font-size: 16px; padding: 12px 24px;">
+                        📝 RECORD BALL
+                    </button>
+                    
+                    <!-- Admin Actions -->
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #333;">
+                        <h4>Admin Actions</h4>
+                        <div class="btn-group" style="flex-wrap: wrap;">
+                            <button class="btn btn-secondary btn-small" onclick="undoLastBallFromDashboard()">↶ Undo</button>
+                            <button class="btn btn-secondary btn-small" onclick="swapStrikeFromDashboard()">⇄ Swap Strike</button>
+                            <button class="btn btn-secondary btn-small" onclick="declareInningsFromDashboard()">🏁 Declare</button>
+                            <button class="btn btn-secondary btn-small" onclick="endInningsFromDashboard()">⏹ End Innings</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Ball History -->
+                    <div style="margin-top: 20px;">
+                        <h4>Recent Balls</h4>
+                        <div id="scoring-ball-history" style="max-height: 200px; overflow-y: auto; background: #0a0a0a; padding: 10px; border: 1px solid #333; border-radius: 4px;">
+                            <div>No balls recorded</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -2346,7 +2346,288 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // Update series stats after every ball
   calculateSeriesStats(seriesId);
   
-  res.json({ match, ball });
+  res.json(match);
+});
+
+// Start innings for series match
+app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { battingTeam, bowlingTeam, battingOrder, openingBowler, enforceFollowOn } = req.body;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Initialize innings
+  const inningsNumber = match.innings.length + 1;
+  
+  const newInnings = {
+    number: inningsNumber,
+    battingTeam,
+    bowlingTeam,
+    runs: 0,
+    wickets: 0,
+    overs: 0,
+    balls: 0,
+    status: 'live',
+    battingOrder,
+    nextBatsmanIndex: 2,
+    striker: battingOrder[0],
+    nonStriker: battingOrder[1],
+    currentBowler: { name: openingBowler, balls: 0 },
+    allBatsmen: {
+      [battingOrder[0]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' },
+      [battingOrder[1]]: { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' }
+    },
+    allBowlers: {
+      [openingBowler]: { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 }
+    },
+    allBalls: [],
+    followOnEnforced: enforceFollowOn || false
+  };
+  
+  match.innings.push(newInnings);
+  match.status = 'live';
+  
+  // Save match
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  
+  // Update series
+  const series = loadSeriesById(seriesId);
+  if (series) {
+    const matchIndex = series.matches.findIndex(m => m.id === matchId);
+    if (matchIndex !== -1) {
+      series.matches[matchIndex].status = 'live';
+      saveSeriesById(seriesId, series);
+    }
+  }
+  
+  res.json(match);
+});
+
+// Undo last ball for series match
+app.post('/api/series/:seriesId/match/:matchId/undo', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No innings to undo' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  if (!currentInnings.allBalls || currentInnings.allBalls.length === 0) {
+    return res.status(400).json({ error: 'No balls to undo' });
+  }
+  
+  // Remove last ball
+  currentInnings.allBalls.pop();
+  
+  // Recalculate innings stats from scratch
+  currentInnings.runs = 0;
+  currentInnings.wickets = 0;
+  currentInnings.overs = 0;
+  currentInnings.balls = 0;
+  
+  // Reset all batsmen and bowlers
+  currentInnings.allBatsmen = {};
+  currentInnings.allBowlers = {};
+  
+  // Initialize opening batsmen
+  const [opener1, opener2] = currentInnings.battingOrder.slice(0, 2);
+  currentInnings.allBatsmen[opener1] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  currentInnings.allBatsmen[opener2] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  currentInnings.striker = opener1;
+  currentInnings.nonStriker = opener2;
+  currentInnings.nextBatsmanIndex = 2;
+  
+  // Replay all balls
+  currentInnings.allBalls.forEach((ball, index) => {
+    // This is a simplified replay - in production you'd call the full ball logic
+    const isLegalDelivery = (ball.extraType !== 'Wd' && ball.extraType !== 'Nb');
+    
+    if (isLegalDelivery) {
+      currentInnings.balls++;
+      if (currentInnings.balls >= 6) {
+        currentInnings.overs++;
+        currentInnings.balls = 0;
+      }
+    }
+    
+    currentInnings.runs += (ball.runs || 0) + (ball.extras || 0) + (ball.overthrows || 0);
+    
+    if (ball.wicket) {
+      currentInnings.wickets++;
+    }
+    
+    // Update batsman stats
+    if (!currentInnings.allBatsmen[ball.batsman]) {
+      currentInnings.allBatsmen[ball.batsman] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+    }
+    currentInnings.allBatsmen[ball.batsman].runs += (ball.runs || 0);
+    if (isLegalDelivery) {
+      currentInnings.allBatsmen[ball.batsman].balls++;
+    }
+    if (ball.runs === 4) currentInnings.allBatsmen[ball.batsman].fours++;
+    if (ball.runs === 6) currentInnings.allBatsmen[ball.batsman].sixes++;
+    
+    // Update bowler stats
+    if (!currentInnings.allBowlers[ball.bowler]) {
+      currentInnings.allBowlers[ball.bowler] = { overs: 0, balls: 0, maidens: 0, runs: 0, wickets: 0 };
+    }
+    if (isLegalDelivery) {
+      currentInnings.allBowlers[ball.bowler].balls++;
+      if (currentInnings.allBowlers[ball.bowler].balls >= 6) {
+        currentInnings.allBowlers[ball.bowler].overs++;
+        currentInnings.allBowlers[ball.bowler].balls = 0;
+      }
+    }
+    currentInnings.allBowlers[ball.bowler].runs += (ball.runs || 0) + (ball.extras || 0) + (ball.overthrows || 0);
+    if (ball.wicket) {
+      currentInnings.allBowlers[ball.bowler].wickets++;
+    }
+  });
+  
+  // Save
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
+// Swap strike for series match
+app.post('/api/series/:seriesId/match/:matchId/swap-strike', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  // Swap striker and non-striker
+  const temp = currentInnings.striker;
+  currentInnings.striker = currentInnings.nonStriker;
+  currentInnings.nonStriker = temp;
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  
+  res.json(match);
+});
+
+// Declare innings for series match
+app.post('/api/series/:seriesId/match/:matchId/declare', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  currentInnings.declared = true;
+  currentInnings.status = 'completed';
+  
+  // Mark batsmen as not out
+  if (currentInnings.striker && currentInnings.allBatsmen[currentInnings.striker]) {
+    currentInnings.allBatsmen[currentInnings.striker].status = 'not out';
+  }
+  if (currentInnings.nonStriker && currentInnings.allBatsmen[currentInnings.nonStriker]) {
+    currentInnings.allBatsmen[currentInnings.nonStriker].status = 'not out';
+  }
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
+// End innings for series match
+app.post('/api/series/:seriesId/match/:matchId/end-innings', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  currentInnings.status = 'completed';
+  
+  // Mark current batsmen as not out
+  if (currentInnings.striker && currentInnings.allBatsmen[currentInnings.striker]) {
+    currentInnings.allBatsmen[currentInnings.striker].status = 'not out';
+  }
+  if (currentInnings.nonStriker && currentInnings.allBatsmen[currentInnings.nonStriker]) {
+    currentInnings.allBatsmen[currentInnings.nonStriker].status = 'not out';
+  }
+  
+  // Check if match is completed
+  if (match.format === 'test' && match.innings.length >= 4) {
+    // Calculate result
+    const result = calculateMatchResult(match);
+    if (result) {
+      match.result = result;
+      match.status = 'completed';
+      
+      // Update series
+      const series = loadSeriesById(seriesId);
+      if (series) {
+        const matchIndex = series.matches.findIndex(m => m.id === matchId);
+        if (matchIndex !== -1) {
+          series.matches[matchIndex].status = 'completed';
+          series.matches[matchIndex].result = `${result.winner} won by ${result.margin} ${result.winType}`;
+          
+          // Update series score
+          if (result.winner) {
+            series.seriesScore[result.winner]++;
+          }
+          
+          saveSeriesById(seriesId, series);
+        }
+      }
+    }
+  }
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
+// Get series match
+app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  const match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  res.json(match);
 });
 
 // News API endpoints

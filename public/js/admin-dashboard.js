@@ -167,9 +167,9 @@ async function viewSeries(seriesId) {
                     <div class="btn-group">
                         ${match.status === 'upcoming' ? `
                             <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, '${series.team1}', '${series.team2}')">Setup Match</button>
-                        ` : match.status === 'live' ? `
-                            <button class="btn btn-primary btn-small" onclick="window.location.href='/admin'">Score Match</button>
-                        ` : ''}
+                        ` : `
+                            <button class="btn btn-primary btn-small" onclick="manageMatch('${seriesId}', '${match.id}')">Manage Match</button>
+                        `}
                         ${match.status !== 'upcoming' ? `
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Live Score</button>
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 2}', '_blank')">View Scorecard</button>
@@ -552,3 +552,561 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ===== MATCH MANAGEMENT AND SCORING FUNCTIONS =====
+
+let currentScoringMatch = null;
+let currentScoringSeriesId = null;
+
+/**
+ * Manage a match (view details and score)
+ */
+async function manageMatch(seriesId, matchId) {
+    try {
+        currentScoringSeriesId = seriesId;
+        
+        // Load match data
+        const response = await fetch(`/api/series/${seriesId}/match/${matchId}`);
+        if (!response.ok) {
+            alert('Failed to load match');
+            return;
+        }
+        
+        currentScoringMatch = await response.json();
+        
+        // Switch to scoring tab
+        showTab('scoring');
+        
+        // Display match details
+        displayScoringMatchDetails();
+        
+    } catch (error) {
+        console.error('Error loading match:', error);
+        alert('Failed to load match');
+    }
+}
+
+/**
+ * Display match details in scoring tab
+ */
+function displayScoringMatchDetails() {
+    const infoDiv = document.getElementById('scoring-match-info');
+    const statusDiv = document.getElementById('scoring-match-status');
+    const detailsDiv = document.getElementById('match-details-display');
+    const startInningsDiv = document.getElementById('scoring-start-innings');
+    const scoringInterfaceDiv = document.getElementById('scoring-interface');
+    
+    if (!currentScoringMatch) {
+        infoDiv.style.display = 'block';
+        statusDiv.classList.add('hidden');
+        startInningsDiv.classList.add('hidden');
+        scoringInterfaceDiv.classList.add('hidden');
+        return;
+    }
+    
+    infoDiv.style.display = 'none';
+    statusDiv.classList.remove('hidden');
+    
+    // Display match details
+    let html = `
+        <h4>${currentScoringMatch.title}</h4>
+        <p>${currentScoringMatch.venue} - ${currentScoringMatch.date}</p>
+        <p>Status: <span style="color: #00ff00;">${currentScoringMatch.status.toUpperCase()}</span></p>
+    `;
+    
+    // Show innings summary if any
+    if (currentScoringMatch.innings && currentScoringMatch.innings.length > 0) {
+        html += '<div style="margin-top: 10px; background: #0a0a0a; padding: 10px; border-radius: 4px;">';
+        currentScoringMatch.innings.forEach((inn, idx) => {
+            const isDeclared = inn.declared ? ' dec' : '';
+            html += `
+                <div style="margin-bottom: 5px;">
+                    <strong>Innings ${inn.number}:</strong> ${inn.battingTeam} ${inn.runs}/${inn.wickets}${isDeclared}
+                    ${inn.status === 'completed' ? ' (completed)' : inn.status === 'live' ? ' (live)' : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    detailsDiv.innerHTML = html;
+    
+    // Determine which interface to show
+    const currentInnings = currentScoringMatch.innings && currentScoringMatch.innings.length > 0 
+        ? currentScoringMatch.innings[currentScoringMatch.innings.length - 1]
+        : null;
+    
+    const needsNewInnings = !currentInnings || 
+        currentInnings.status === 'completed' || 
+        currentInnings.wickets >= 10;
+    
+    const matchCompleted = currentScoringMatch.result && currentScoringMatch.result.status === 'completed';
+    
+    if (matchCompleted) {
+        startInningsDiv.classList.add('hidden');
+        scoringInterfaceDiv.classList.add('hidden');
+    } else if (needsNewInnings) {
+        startInningsDiv.classList.remove('hidden');
+        scoringInterfaceDiv.classList.add('hidden');
+        setupStartInningsForm();
+    } else {
+        startInningsDiv.classList.add('hidden');
+        scoringInterfaceDiv.classList.remove('hidden');
+        setupScoringInterface();
+    }
+}
+
+/**
+ * Setup the start innings form
+ */
+function setupStartInningsForm() {
+    if (!currentScoringMatch) return;
+    
+    const battingTeamSelect = document.getElementById('scoring-batting-team');
+    const bowlingTeamSelect = document.getElementById('scoring-bowling-team');
+    
+    // Get teams from squads
+    const teams = Object.keys(currentScoringMatch.squads || {});
+    
+    battingTeamSelect.innerHTML = '<option value="">Select team...</option>';
+    bowlingTeamSelect.innerHTML = '<option value="">Select team...</option>';
+    
+    teams.forEach(team => {
+        battingTeamSelect.innerHTML += `<option value="${team}">${team}</option>`;
+        bowlingTeamSelect.innerHTML += `<option value="${team}">${team}</option>`;
+    });
+}
+
+/**
+ * Update batting order dropdowns
+ */
+function updateScoringBattingOrder() {
+    const battingTeam = document.getElementById('scoring-batting-team').value;
+    if (!battingTeam || !currentScoringMatch) return;
+    
+    const squad = currentScoringMatch.squads[battingTeam] || [];
+    const container = document.getElementById('scoring-batting-order');
+    
+    container.innerHTML = '';
+    for (let i = 1; i <= 11; i++) {
+        const defaultPlayer = squad[i - 1] || squad[0];
+        container.innerHTML += `
+            <div class="form-group">
+                <label>${i}. Batsman</label>
+                <select id="scoring-batting-order-${i}">
+                    ${squad.map(name => `<option value="${name}" ${name === defaultPlayer ? 'selected' : ''}>${name}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Update bowling options
+ */
+function updateScoringBowlingOptions() {
+    const bowlingTeam = document.getElementById('scoring-bowling-team').value;
+    if (!bowlingTeam || !currentScoringMatch) return;
+    
+    const squad = currentScoringMatch.squads[bowlingTeam] || [];
+    const bowlerSelect = document.getElementById('scoring-opening-bowler');
+    
+    bowlerSelect.innerHTML = '<option value="">Select bowler...</option>';
+    squad.forEach(name => {
+        bowlerSelect.innerHTML += `<option value="${name}">${name}</option>`;
+    });
+}
+
+/**
+ * Start innings from dashboard
+ */
+async function startInningsFromDashboard() {
+    const battingTeam = document.getElementById('scoring-batting-team').value;
+    const bowlingTeam = document.getElementById('scoring-bowling-team').value;
+    const openingBowler = document.getElementById('scoring-opening-bowler').value;
+    
+    if (!battingTeam || !bowlingTeam || !openingBowler) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    if (battingTeam === bowlingTeam) {
+        alert('Batting and bowling teams must be different');
+        return;
+    }
+    
+    // Collect batting order
+    const battingOrder = [];
+    for (let i = 1; i <= 11; i++) {
+        const select = document.getElementById(`scoring-batting-order-${i}`);
+        if (!select || !select.value) {
+            alert(`Please select batsman ${i}`);
+            return;
+        }
+        battingOrder.push(select.value);
+    }
+    
+    // Check for duplicates
+    if (new Set(battingOrder).size !== 11) {
+        alert('Each batsman must be selected only once');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/start-innings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ battingTeam, bowlingTeam, battingOrder, openingBowler })
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            displayScoringMatchDetails();
+            alert('Innings started!');
+        } else {
+            const error = await response.json();
+            alert('Failed to start innings: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error starting innings:', error);
+        alert('Failed to start innings');
+    }
+}
+
+/**
+ * Setup scoring interface
+ */
+function setupScoringInterface() {
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    
+    // Update scorecard preview
+    updateScorecardPreview();
+    
+    // Populate bowler dropdown
+    const bowlerSelect = document.getElementById('scoring-bowler');
+    const bowlingSquad = currentScoringMatch.squads[currentInnings.bowlingTeam] || [];
+    const allBowlers = Object.keys(currentInnings.allBowlers || {});
+    const bowlerOptions = [...new Set([...bowlingSquad, ...allBowlers])];
+    
+    bowlerSelect.innerHTML = '<option value="">Select bowler...</option>';
+    bowlerOptions.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (currentInnings.currentBowler && currentInnings.currentBowler.name === name) {
+            option.selected = true;
+        }
+        bowlerSelect.appendChild(option);
+    });
+    
+    // Populate dismissed batsman dropdown
+    const dismissedBatsmanSelect = document.getElementById('scoring-dismissed-batsman');
+    if (currentInnings.striker && currentInnings.nonStriker) {
+        dismissedBatsmanSelect.innerHTML = `
+            <option value="${currentInnings.striker}">${currentInnings.striker}</option>
+            <option value="${currentInnings.nonStriker}">${currentInnings.nonStriker}</option>
+        `;
+    }
+    
+    // Update ball history
+    updateBallHistory();
+}
+
+/**
+ * Update scorecard preview
+ */
+function updateScorecardPreview() {
+    const preview = document.getElementById('scoring-scorecard-preview');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        preview.innerHTML = '<div>No innings active</div>';
+        return;
+    }
+    
+    const innings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    
+    let html = `
+        <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+            ${innings.battingTeam.toUpperCase()} ${innings.runs}/${innings.wickets} 
+            (${innings.overs}.${innings.balls} overs)
+        </div>
+    `;
+    
+    // Show current batsmen
+    if (innings.striker && innings.nonStriker && innings.allBatsmen) {
+        const strikerStats = innings.allBatsmen[innings.striker];
+        const nonStrikerStats = innings.allBatsmen[innings.nonStriker];
+        
+        if (strikerStats && nonStrikerStats) {
+            html += '<div style="margin: 10px 0;">';
+            html += `<div><strong>★ ${innings.striker}:</strong> ${strikerStats.runs}* (${strikerStats.balls})</div>`;
+            html += `<div>${innings.nonStriker}: ${nonStrikerStats.runs}* (${nonStrikerStats.balls})</div>`;
+            html += '</div>';
+        }
+    }
+    
+    // Show current bowler
+    if (innings.currentBowler && innings.allBowlers && innings.allBowlers[innings.currentBowler.name]) {
+        const bowlerStats = innings.allBowlers[innings.currentBowler.name];
+        html += `
+            <div style="margin-top: 10px; color: #00ffff;">
+                ${innings.currentBowler.name}: ${bowlerStats.overs}.${bowlerStats.balls % 6}-${bowlerStats.maidens}-${bowlerStats.runs}-${bowlerStats.wickets}
+            </div>
+        `;
+    }
+    
+    preview.innerHTML = html;
+}
+
+/**
+ * Update ball history
+ */
+function updateBallHistory() {
+    const historyDiv = document.getElementById('scoring-ball-history');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        historyDiv.innerHTML = '<div>No balls recorded</div>';
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const balls = currentInnings.allBalls || [];
+    
+    if (balls.length === 0) {
+        historyDiv.innerHTML = '<div>No balls recorded</div>';
+        return;
+    }
+    
+    // Show last 20 balls
+    const recentBalls = balls.slice(-20).reverse();
+    
+    let html = '';
+    recentBalls.forEach((ball) => {
+        let runsText = ball.runs.toString();
+        if (ball.overthrows && ball.overthrows > 0) {
+            runsText += ` + ${ball.overthrows}ot`;
+        }
+        if (ball.extras) {
+            runsText += `+${ball.extras}`;
+        }
+        
+        const extraText = ball.extraType ? ` (${ball.extraType})` : '';
+        const wicketText = ball.wicket ? ' 🔴 W' : '';
+        
+        html += `
+            <div style="padding: 5px; border-bottom: 1px solid #333;">
+                ${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}
+            </div>
+        `;
+    });
+    
+    historyDiv.innerHTML = html;
+}
+
+/**
+ * Set runs from button
+ */
+function setScoringRuns(runs) {
+    document.getElementById('scoring-runs').value = runs;
+}
+
+/**
+ * Set extra type
+ */
+function setScoringExtra(type) {
+    document.getElementById('scoring-extra-type').value = type;
+    if (type === 'Wd' || type === 'Nb') {
+        document.getElementById('scoring-extras').value = '1';
+    }
+}
+
+/**
+ * Toggle wicket details
+ */
+function toggleScoringWicketDetails() {
+    const checked = document.getElementById('scoring-wicket').checked;
+    const details = document.getElementById('scoring-wicket-details');
+    if (checked) {
+        details.classList.remove('hidden');
+    } else {
+        details.classList.add('hidden');
+    }
+}
+
+/**
+ * Record ball from dashboard
+ */
+async function recordBallFromDashboard() {
+    const bowler = document.getElementById('scoring-bowler').value;
+    const runs = parseInt(document.getElementById('scoring-runs').value) || 0;
+    const overthrows = parseInt(document.getElementById('scoring-overthrows').value) || 0;
+    const extraType = document.getElementById('scoring-extra-type').value;
+    const extras = parseInt(document.getElementById('scoring-extras').value) || 0;
+    const wicket = document.getElementById('scoring-wicket').checked;
+    const wicketType = wicket ? document.getElementById('scoring-wicket-type').value : null;
+    const dismissedBatsman = wicket ? document.getElementById('scoring-dismissed-batsman').value : null;
+    
+    if (!bowler) {
+        alert('Please select a bowler');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/ball`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({
+                bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman
+            })
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            
+            // Reset form
+            document.getElementById('scoring-runs').value = '0';
+            document.getElementById('scoring-overthrows').value = '0';
+            document.getElementById('scoring-extra-type').value = '';
+            document.getElementById('scoring-extras').value = '0';
+            document.getElementById('scoring-wicket').checked = false;
+            toggleScoringWicketDetails();
+            
+            // Update interface
+            setupScoringInterface();
+            
+            alert('Ball recorded!');
+        } else {
+            const error = await response.json();
+            alert('Failed to record ball: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error recording ball:', error);
+        alert('Failed to record ball');
+    }
+}
+
+/**
+ * Undo last ball
+ */
+async function undoLastBallFromDashboard() {
+    if (!confirm('Undo the last ball?')) return;
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/undo`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            alert('Ball undone!');
+        } else {
+            const error = await response.json();
+            alert('Failed to undo: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error undoing ball:', error);
+        alert('Failed to undo');
+    }
+}
+
+/**
+ * Swap strike
+ */
+async function swapStrikeFromDashboard() {
+    if (!confirm('Swap striker and non-striker?')) return;
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/swap-strike`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            alert('Strike swapped!');
+        } else {
+            const error = await response.json();
+            alert('Failed to swap: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error swapping strike:', error);
+        alert('Failed to swap strike');
+    }
+}
+
+/**
+ * Declare innings
+ */
+async function declareInningsFromDashboard() {
+    if (!confirm('Declare this innings? This cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/declare`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            displayScoringMatchDetails();
+            alert('Innings declared!');
+        } else {
+            const error = await response.json();
+            alert('Failed to declare: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error declaring:', error);
+        alert('Failed to declare');
+    }
+}
+
+/**
+ * End innings
+ */
+async function endInningsFromDashboard() {
+    if (!confirm('End this innings? This cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/end-innings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            displayScoringMatchDetails();
+            alert('Innings ended!');
+        } else {
+            const error = await response.json();
+            alert('Failed to end innings: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error ending innings:', error);
+        alert('Failed to end innings');
+    }
+}
