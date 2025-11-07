@@ -2533,6 +2533,12 @@ app.post('/api/series/:seriesId/match/:matchId/retire-batsman', requireAuth, (re
   const { seriesId, matchId } = req.params;
   const { batsmanName, retireType } = req.body;
   
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
   let match = loadSeriesMatch(seriesId, matchId);
   if (!match) {
     return res.status(404).json({ error: 'Match not found' });
