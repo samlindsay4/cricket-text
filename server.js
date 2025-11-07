@@ -2068,6 +2068,11 @@ app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
   }
 });
 
+// Serve series management page
+app.get('/series', checkRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'series.html'));
+});
+
 // Serve admin page
 app.get('/admin', checkRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -2079,8 +2084,9 @@ app.get('/', checkRateLimit, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Cricket Text - Ashes Scoring App`);
+  console.log(`Cricket Text - Series Management System`);
   console.log(`Server running on port ${PORT}`);
   console.log(`Public scorecard: http://localhost:${PORT}`);
+  console.log(`Series management: http://localhost:${PORT}/series`);
   console.log(`Admin interface: http://localhost:${PORT}/admin`);
 });

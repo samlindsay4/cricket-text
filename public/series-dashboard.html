@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Series Dashboard - Cricket Text</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .breadcrumb {
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        
+        .breadcrumb a {
+            color: #00FFFF;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            color: #FFFF00;
+        }
+        
+        .match-grid {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .match-card {
+            background: #1a1a1a;
+            border: 2px solid #00FFFF;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .match-card.completed {
+            border-color: #00FF00;
+        }
+        
+        .match-card.live {
+            border-color: #FF0000;
+            animation: pulse 2s infinite;
+        }
+        
+        .match-card.upcoming {
+            border-color: #FFFF00;
+        }
+        
+        .match-card.not-created {
+            border-color: #666;
+            opacity: 0.7;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { border-color: #FF0000; }
+            50% { border-color: #FF6666; }
+        }
+        
+        .match-info {
+            flex: 1;
+        }
+        
+        .match-title {
+            color: #FFFF00;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .match-venue {
+            color: #00FFFF;
+            margin-bottom: 5px;
+        }
+        
+        .match-date {
+            color: #888;
+            font-size: 14px;
+        }
+        
+        .match-result {
+            color: #00FF00;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .match-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .match-status.completed {
+            background: #00FF00;
+            color: #000;
+        }
+        
+        .match-status.live {
+            background: #FF0000;
+            color: #FFF;
+        }
+        
+        .match-status.upcoming {
+            background: #FFFF00;
+            color: #000;
+        }
+        
+        .match-status.not-created {
+            background: #666;
+            color: #FFF;
+        }
+        
+        .match-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: #1a1a1a;
+            border: 2px solid #00FFFF;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            color: #FFFF00;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .close {
+            color: #888;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #FFF;
+        }
+        
+        .squad-inputs {
+            margin: 20px 0;
+        }
+        
+        .squad-section {
+            margin-bottom: 20px;
+        }
+        
+        .squad-section h3 {
+            color: #00FFFF;
+            margin-bottom: 10px;
+        }
+        
+        .player-input {
+            margin-bottom: 10px;
+        }
+        
+        .player-input input {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Breadcrumb Navigation -->
+        <div class="breadcrumb">
+            <a href="/series.html">← All Series</a>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1 id="series-title">Loading...</h1>
+            <div id="series-score" style="font-size: 24px; margin-top: 10px;">
+                <span id="score-display">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section">
+            <button class="btn btn-primary" onclick="showCreateMatchModal()">
+                ➕ Create New Match
+            </button>
+        </div>
+
+        <!-- Matches List -->
+        <div class="section">
+            <h2>Matches</h2>
+            <div id="matches-list" class="match-grid">
+                <p>Loading matches...</p>
+            </div>
+        </div>
+
+        <!-- Message display -->
+        <div id="message" class="alert hidden"></div>
+    </div>
+
+    <!-- Create Match Modal -->
+    <div id="create-match-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeCreateMatchModal()">&times;</span>
+                Create Match
+            </div>
+            
+            <div class="form-group">
+                <label for="match-number">Match Number</label>
+                <select id="match-number"></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="venue">Venue</label>
+                <input type="text" id="venue" placeholder="e.g., The Gabba, Brisbane">
+            </div>
+            
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" id="date">
+            </div>
+            
+            <div class="squad-inputs">
+                <div class="squad-section">
+                    <h3 id="team1-label">Team 1 Squad</h3>
+                    <div id="team1-squad"></div>
+                </div>
+                
+                <div class="squad-section">
+                    <h3 id="team2-label">Team 2 Squad</h3>
+                    <div id="team2-squad"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="createMatch()" style="flex: 1;">Create Match</button>
+                <button class="btn" onclick="closeCreateMatchModal()" style="flex: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let currentSeries = null;
+
+        // Get session from localStorage
+        sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) {
+            window.location.href = '/series.html';
+        }
+
+        // Get series slug from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const seriesSlug = urlParams.get('slug');
+
+        if (!seriesSlug) {
+            window.location.href = '/series.html';
+        }
+
+        // Load series data
+        async function loadSeries() {
+            try {
+                const response = await fetch(`/api/series/${seriesSlug}`);
+                if (!response.ok) {
+                    throw new Error('Series not found');
+                }
+                
+                currentSeries = await response.json();
+                displaySeries();
+            } catch (error) {
+                console.error('Error loading series:', error);
+                showMessage('Failed to load series', 'error');
+                setTimeout(() => {
+                    window.location.href = '/series.html';
+                }, 2000);
+            }
+        }
+
+        // Display series
+        function displaySeries() {
+            document.getElementById('series-title').textContent = currentSeries.name;
+            
+            const team1Score = currentSeries.score[currentSeries.team1] || 0;
+            const team2Score = currentSeries.score[currentSeries.team2] || 0;
+            document.getElementById('score-display').textContent = 
+                `${currentSeries.team1}: ${team1Score} - ${team2Score} :${currentSeries.team2}`;
+            
+            displayMatches();
+        }
+
+        // Display matches
+        function displayMatches() {
+            const matchesList = document.getElementById('matches-list');
+            matchesList.innerHTML = '';
+            
+            currentSeries.matches.forEach(match => {
+                const card = createMatchCard(match);
+                matchesList.appendChild(card);
+            });
+        }
+
+        // Create match card
+        function createMatchCard(match) {
+            const card = document.createElement('div');
+            card.className = `match-card ${match.status}`;
+            
+            let statusBadge = '';
+            let statusText = match.status;
+            if (match.status === 'not-created') {
+                statusBadge = '<span class="match-status not-created">Not Created</span>';
+            } else if (match.status === 'upcoming') {
+                statusBadge = '<span class="match-status upcoming">Upcoming</span>';
+            } else if (match.status === 'live') {
+                statusBadge = '<span class="match-status live">🔴 LIVE</span>';
+            } else if (match.status === 'completed') {
+                statusBadge = '<span class="match-status completed">✓ Completed</span>';
+            }
+            
+            const venueText = match.venue || 'Venue TBC';
+            const dateText = match.date ? formatDate(match.date) : 'Date TBC';
+            const resultText = match.result ? `<div class="match-result">${match.result}</div>` : '';
+            
+            let actions = '';
+            if (match.status === 'not-created') {
+                actions = `<button class="btn btn-primary" onclick="openCreateMatchModal(${match.number})">Create Match</button>`;
+            } else if (match.status === 'upcoming' || match.status === 'live') {
+                actions = `<button class="btn btn-primary" onclick="scoreMatch(${match.number})">Score Match</button>`;
+            } else if (match.status === 'completed') {
+                actions = `<button class="btn" onclick="viewMatch(${match.number})">View Scorecard</button>`;
+            }
+            
+            card.innerHTML = `
+                <div class="match-info">
+                    <div class="match-title">${match.title}</div>
+                    ${statusBadge}
+                    <div class="match-venue">${venueText}</div>
+                    <div class="match-date">${dateText}</div>
+                    ${resultText}
+                </div>
+                <div class="match-actions">
+                    ${actions}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('en-GB', options);
+        }
+
+        // Show create match modal
+        function showCreateMatchModal() {
+            // Populate match number dropdown with uncreated matches
+            const matchNumberSelect = document.getElementById('match-number');
+            matchNumberSelect.innerHTML = '';
+            
+            const uncreatedMatches = currentSeries.matches.filter(m => m.status === 'not-created');
+            if (uncreatedMatches.length === 0) {
+                showMessage('All matches have been created', 'error');
+                return;
+            }
+            
+            uncreatedMatches.forEach(match => {
+                const option = document.createElement('option');
+                option.value = match.number;
+                option.textContent = match.title;
+                matchNumberSelect.appendChild(option);
+            });
+            
+            // Update labels
+            document.getElementById('team1-label').textContent = `${currentSeries.team1} Squad (11 players)`;
+            document.getElementById('team2-label').textContent = `${currentSeries.team2} Squad (11 players)`;
+            
+            // Generate squad inputs
+            generateSquadInputs('team1-squad', 11);
+            generateSquadInputs('team2-squad', 11);
+            
+            document.getElementById('create-match-modal').classList.add('active');
+        }
+
+        // Open create match modal for specific match
+        function openCreateMatchModal(matchNumber) {
+            showCreateMatchModal();
+            document.getElementById('match-number').value = matchNumber;
+        }
+
+        // Close create match modal
+        function closeCreateMatchModal() {
+            document.getElementById('create-match-modal').classList.remove('active');
+        }
+
+        // Generate squad inputs
+        function generateSquadInputs(containerId, count) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'player-input';
+                div.innerHTML = `
+                    <input type="text" 
+                           id="${containerId}-player-${i}" 
+                           placeholder="Player ${i + 1}" 
+                           class="squad-player">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // Create match
+        async function createMatch() {
+            const matchNumber = parseInt(document.getElementById('match-number').value);
+            const venue = document.getElementById('venue').value.trim();
+            const date = document.getElementById('date').value;
+            
+            if (!venue || !date) {
+                showMessage('Please fill in venue and date', 'error');
+                return;
+            }
+            
+            // Get squads
+            const team1Squad = [];
+            const team2Squad = [];
+            
+            for (let i = 0; i < 11; i++) {
+                const player1 = document.getElementById(`team1-squad-player-${i}`).value.trim();
+                const player2 = document.getElementById(`team2-squad-player-${i}`).value.trim();
+                
+                if (!player1 || !player2) {
+                    showMessage('Please fill in all player names', 'error');
+                    return;
+                }
+                
+                team1Squad.push(player1);
+                team2Squad.push(player2);
+            }
+            
+            try {
+                const response = await fetch(`/api/series/${seriesSlug}/match/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-Id': sessionId
+                    },
+                    body: JSON.stringify({
+                        matchNumber,
+                        venue,
+                        date,
+                        team1Squad,
+                        team2Squad
+                    })
+                });
+                
+                if (response.ok) {
+                    showMessage('Match created successfully!', 'success');
+                    closeCreateMatchModal();
+                    loadSeries();
+                } else {
+                    const error = await response.json();
+                    showMessage('Failed to create match: ' + (error.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Score match
+        async function scoreMatch(matchNumber) {
+            try {
+                // Activate match for scoring
+                const response = await fetch(`/api/series/${seriesSlug}/match/${matchNumber}/activate`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Session-Id': sessionId
+                    }
+                });
+                
+                if (response.ok) {
+                    // Redirect to admin scoring interface
+                    window.location.href = '/admin.html';
+                } else {
+                    showMessage('Failed to activate match', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        // View match
+        function viewMatch(matchNumber) {
+            // For now, just activate and go to admin
+            scoreMatch(matchNumber);
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Load series on page load
+        loadSeries();
+    </script>
+</body>
+</html>
