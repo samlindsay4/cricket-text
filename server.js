@@ -153,6 +153,12 @@ function processBall(innings, ball, ballIndex) {
           sixes: 0, 
           status: 'batting' 
         };
+      } else if (innings.allBatsmen[nextBat].status === 'retired hurt') {
+        // BUG FIX #2: Resuming retired hurt batsman - keep stats, change status
+        innings.allBatsmen[nextBat].status = 'batting';
+      } else {
+        // Batsman already exists, just update status to batting
+        innings.allBatsmen[nextBat].status = 'batting';
       }
       
       // Replace dismissed batsman
@@ -182,6 +188,12 @@ function processBall(innings, ball, ballIndex) {
           sixes: 0, 
           status: 'batting' 
         };
+      } else if (innings.allBatsmen[nextBat].status === 'retired hurt') {
+        // BUG FIX #2: Resuming retired hurt batsman - keep stats, change status
+        innings.allBatsmen[nextBat].status = 'batting';
+      } else {
+        // Batsman already exists, just update status to batting
+        innings.allBatsmen[nextBat].status = 'batting';
       }
       
       // Replace dismissed batsman
@@ -281,6 +293,29 @@ function recalculateInnings(innings) {
   }
   
   return innings;
+}
+
+// BUG FIX #4: Validate innings state to prevent ghost dismissals
+function validateInningsState(innings) {
+  // Count batsmen at crease (should always be exactly 2, unless all out)
+  const atCrease = [innings.striker, innings.nonStriker].filter(Boolean);
+  
+  if (innings.wickets < 10 && atCrease.length !== 2) {
+    console.error('CRITICAL ERROR: Not exactly 2 batsmen at crease!');
+    console.error('Wickets:', innings.wickets);
+    console.error('Striker:', innings.striker);
+    console.error('Non-striker:', innings.nonStriker);
+    console.error('At crease count:', atCrease.length);
+  }
+  
+  // Count wickets - verify wickets count matches out batsmen
+  const outBatsmen = Object.values(innings.allBatsmen).filter(b => b.status === 'out');
+  if (outBatsmen.length !== innings.wickets) {
+    console.error('CRITICAL ERROR: Wicket count mismatch!');
+    console.error('innings.wickets:', innings.wickets);
+    console.error('Actually out:', outBatsmen.length);
+    console.error('Out batsmen:', outBatsmen.map(b => b.name || 'unknown'));
+  }
 }
 
 // Calculate match situation for Test Match
@@ -601,8 +636,9 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     status: 'live',
     battingOrder: battingOrder, // Array of 11 player names in batting order
     nextBatsmanIndex: 2, // Next batsman to come in (starts at 2, as 0 and 1 are opening batsmen)
-    striker: null, // Will be set when first ball is bowled
-    nonStriker: null, // Will be set when first ball is bowled
+    // BUG FIX #5: Auto-add openers when innings starts
+    striker: battingOrder[0], // First opener at striker
+    nonStriker: battingOrder[1], // Second opener at non-striker
     allBatsmen: Object.create(null), // Map of player name -> { runs, balls, fours, sixes, status, howOut }
     allBowlers: Object.create(null), // Map of bowler name -> { balls, overs, maidens, runs, wickets }
     currentBowler: openingBowler ? { name: openingBowler } : null,
@@ -610,6 +646,24 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     fallOfWickets: [],
     allBalls: [],
     recentOvers: [] // Store last 5-10 overs
+  };
+  
+  // BUG FIX #5: Initialize openers in allBatsmen
+  innings.allBatsmen[battingOrder[0]] = {
+    name: battingOrder[0],
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    status: 'batting'
+  };
+  innings.allBatsmen[battingOrder[1]] = {
+    name: battingOrder[1],
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    status: 'batting'
   };
   
   match.innings.push(innings);
@@ -746,6 +800,12 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     currentInnings.wickets++;
     const dismissedName = dismissedBatsman || striker;
     
+    // BUG FIX #4: Validate that only one batsman is dismissed
+    // Ensure dismissed batsman is either striker or non-striker
+    if (dismissedName !== striker && dismissedName !== nonStriker) {
+      return res.status(400).json({ error: 'Dismissed batsman must be striker or non-striker' });
+    }
+    
     // Update batsman status if exists
     // Note: allBatsmen is created with Object.create(null) to prevent prototype pollution
     // and all names are validated against squad lists
@@ -763,6 +823,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       wickets: currentInnings.wickets,
       batsman: dismissedName
     });
+    
+    // BUG FIX #4: Store which batsman position was dismissed for validation
+    currentInnings.dismissedBatsmanPosition = dismissedName === striker ? 'striker' : 'non-striker';
     
     // BUG FIX #1: Don't auto-add next batsman here
     // User will select incoming batsman via modal (showChooseBatsmanModal)
@@ -826,6 +889,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   
   // 11. Store in all balls
   currentInnings.allBalls.push(ball);
+  
+  // BUG FIX #4: Validate innings state to prevent ghost dismissals
+  validateInningsState(currentInnings);
   
   // BUG FIX #4: Update match situation after EVERY ball (not just 4th innings)
   if (match.format === 'test') {
@@ -1163,17 +1229,28 @@ app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid batsman name' });
   }
   
-  // Check if batsman hasn't batted yet
-  if (currentInnings.allBatsmen[batsmanName] && currentInnings.allBatsmen[batsmanName].status !== 'not batted') {
-    return res.status(400).json({ error: 'Batsman has already batted' });
+  // BUG FIX #2: Check if batsman hasn't batted yet OR is retired hurt (can resume)
+  if (currentInnings.allBatsmen[batsmanName]) {
+    const status = currentInnings.allBatsmen[batsmanName].status;
+    // Allow if: not batted, retired hurt
+    // Reject if: out, batting, retired out, retired not out
+    if (status !== 'not batted' && status !== 'retired hurt') {
+      return res.status(400).json({ error: 'Batsman has already batted or is unavailable' });
+    }
   }
   
-  // Initialize batsman stats
+  // BUG FIX #2: Initialize batsman stats OR resume retired hurt batsman
   if (!currentInnings.allBatsmen[batsmanName]) {
+    // New batsman - create fresh stats
     currentInnings.allBatsmen[batsmanName] = { 
+      name: batsmanName,
       runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
     };
+  } else if (currentInnings.allBatsmen[batsmanName].status === 'retired hurt') {
+    // Resuming retired hurt batsman - keep existing runs/balls, just change status
+    currentInnings.allBatsmen[batsmanName].status = 'batting';
   } else {
+    // Not batted - change status to batting
     currentInnings.allBatsmen[batsmanName].status = 'batting';
   }
   
