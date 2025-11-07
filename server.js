@@ -152,7 +152,27 @@ function saveSeries(series) {
 
 function loadMatchById(matchId) {
   try {
+    // Validate matchId to prevent path traversal
+    if (!matchId || typeof matchId !== 'string') {
+      return null;
+    }
+    
+    // Only allow alphanumeric, hyphens, and underscores
+    if (!/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      console.error('Invalid matchId format:', matchId);
+      return null;
+    }
+    
     const matchPath = path.join(dataDir, `${matchId}.json`);
+    
+    // Additional security: ensure the resolved path is within dataDir
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedDataDir = path.resolve(dataDir);
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', matchId);
+      return null;
+    }
+    
     if (!fs.existsSync(matchPath)) {
       return null;
     }
@@ -166,7 +186,27 @@ function loadMatchById(matchId) {
 
 function saveMatchById(matchId, match) {
   try {
+    // Validate matchId to prevent path traversal
+    if (!matchId || typeof matchId !== 'string') {
+      return false;
+    }
+    
+    // Only allow alphanumeric, hyphens, and underscores
+    if (!/^[a-zA-Z0-9\-_]+$/.test(matchId)) {
+      console.error('Invalid matchId format:', matchId);
+      return false;
+    }
+    
     const matchPath = path.join(dataDir, `${matchId}.json`);
+    
+    // Additional security: ensure the resolved path is within dataDir
+    const resolvedPath = path.resolve(matchPath);
+    const resolvedDataDir = path.resolve(dataDir);
+    if (!resolvedPath.startsWith(resolvedDataDir)) {
+      console.error('Path traversal attempt detected:', matchId);
+      return false;
+    }
+    
     fs.writeFileSync(matchPath, JSON.stringify(match, null, 2));
     return true;
   } catch (error) {
