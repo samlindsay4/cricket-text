@@ -1151,6 +1151,18 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   // BUG FIX #4: Validate innings state to prevent ghost dismissals
   validateInningsState(currentInnings);
   
+  // BUG FIX #7: Auto-complete innings when all out (10 wickets)
+  if (currentInnings.wickets >= 10) {
+    currentInnings.status = 'completed';
+    
+    // Mark any remaining batting batsmen as not out (shouldn't happen, but defensive)
+    Object.keys(currentInnings.allBatsmen).forEach(name => {
+      if (currentInnings.allBatsmen[name].status === 'batting') {
+        currentInnings.allBatsmen[name].status = 'not out';
+      }
+    });
+  }
+  
   // BUG FIX #4: Update match situation after EVERY ball (not just 4th innings)
   if (match.format === 'test') {
     calculateMatchSituation(match);
