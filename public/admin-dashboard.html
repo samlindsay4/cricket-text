@@ -441,6 +441,26 @@
         </div>
     </div>
 
+    <!-- Select Incoming Batsman Modal -->
+    <div id="dashboard-incoming-batsman-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Select Incoming Batsman</h3>
+            <div id="dismissed-batsman-info" style="color: #ffff00; margin-bottom: 15px;">
+                <!-- Will be populated dynamically -->
+            </div>
+            <div class="form-group">
+                <label for="dashboard-incoming-batsman">Select Batsman</label>
+                <select id="dashboard-incoming-batsman" required>
+                    <option value="">-- Select incoming batsman --</option>
+                </select>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmIncomingBatsmanFromDashboard()">Select</button>
+                <button class="btn btn-secondary" onclick="hideIncomingBatsmanModalFromDashboard()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>

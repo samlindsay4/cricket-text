@@ -2580,6 +2580,93 @@ app.post('/api/series/:seriesId/match/:matchId/retire-batsman', requireAuth, (re
   }
 });
 
+// Select incoming batsman for series match
+app.post('/api/series/:seriesId/match/:matchId/select-incoming-batsman', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { batsmanName } = req.body;
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  
+  // Validate batsman is in batting order
+  if (!currentInnings.battingOrder.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Batsman not in batting order' });
+  }
+  
+  // Check if batsman hasn't batted yet OR is retired hurt (can resume)
+  if (currentInnings.allBatsmen[batsmanName]) {
+    const status = currentInnings.allBatsmen[batsmanName].status;
+    // Allow if: not batted, retired hurt
+    // Reject if: out, batting, retired out, retired not out
+    if (status !== 'not batted' && status !== 'retired hurt') {
+      return res.status(400).json({ error: 'Batsman has already batted or is unavailable' });
+    }
+  }
+  
+  // Initialize batsman stats OR resume retired hurt batsman
+  if (!currentInnings.allBatsmen[batsmanName]) {
+    // New batsman - create fresh stats
+    currentInnings.allBatsmen[batsmanName] = { 
+      name: batsmanName,
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+    };
+  } else if (currentInnings.allBatsmen[batsmanName].status === 'retired hurt') {
+    // Resuming retired hurt batsman - keep existing runs/balls, just change status
+    currentInnings.allBatsmen[batsmanName].status = 'batting';
+  } else {
+    // Not batted - change status to batting
+    currentInnings.allBatsmen[batsmanName].status = 'batting';
+  }
+  
+  // Replace the appropriate batsman (keep the one who's still batting)
+  // If striker is out, replace striker; if non-striker is out, replace non-striker
+  const strikerStatus = currentInnings.allBatsmen[currentInnings.striker]?.status;
+  const nonStrikerStatus = currentInnings.allBatsmen[currentInnings.nonStriker]?.status;
+  
+  if (isPlayerUnavailable(strikerStatus)) {
+    currentInnings.striker = batsmanName;
+  } else if (isPlayerUnavailable(nonStrikerStatus)) {
+    currentInnings.nonStriker = batsmanName;
+  } else {
+    // Fallback: replace striker
+    currentInnings.striker = batsmanName;
+  }
+  
+  // Update next batsman index if this was the next batsman in order
+  const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
+  if (batsmanIndex === currentInnings.nextBatsmanIndex) {
+    currentInnings.nextBatsmanIndex++;
+  }
+  
+  // Store incoming batsman in last ball record (if it was a wicket)
+  if (currentInnings.allBalls && currentInnings.allBalls.length > 0) {
+    const lastBall = currentInnings.allBalls[currentInnings.allBalls.length - 1];
+    if (lastBall.wicket) {
+      lastBall.incomingBatsman = batsmanName;
+    }
+  }
+  
+  if (saveSeriesMatch(seriesId, matchId, match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to select batsman' });
+  }
+});
+
 // Declare innings for series match
 app.post('/api/series/:seriesId/match/:matchId/declare', requireAuth, (req, res) => {
   const { seriesId, matchId } = req.params;
