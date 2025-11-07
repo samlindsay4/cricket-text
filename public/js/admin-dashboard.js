@@ -916,6 +916,14 @@ function updateBallHistory() {
 function setScoringRuns(runs) {
     document.getElementById('scoring-runs').value = runs;
     
+    // Clear all run button highlights first
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes('setScoringRuns')) {
+            btn.style.background = '';
+            btn.style.color = '';
+        }
+    });
+    
     // Add visual feedback - highlight selected button
     document.querySelectorAll('.btn-group button').forEach(btn => {
         if (btn.textContent.trim() === runs.toString() && btn.onclick && btn.onclick.toString().includes('setScoringRuns')) {
@@ -934,7 +942,7 @@ function setScoringExtra(type) {
         document.getElementById('scoring-extras').value = '1';
     }
     
-    // Add visual feedback - highlight selected button
+    // Clear all extra button highlights first
     const extraButtons = {
         '': 'None',
         'Wd': 'Wide',
@@ -942,6 +950,15 @@ function setScoringExtra(type) {
         'Bye': 'Bye',
         'LB': 'Leg Bye'
     };
+    
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes('setScoringExtra')) {
+            btn.style.background = '';
+            btn.style.color = '';
+        }
+    });
+    
+    // Add visual feedback - highlight selected button
     document.querySelectorAll('.btn-group button').forEach(btn => {
         if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringExtra')) {
             btn.style.background = '#00ff00';
@@ -967,13 +984,20 @@ function toggleScoringWicketDetails() {
  * Record ball from dashboard
  */
 async function recordBallFromDashboard() {
+    // Enhanced validation and logging
+    console.log('Recording ball...');
+    console.log('Current series ID:', currentScoringSeriesId);
+    console.log('Current match:', currentScoringMatch);
+    
     // Validate that series and match are loaded
     if (!currentScoringSeriesId) {
+        console.error('No series selected');
         alert('Error: No series selected. Please select a match to score.');
         return;
     }
     
     if (!currentScoringMatch || !currentScoringMatch.id) {
+        console.error('No match loaded');
         alert('Error: No match loaded. Please select a match to score.');
         return;
     }
@@ -987,13 +1011,18 @@ async function recordBallFromDashboard() {
     const wicketType = wicket ? document.getElementById('scoring-wicket-type').value : null;
     const dismissedBatsman = wicket ? document.getElementById('scoring-dismissed-batsman').value : null;
     
+    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman });
+    
     if (!bowler) {
         alert('Please select a bowler');
         return;
     }
     
     try {
-        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/ball`, {
+        const url = `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/ball`;
+        console.log('Making request to:', url);
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1004,8 +1033,11 @@ async function recordBallFromDashboard() {
             })
         });
         
+        console.log('Response status:', response.status);
+        
         if (response.ok) {
             currentScoringMatch = await response.json();
+            console.log('Ball recorded successfully');
             
             // Reset form and clear visual feedback
             document.getElementById('scoring-runs').value = '0';
@@ -1027,6 +1059,7 @@ async function recordBallFromDashboard() {
             alert('Ball recorded!');
         } else {
             const error = await response.json();
+            console.error('Server error:', error);
             alert('Failed to record ball: ' + (error.error || 'Unknown error'));
         }
     } catch (error) {
