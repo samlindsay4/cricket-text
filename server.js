@@ -422,6 +422,12 @@ function saveSeriesMatch(seriesId, matchId, match) {
   }
 }
 
+// Helper function to check if bowling figures are better
+function isBetterBowlingFigures(wickets, runs, bestFigures) {
+  return wickets > bestFigures.wickets || 
+         (wickets === bestFigures.wickets && runs < bestFigures.runs);
+}
+
 // Calculate series statistics (leading run scorers and wicket takers)
 function calculateSeriesStats(seriesId) {
   try {
@@ -512,9 +518,8 @@ function calculateSeriesStats(seriesId) {
           bowlers[name].overs += stats.overs || 0;
           bowlers[name].maidens += stats.maidens || 0;
           
-          // Track best figures
-          if (wicketsInInnings > bowlers[name].bestFigures.wickets || 
-              (wicketsInInnings === bowlers[name].bestFigures.wickets && runsInInnings < bowlers[name].bestFigures.runs)) {
+          // Track best figures using helper function
+          if (isBetterBowlingFigures(wicketsInInnings, runsInInnings, bowlers[name].bestFigures)) {
             bowlers[name].bestFigures = { wickets: wicketsInInnings, runs: runsInInnings };
           }
           
@@ -2523,6 +2528,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     return res.status(404).json({ error: 'Series not found' });
   }
   
+  // Calculate page offset from series start
+  // Page structure: +0=Overview, +1=Live, +2=Scorecard, +3=Fixtures, +4=Results, +5=Batting Stats, +6=Bowling Stats
   const pageOffset = pageNum - series.startPage;
   
   // Page +0: Series Overview

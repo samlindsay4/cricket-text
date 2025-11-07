@@ -5,6 +5,11 @@ let totalSubpages = 1;
 let subpageInterval = null;
 let refreshInterval = null;
 
+// Constants
+const LIVE_REFRESH_INTERVAL = 2000; // 2 seconds
+const SUBPAGE_CYCLE_INTERVAL = 5000; // 5 seconds
+const SUBPAGES_PER_INNINGS = 2; // Batting and Bowling
+
 /**
  * Get page number from URL
  */
@@ -112,12 +117,12 @@ async function loadPage(pageNum) {
             case 'series-live':
                 renderLiveScore(data);
                 // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), 2000);
+                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             case 'scorecard':
                 renderScorecard(data);
                 // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), 2000);
+                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             case 'fixtures':
                 renderFixtures(data);
@@ -128,12 +133,12 @@ async function loadPage(pageNum) {
             case 'batting-stats':
                 renderBattingStats(data);
                 // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), 2000);
+                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             case 'bowling-stats':
                 renderBowlingStats(data);
                 // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), 2000);
+                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             default:
                 showErrorPage('Unknown page type');
@@ -445,7 +450,7 @@ function renderScorecard(data) {
     }
     
     // Calculate total subpages (2 per innings: batting and bowling)
-    totalSubpages = match.innings.length * 2;
+    totalSubpages = match.innings.length * SUBPAGES_PER_INNINGS;
     
     // Render current subpage
     renderScorecardSubpage(match, currentSubpage);
@@ -461,15 +466,18 @@ function renderScorecard(data) {
             currentSubpage = 1;
         }
         renderScorecardSubpage(match, currentSubpage);
-    }, 5000);
+    }, SUBPAGE_CYCLE_INTERVAL);
 }
 
 /**
  * Render specific scorecard subpage
+ * Subpage calculation: inningsIndex = floor((subpage - 1) / 2)
+ * If subpage is odd (1, 3, 5, 7): show batting
+ * If subpage is even (2, 4, 6, 8): show bowling
  */
 function renderScorecardSubpage(match, subpage) {
-    const inningsIndex = Math.floor((subpage - 1) / 2);
-    const isBatting = (subpage % 2 === 1);
+    const inningsIndex = Math.floor((subpage - 1) / SUBPAGES_PER_INNINGS);
+    const isBatting = (subpage % SUBPAGES_PER_INNINGS === 1);
     
     if (inningsIndex >= match.innings.length) {
         return;
