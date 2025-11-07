@@ -899,6 +899,13 @@ app.post('/api/match/edit-ball', requireAuth, (req, res) => {
   if (batsman && dangerousNames.includes(batsman)) {
     return res.status(400).json({ error: 'Invalid batsman name' });
   }
+  // Validate extraType and wicketType to prevent prototype pollution
+  if (extraType && dangerousNames.includes(extraType)) {
+    return res.status(400).json({ error: 'Invalid extra type' });
+  }
+  if (wicketType && dangerousNames.includes(wicketType)) {
+    return res.status(400).json({ error: 'Invalid wicket type' });
+  }
   
   // Update ball at index
   const ball = currentInnings.allBalls[ballIndex];
