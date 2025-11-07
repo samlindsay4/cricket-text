@@ -213,7 +213,13 @@
                     
                     <div class="form-group">
                         <label for="scoring-overthrows">Overthrows</label>
-                        <input type="number" id="scoring-overthrows" value="0" min="0" max="6">
+                        <select id="scoring-overthrows">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
                     </div>
                     
                     <label>Extras</label>
@@ -223,12 +229,45 @@
                         <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Nb')">No Ball</button>
                         <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Bye')">Bye</button>
                         <button class="btn btn-secondary btn-small" onclick="setScoringExtra('LB')">Leg Bye</button>
+                        <button class="btn btn-secondary btn-small" onclick="setScoringExtra('Penalty')">Penalty</button>
+                        <button class="btn btn-primary btn-small" onclick="toggleSecondExtra()" id="add-second-extra-btn" style="display: none;">+ Add</button>
                     </div>
                     <input type="hidden" id="scoring-extra-type" value="">
                     
+                    <!-- Second Extra Type (for combinations like Nb + Bye) -->
+                    <div id="second-extra-container" class="hidden" style="margin-top: 10px;">
+                        <label>Second Extra Type</label>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-small" onclick="setScoringSecondExtra('')">None</button>
+                            <button class="btn btn-secondary btn-small" onclick="setScoringSecondExtra('Bye')">Bye</button>
+                            <button class="btn btn-secondary btn-small" onclick="setScoringSecondExtra('LB')">Leg Bye</button>
+                        </div>
+                        <input type="hidden" id="scoring-second-extra-type" value="">
+                        <div class="form-group">
+                            <label for="scoring-second-extras">Second Extra Runs</label>
+                            <select id="scoring-second-extras">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="scoring-extras">Extra Runs</label>
-                        <input type="number" id="scoring-extras" value="0" min="0" max="7">
+                        <select id="scoring-extras">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </select>
                     </div>
                     
                     <div class="form-group">
@@ -457,6 +496,123 @@
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button class="btn btn-primary" onclick="confirmIncomingBatsmanFromDashboard()">Select</button>
                 <button class="btn btn-secondary" onclick="hideIncomingBatsmanModalFromDashboard()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Select New Bowler Modal (End of Over) -->
+    <div id="dashboard-new-bowler-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>End of Over - Select New Bowler</h3>
+            <div style="color: #ffff00; margin-bottom: 15px;">
+                The over is complete. Please select the bowler for the next over.
+            </div>
+            <div class="form-group">
+                <label for="dashboard-new-bowler-select">Select Bowler</label>
+                <select id="dashboard-new-bowler-select" required>
+                    <option value="">-- Select bowler --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="dashboard-new-bowler-manual" id="bowler-manual-label">Or enter manually (for substitutes):</label>
+                <input type="text" id="dashboard-new-bowler-manual" placeholder="Enter bowler name" aria-describedby="bowler-manual-label">
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmNewBowlerFromDashboard()">Set Bowler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Ball Modal -->
+    <div id="dashboard-edit-ball-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" onclick="hideEditBallModalFromDashboard()">&times;</span>
+            <h3>Edit Ball</h3>
+            <div id="edit-ball-info" style="color: #00ffff; margin-bottom: 15px;">
+                <!-- Will be populated dynamically -->
+            </div>
+            <input type="hidden" id="edit-ball-index" value="">
+            
+            <div class="form-group">
+                <label for="edit-ball-bowler">Bowler</label>
+                <input type="text" id="edit-ball-bowler">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-ball-batsman">Batsman</label>
+                <input type="text" id="edit-ball-batsman">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-ball-runs">Runs off Bat</label>
+                <input type="number" id="edit-ball-runs" min="0" max="6">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-ball-overthrows">Overthrows</label>
+                <select id="edit-ball-overthrows">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-ball-extra-type">Extra Type</label>
+                <select id="edit-ball-extra-type">
+                    <option value="">None</option>
+                    <option value="Wd">Wide</option>
+                    <option value="Nb">No Ball</option>
+                    <option value="Bye">Bye</option>
+                    <option value="LB">Leg Bye</option>
+                    <option value="Penalty">Penalty</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-ball-extras">Extra Runs</label>
+                <select id="edit-ball-extras">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="edit-ball-wicket">
+                    Wicket
+                </label>
+            </div>
+            
+            <div id="edit-ball-wicket-details" class="hidden">
+                <div class="form-group">
+                    <label for="edit-ball-wicket-type">How Out</label>
+                    <select id="edit-ball-wicket-type">
+                        <option value="bowled">Bowled</option>
+                        <option value="caught">Caught</option>
+                        <option value="lbw">LBW</option>
+                        <option value="run out">Run Out</option>
+                        <option value="stumped">Stumped</option>
+                        <option value="hit wicket">Hit Wicket</option>
+                        <option value="caught and bowled">Caught & Bowled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-ball-dismissed-batsman">Dismissed Batsman</label>
+                    <input type="text" id="edit-ball-dismissed-batsman">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmEditBallFromDashboard()">Save Changes</button>
+                <button class="btn btn-secondary" onclick="hideEditBallModalFromDashboard()">Cancel</button>
             </div>
         </div>
     </div>

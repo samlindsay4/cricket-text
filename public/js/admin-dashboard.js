@@ -939,6 +939,20 @@ function setScoringExtra(type) {
     document.getElementById('scoring-extra-type').value = type;
     if (type === 'Wd' || type === 'Nb') {
         document.getElementById('scoring-extras').value = '1';
+    } else if (type === 'Penalty') {
+        document.getElementById('scoring-extras').value = '5';
+    }
+    
+    // Show "Add" button for No Ball or Wide (can be combined with Byes/LB)
+    const addBtn = document.getElementById('add-second-extra-btn');
+    if (type === 'Nb' || type === 'Wd') {
+        addBtn.style.display = 'inline-block';
+    } else {
+        addBtn.style.display = 'none';
+        // Hide second extra container if not Nb or Wd
+        document.getElementById('second-extra-container').classList.add('hidden');
+        document.getElementById('scoring-second-extra-type').value = '';
+        document.getElementById('scoring-second-extras').value = '0';
     }
     
     // Clear all extra button highlights first
@@ -947,7 +961,8 @@ function setScoringExtra(type) {
         'Wd': 'Wide',
         'Nb': 'No Ball',
         'Bye': 'Bye',
-        'LB': 'Leg Bye'
+        'LB': 'Leg Bye',
+        'Penalty': 'Penalty'
     };
     
     document.querySelectorAll('.btn-group button').forEach(btn => {
@@ -960,6 +975,54 @@ function setScoringExtra(type) {
     // Add visual feedback - highlight selected button
     document.querySelectorAll('.btn-group button').forEach(btn => {
         if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringExtra')) {
+            btn.style.background = '#00ff00';
+            btn.style.color = '#000';
+        }
+    });
+}
+
+/**
+ * Toggle second extra type section
+ */
+function toggleSecondExtra() {
+    const container = document.getElementById('second-extra-container');
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+        document.getElementById('scoring-second-extra-type').value = '';
+        document.getElementById('scoring-second-extras').value = '0';
+    }
+}
+
+/**
+ * Set second extra type (for combinations like Nb + Bye)
+ */
+function setScoringSecondExtra(type) {
+    document.getElementById('scoring-second-extra-type').value = type;
+    if (type) {
+        document.getElementById('scoring-second-extras').value = '1';
+    }
+    
+    // Clear all extra button highlights first
+    const extraButtons = {
+        '': 'None',
+        'Bye': 'Bye',
+        'LB': 'Leg Bye'
+    };
+    
+    // Clear highlights
+    const container = document.getElementById('second-extra-container');
+    container.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes('setScoringSecondExtra')) {
+            btn.style.background = '';
+            btn.style.color = '';
+        }
+    });
+    
+    // Add visual feedback - highlight selected button
+    container.querySelectorAll('.btn-group button').forEach(btn => {
+        if (btn.textContent.trim() === extraButtons[type] && btn.onclick && btn.onclick.toString().includes('setScoringSecondExtra')) {
             btn.style.background = '#00ff00';
             btn.style.color = '#000';
         }
@@ -1006,11 +1069,13 @@ async function recordBallFromDashboard() {
     const overthrows = parseInt(document.getElementById('scoring-overthrows').value) || 0;
     const extraType = document.getElementById('scoring-extra-type').value;
     const extras = parseInt(document.getElementById('scoring-extras').value) || 0;
+    const secondExtraType = document.getElementById('scoring-second-extra-type').value;
+    const secondExtras = parseInt(document.getElementById('scoring-second-extras').value) || 0;
     const wicket = document.getElementById('scoring-wicket').checked;
     const wicketType = wicket ? document.getElementById('scoring-wicket-type').value : null;
     const dismissedBatsman = wicket ? document.getElementById('scoring-dismissed-batsman').value : null;
     
-    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman });
+    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman });
     
     if (!bowler) {
         alert('Please select a bowler');
@@ -1028,7 +1093,7 @@ async function recordBallFromDashboard() {
                 'X-Session-Id': sessionId
             },
             body: JSON.stringify({
-                bowler, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman
+                bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman
             })
         });
         
@@ -1041,11 +1106,19 @@ async function recordBallFromDashboard() {
             // Check if a wicket fell
             const wicketFell = wicket;
             
+            // Check if over is complete (balls === 0 and overs just incremented)
+            const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+            const overComplete = currentInnings && currentInnings.balls === 0 && currentInnings.overs > 0;
+            
             // Reset form and clear visual feedback
             document.getElementById('scoring-runs').value = '0';
             document.getElementById('scoring-overthrows').value = '0';
             document.getElementById('scoring-extra-type').value = '';
             document.getElementById('scoring-extras').value = '0';
+            document.getElementById('scoring-second-extra-type').value = '';
+            document.getElementById('scoring-second-extras').value = '0';
+            document.getElementById('second-extra-container').classList.add('hidden');
+            document.getElementById('add-second-extra-btn').style.display = 'none';
             document.getElementById('scoring-wicket').checked = false;
             toggleScoringWicketDetails();
             
@@ -1061,6 +1134,9 @@ async function recordBallFromDashboard() {
             // Show incoming batsman modal if a wicket fell
             if (wicketFell) {
                 showIncomingBatsmanModalFromDashboard(dismissedBatsman);
+            } else if (overComplete) {
+                // Show new bowler modal if over is complete
+                showNewBowlerModalFromDashboard();
             }
         } else {
             const error = await response.json();
@@ -1363,5 +1439,247 @@ async function confirmIncomingBatsmanFromDashboard() {
     } catch (error) {
         console.error('Error selecting batsman:', error);
         alert('Failed to select batsman');
+    }
+}
+
+/**
+ * Show new bowler modal (end of over)
+ */
+function showNewBowlerModalFromDashboard() {
+    const modal = document.getElementById('dashboard-new-bowler-modal');
+    const select = document.getElementById('dashboard-new-bowler-select');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const bowlingSquad = currentScoringMatch.squads[currentInnings.bowlingTeam] || [];
+    
+    select.innerHTML = '<option value="">-- Select bowler --</option>';
+    bowlingSquad.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    });
+    
+    // Clear manual input
+    document.getElementById('dashboard-new-bowler-manual').value = '';
+    
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+}
+
+/**
+ * Confirm new bowler selection
+ */
+async function confirmNewBowlerFromDashboard() {
+    let bowlerName = document.getElementById('dashboard-new-bowler-select').value;
+    const manualName = document.getElementById('dashboard-new-bowler-manual').value.trim();
+    
+    // Use manual entry if provided
+    if (manualName) {
+        bowlerName = manualName;
+    }
+    
+    if (!bowlerName) {
+        alert('Please select or enter a bowler name');
+        return;
+    }
+    
+    // Update the bowler dropdown
+    document.getElementById('scoring-bowler').value = bowlerName;
+    
+    // If bowler not in dropdown, we need to add them (for substitutes)
+    const bowlerSelect = document.getElementById('scoring-bowler');
+    let optionExists = false;
+    for (let i = 0; i < bowlerSelect.options.length; i++) {
+        if (bowlerSelect.options[i].value === bowlerName) {
+            optionExists = true;
+            break;
+        }
+    }
+    
+    if (!optionExists) {
+        const option = document.createElement('option');
+        option.value = bowlerName;
+        option.textContent = bowlerName;
+        bowlerSelect.appendChild(option);
+    }
+    
+    bowlerSelect.value = bowlerName;
+    
+    // Hide modal
+    const modal = document.getElementById('dashboard-new-bowler-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+/**
+ * Update ball history with edit buttons
+ */
+function updateBallHistory() {
+    const historyDiv = document.getElementById('scoring-ball-history');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        historyDiv.innerHTML = '<div>No balls recorded</div>';
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const balls = currentInnings.allBalls || [];
+    
+    if (balls.length === 0) {
+        historyDiv.innerHTML = '<div>No balls recorded</div>';
+        return;
+    }
+    
+    // Show last 20 balls
+    const recentBalls = balls.slice(-20).reverse();
+    
+    let html = '';
+    recentBalls.forEach((ball, reverseIdx) => {
+        const ballIndex = balls.length - 1 - reverseIdx;
+        let runsText = ball.runs.toString();
+        if (ball.overthrows && ball.overthrows > 0) {
+            runsText += ` + ${ball.overthrows}ot`;
+        }
+        if (ball.extras) {
+            runsText += `+${ball.extras}`;
+        }
+        if (ball.secondExtras && ball.secondExtras > 0) {
+            runsText += `+${ball.secondExtras}`;
+        }
+        
+        let extraText = ball.extraType ? ` (${ball.extraType}` : '';
+        if (ball.secondExtraType) {
+            extraText += ` + ${ball.secondExtraType}`;
+        }
+        if (extraText) extraText += ')';
+        
+        const wicketText = ball.wicket ? ' 🔴 W' : '';
+        
+        html += `
+            <div style="padding: 5px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                <span>${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}</span>
+                <button class="btn btn-secondary btn-small" onclick="showEditBallModalFromDashboard(${ballIndex})" style="padding: 3px 8px; font-size: 10px;">Edit</button>
+            </div>
+        `;
+    });
+    
+    historyDiv.innerHTML = html;
+}
+
+/**
+ * Show edit ball modal
+ */
+function showEditBallModalFromDashboard(ballIndex) {
+    const modal = document.getElementById('dashboard-edit-ball-modal');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No active innings');
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const ball = currentInnings.allBalls[ballIndex];
+    
+    if (!ball) {
+        alert('Ball not found');
+        return;
+    }
+    
+    // Set ball index
+    document.getElementById('edit-ball-index').value = ballIndex;
+    
+    // Populate form
+    document.getElementById('edit-ball-bowler').value = ball.bowler || '';
+    document.getElementById('edit-ball-batsman').value = ball.batsman || '';
+    document.getElementById('edit-ball-runs').value = ball.runs || 0;
+    document.getElementById('edit-ball-overthrows').value = ball.overthrows || 0;
+    document.getElementById('edit-ball-extra-type').value = ball.extraType || '';
+    document.getElementById('edit-ball-extras').value = ball.extras || 0;
+    document.getElementById('edit-ball-wicket').checked = ball.wicket || false;
+    document.getElementById('edit-ball-wicket-type').value = ball.wicketType || 'bowled';
+    document.getElementById('edit-ball-dismissed-batsman').value = ball.dismissedBatsman || '';
+    
+    // Show/hide wicket details
+    const wicketDetails = document.getElementById('edit-ball-wicket-details');
+    if (ball.wicket) {
+        wicketDetails.classList.remove('hidden');
+    } else {
+        wicketDetails.classList.add('hidden');
+    }
+    
+    // Update info
+    const infoDiv = document.getElementById('edit-ball-info');
+    infoDiv.textContent = `Editing ball ${ball.over}.${ball.ball}`;
+    
+    // Add listener for wicket checkbox
+    document.getElementById('edit-ball-wicket').onchange = function() {
+        if (this.checked) {
+            wicketDetails.classList.remove('hidden');
+        } else {
+            wicketDetails.classList.add('hidden');
+        }
+    };
+    
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+}
+
+/**
+ * Hide edit ball modal
+ */
+function hideEditBallModalFromDashboard() {
+    const modal = document.getElementById('dashboard-edit-ball-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+/**
+ * Confirm edit ball
+ */
+async function confirmEditBallFromDashboard() {
+    const ballIndex = parseInt(document.getElementById('edit-ball-index').value);
+    const bowler = document.getElementById('edit-ball-bowler').value;
+    const batsman = document.getElementById('edit-ball-batsman').value;
+    const runs = parseInt(document.getElementById('edit-ball-runs').value) || 0;
+    const overthrows = parseInt(document.getElementById('edit-ball-overthrows').value) || 0;
+    const extraType = document.getElementById('edit-ball-extra-type').value;
+    const extras = parseInt(document.getElementById('edit-ball-extras').value) || 0;
+    const wicket = document.getElementById('edit-ball-wicket').checked;
+    const wicketType = wicket ? document.getElementById('edit-ball-wicket-type').value : null;
+    const dismissedBatsman = wicket ? document.getElementById('edit-ball-dismissed-batsman').value : null;
+    
+    if (!bowler || !batsman) {
+        alert('Please fill in bowler and batsman');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/edit-ball`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({
+                ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman
+            })
+        });
+        
+        if (response.ok) {
+            hideEditBallModalFromDashboard();
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+        } else {
+            const error = await response.json();
+            alert('Failed to edit ball: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error editing ball:', error);
+        alert('Failed to edit ball');
     }
 }
