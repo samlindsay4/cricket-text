@@ -295,10 +295,17 @@ function updateScoringInterface() {
   
   // Populate dismissed batsman dropdown (striker and non-striker)
   const dismissedBatsman = document.getElementById('dismissed-batsman');
+  // BUG FIX #5: Use current innings' striker/non-striker (will be set on first ball)
+  // Make sure we're using the right batsmen from the current innings
   if (currentInnings.striker && currentInnings.nonStriker) {
     dismissedBatsman.innerHTML = `
       <option value="${currentInnings.striker}">${currentInnings.striker}</option>
       <option value="${currentInnings.nonStriker}">${currentInnings.nonStriker}</option>
+    `;
+  } else {
+    // First ball of innings - striker/non-striker will be initialized when ball is recorded
+    dismissedBatsman.innerHTML = `
+      <option value="">Will be set when ball is recorded</option>
     `;
   }
   
@@ -891,6 +898,39 @@ function showEditBallModal(ballIndex) {
   const modal = document.getElementById('edit-ball-modal');
   document.getElementById('edit-ball-index').value = ballIndex;
   document.getElementById('edit-ball-title').textContent = `Over ${ball.over}.${ball.ball}`;
+  
+  // BUG FIX #3: Populate bowler dropdown
+  const editBowlerSelect = document.getElementById('edit-bowler');
+  const bowlingSquad = currentMatch.squads[currentInnings.bowlingTeam] || [];
+  const allBowlers = Object.keys(currentInnings.allBowlers || {});
+  const bowlerOptions = [...new Set([...bowlingSquad, ...allBowlers])];
+  
+  editBowlerSelect.innerHTML = '<option value="">Select bowler...</option>';
+  bowlerOptions.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    if (ball.bowler === name) {
+      option.selected = true;
+    }
+    editBowlerSelect.appendChild(option);
+  });
+  
+  // BUG FIX #3: Populate batsman dropdown
+  const editBatsmanSelect = document.getElementById('edit-batsman');
+  const battingSquad = currentMatch.squads[currentInnings.battingTeam] || [];
+  
+  editBatsmanSelect.innerHTML = '<option value="">Select batsman...</option>';
+  battingSquad.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    if (ball.batsman === name) {
+      option.selected = true;
+    }
+    editBatsmanSelect.appendChild(option);
+  });
+  
   document.getElementById('edit-runs').value = ball.runs || 0;
   document.getElementById('edit-extras').value = ball.extras || 0;
   document.getElementById('edit-extra-type').value = ball.extraType || '';
@@ -927,6 +967,9 @@ async function saveEditBall() {
   const wicket = document.getElementById('edit-wicket').checked;
   const wicketType = wicket ? document.getElementById('edit-wicket-type').value : null;
   const dismissedBatsman = wicket ? document.getElementById('edit-dismissed-batsman').value : null;
+  // BUG FIX #3: Get bowler and batsman from dropdowns
+  const bowler = document.getElementById('edit-bowler').value;
+  const batsman = document.getElementById('edit-batsman').value;
   
   try {
     const response = await fetch('/api/match/edit-ball', {
@@ -942,7 +985,9 @@ async function saveEditBall() {
         extraType,
         wicket,
         wicketType,
-        dismissedBatsman
+        dismissedBatsman,
+        bowler,  // BUG FIX #3
+        batsman  // BUG FIX #3
       })
     });
     
@@ -1039,9 +1084,15 @@ function showChooseBatsmanModal() {
   
   const currentInnings = currentMatch.innings[currentMatch.innings.length - 1];
   
-  // Get remaining batsmen (not yet batted)
+  // BUG FIX #1: Get ALL remaining batsmen (not yet batted)
+  // This includes the next batsman in order since we no longer auto-add them
   const remainingBatsmen = currentInnings.battingOrder.filter(name => {
-    return !currentInnings.allBatsmen[name] || currentInnings.allBatsmen[name].status === 'not batted';
+    // Include batsmen who haven't batted at all OR have status 'not batted'
+    if (!currentInnings.allBatsmen[name]) {
+      return true; // Not in allBatsmen yet, so hasn't batted
+    }
+    const status = currentInnings.allBatsmen[name].status;
+    return status === 'not batted' || (!status && currentInnings.allBatsmen[name].balls === 0);
   });
   
   // Populate dropdown
