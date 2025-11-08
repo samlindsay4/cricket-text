@@ -2589,6 +2589,17 @@ app.post('/api/series/:seriesId/match/:matchId/undo', requireAuth, (req, res) =>
   // This fixes duplicate entries in currentOver and prevents 11 wickets bug
   recalculateInnings(currentInnings);
   
+  // Recalculate match situation after undo (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
+  
   // Save
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);
