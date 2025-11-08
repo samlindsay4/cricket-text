@@ -358,39 +358,81 @@ function renderLiveScore(data) {
         </div>
     `;
     
-    // Show all innings scores
-    match.innings.forEach((inn, idx) => {
-        const isCurrentInnings = (idx === match.innings.length - 1);
-        const color = isCurrentInnings ? 'var(--teletext-yellow)' : 'var(--teletext-yellow)';
+    // Group innings by team and calculate cumulative scores
+    const team1 = match.team1;
+    const team2 = match.team2;
+    
+    const team1Innings = match.innings.filter(i => i.battingTeam === team1);
+    const team2Innings = match.innings.filter(i => i.battingTeam === team2);
+    
+    // Display team scores
+    if (team1Innings.length > 0) {
+        const firstInns = team1Innings[0];
+        let scoreText = `${firstInns.runs}`;
+        
+        if (team1Innings.length > 1) {
+            const secondInns = team1Innings[1];
+            const decText = secondInns.declared ? ' dec' : '';
+            const wicketsText = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+            const oversText = secondInns.overs > 0 || secondInns.balls > 0 ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
+            scoreText += ` & ${secondInns.runs}${wicketsText}${decText}${oversText}`;
+        }
+        
         html += `
-            <div style="color: ${color}; font-size: 12px; margin: 5px 0;">
-                ${inn.battingTeam} : ${inn.runs} @ ${inn.wickets < 10 ? inn.runs + '-' + inn.wickets : '200-7'} dec
+            <div style="color: var(--teletext-yellow); font-size: 12px; margin: 5px 0;">
+                ${team1} : ${scoreText}
             </div>
         `;
-    });
+    }
+    
+    if (team2Innings.length > 0) {
+        const firstInns = team2Innings[0];
+        let scoreText = `${firstInns.runs}`;
+        
+        if (team2Innings.length > 1) {
+            const secondInns = team2Innings[1];
+            const decText = secondInns.declared ? ' dec' : '';
+            const wicketsText = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+            const oversText = secondInns.overs > 0 || secondInns.balls > 0 ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
+            scoreText += ` & ${secondInns.runs}${wicketsText}${decText}${oversText}`;
+        }
+        
+        html += `
+            <div style="color: var(--teletext-yellow); font-size: 12px; margin: 5px 0;">
+                ${team2} : ${scoreText}
+            </div>
+        `;
+    }
     
     // Match situation (lead/trail/chase)
     if (match.innings.length >= 2) {
-        const firstInns = match.innings[0];
-        const secondInns = match.innings[match.innings.length - 1];
+        const team1Total = team1Innings.reduce((sum, i) => sum + i.runs, 0);
+        const team2Total = team2Innings.reduce((sum, i) => sum + i.runs, 0);
         
         if (match.innings.length === 2) {
-            const lead = firstInns.runs - secondInns.runs;
-            if (lead > 0) {
-                matchSituation = `${secondInns.battingTeam} trail by ${lead} runs`;
-            } else if (lead < 0) {
-                matchSituation = `${secondInns.battingTeam} lead by ${Math.abs(lead)} runs`;
-            }
-        } else if (match.innings.length >= 3) {
-            // Calculate target if there's a chase
-            const totalFirst = match.innings.filter(i => i.battingTeam === firstInns.battingTeam)
-                .reduce((sum, i) => sum + i.runs, 0);
-            const totalSecond = match.innings.filter(i => i.battingTeam !== firstInns.battingTeam)
-                .reduce((sum, i) => sum + i.runs, 0);
-            const required = totalFirst - totalSecond + 1;
+            // First innings of each team complete
+            const lead = team1Total - team2Total;
             
-            if (required > 0) {
-                matchSituation = `${currentInnings.battingTeam} require ${required} to win`;
+            if (lead > 0 && currentInnings.battingTeam === team2) {
+                matchSituation = `${team2} trail by ${lead} runs`;
+            } else if (lead < 0 && currentInnings.battingTeam === team1) {
+                matchSituation = `${team1} trail by ${Math.abs(lead)} runs`;
+            }
+        } else if (match.innings.length >= 4 || (match.innings.length === 3 && currentInnings.number === 4)) {
+            // Fourth innings - calculate chase target
+            const target = team1Total - team2Total + 1;
+            if (target > 0 && currentInnings.battingTeam === team2) {
+                matchSituation = `${team2} require ${target} to win`;
+            } else if (target < 0 && currentInnings.battingTeam === team1) {
+                matchSituation = `${team1} require ${Math.abs(target)} to win`;
+            }
+        } else if (match.innings.length === 3) {
+            // Third innings - show lead
+            const lead = team1Total - team2Total;
+            if (lead > 0 && currentInnings.battingTeam === team1) {
+                matchSituation = `${team1} lead by ${lead} runs`;
+            } else if (lead < 0 && currentInnings.battingTeam === team2) {
+                matchSituation = `${team2} lead by ${Math.abs(lead)} runs`;
             }
         }
     }
