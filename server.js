@@ -986,7 +986,7 @@ function calculateMatchResult(match) {
   
   const innings = match.innings;
   
-  // BUG FIX #11: Check for innings victory after 3rd innings (follow-on scenario)
+  // BUG FIX #5: Innings victory after 3rd innings (follow-on scenario)
   if (innings.length === 3 && match.followOn && match.followOn.enforced && innings[2].status === 'completed' && innings[2].wickets >= 10) {
     const team1Total = innings[0].runs;
     const team2Total = innings[1].runs + innings[2].runs;
@@ -999,7 +999,7 @@ function calculateMatchResult(match) {
     }
   }
   
-  // Match can end after 4 innings or if team batting 4th is all out or declares
+  // BUG FIX #5: Match can end after 4 innings
   if (innings.length === 4 && (innings[3].status === 'completed' || innings[3].wickets >= 10)) {
     const innings4 = innings[3];
     const target = match.matchSituation.target || 0;
@@ -1010,26 +1010,41 @@ function calculateMatchResult(match) {
       match.result.winner = innings4.battingTeam;
       match.result.winType = 'wickets';
       match.result.margin = 10 - innings4.wickets;
+      match.status = 'completed';
     } else {
-      // Bowling team won
+      // Bowling team won - check if it's an innings victory
+      const innings1 = innings[0];
+      const innings2 = innings[1];
+      const innings3 = innings[2];
+      
+      // Calculate total scores for both teams
+      const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
+      const team2Total = innings2.runs + (innings4.battingTeam === innings2.battingTeam ? innings4.runs : 0);
+      
       match.result.status = 'completed';
       match.result.winner = innings4.bowlingTeam;
-      match.result.winType = 'runs';
-      match.result.margin = target - innings4.runs - 1;
-    }
-    
-    match.status = 'completed';
-  } else if (innings.length === 2 && innings[1].status === 'completed' && innings[1].wickets >= 10) {
-    // BUG FIX #11: If batting second and all out with deficit, batting first team wins by innings
-    const deficit = innings[0].runs - innings[1].runs;
-    if (deficit > 0) {
-      match.result.status = 'completed';
-      match.result.winner = innings[0].battingTeam;
-      match.result.winType = 'innings';
-      match.result.margin = deficit;
+      
+      // Check if it's an innings victory (team batting 4th never exceeded opponent's first innings)
+      if (innings4.battingTeam === innings1.battingTeam && team1Total < innings2.runs) {
+        // Team 1 batted twice but couldn't match team 2's single innings
+        match.result.winType = 'innings';
+        match.result.margin = innings2.runs - team1Total;
+      } else if (innings4.battingTeam === innings2.battingTeam && team2Total < innings1.runs) {
+        // Team 2 batted twice but couldn't match team 1's single innings
+        match.result.winType = 'innings';
+        match.result.margin = innings1.runs - team2Total;
+      } else {
+        // Normal runs victory
+        match.result.winType = 'runs';
+        match.result.margin = target - innings4.runs - 1;
+      }
+      
       match.status = 'completed';
     }
   }
+  
+  // BUG FIX #5: REMOVED - Do NOT declare innings victory after just 2 innings
+  // After 2nd innings ends, the match must continue to 3rd innings (follow-on or normal)
 }
 
 // Simple session storage (in-memory for simplicity)
@@ -1296,7 +1311,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     currentOver: [],
     fallOfWickets: [],
     allBalls: [],
-    recentOvers: [] // Store last 5-10 overs
+    recentOvers: [], // Store last 5-10 overs
+    lastCompletedOver: null // BUG FIX #1: Initialize to null, will be set after first over completes
   };
   
   // BUG FIX #5: Initialize openers in allBatsmen

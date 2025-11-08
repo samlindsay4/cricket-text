@@ -239,8 +239,16 @@ function displayMatch(match) {
       const sit = match.matchSituation;
       
       if (sit.lead && sit.leadBy > 0 && match.innings.length < 4) {
+        // BUG FIX #2: Show message from current batting team's perspective
+        const currentBattingTeam = currentInnings.battingTeam;
+        let message = '';
+        if (currentBattingTeam === sit.lead) {
+          message = `${currentBattingTeam} lead by ${sit.leadBy} runs`;
+        } else {
+          message = `${currentBattingTeam} trail by ${sit.leadBy} runs`;
+        }
         html += `<div class="match-situation">
-          ${sit.lead} lead by ${sit.leadBy} runs
+          ${message}
         </div>`;
       }
       
