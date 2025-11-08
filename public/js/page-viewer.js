@@ -365,7 +365,7 @@ function renderLiveScore(data) {
         ).join(' ');
     };
     
-    // Build match header with venue and day
+    // Build match header with venue and day - consistent 10px font
     let html = `
         <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 10px; margin-bottom: 10px;">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
@@ -380,23 +380,25 @@ function renderLiveScore(data) {
     const team1Innings = match.innings.filter(i => i.battingTeam === team1);
     const team2Innings = match.innings.filter(i => i.battingTeam === team2);
     
-    // Display team scores - sentence case for team names
+    // Display team scores - ALWAYS show at least first innings - consistent 10px font
     if (team1Innings.length > 0) {
         const firstInns = team1Innings[0];
-        let scoreText = `${firstInns.runs}`;
+        const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+        const isCurrentFirst = firstInns === currentInnings;
+        let scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}`;
         
         if (team1Innings.length > 1) {
             const secondInns = team1Innings[1];
             const decText = secondInns.declared ? ' dec' : '';
-            const wicketsText = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+            const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
             // Only show overs for ongoing innings (current innings)
             const isCurrentInnings = secondInns === currentInnings;
             const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
-            scoreText += ` & ${secondInns.runs}${wicketsText}${decText}${oversText}`;
+            scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 12px; margin: 5px 0;">
+            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 5px 0;">
                 ${capitalizeWords(team1)}: ${scoreText}
             </div>
         `;
@@ -404,26 +406,28 @@ function renderLiveScore(data) {
     
     if (team2Innings.length > 0) {
         const firstInns = team2Innings[0];
-        let scoreText = `${firstInns.runs}`;
+        const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+        const isCurrentFirst = firstInns === currentInnings;
+        let scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}`;
         
         if (team2Innings.length > 1) {
             const secondInns = team2Innings[1];
             const decText = secondInns.declared ? ' dec' : '';
-            const wicketsText = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+            const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
             // Only show overs for ongoing innings (current innings)
             const isCurrentInnings = secondInns === currentInnings;
             const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
-            scoreText += ` & ${secondInns.runs}${wicketsText}${decText}${oversText}`;
+            scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 12px; margin: 5px 0;">
+            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 5px 0;">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
     }
     
-    // Match situation (lead/trail/chase) - sentence case
+    // Match situation (lead/trail/chase) - sentence case - consistent 10px font
     const team1Total = team1Innings.reduce((sum, i) => sum + i.runs, 0);
     const team2Total = team2Innings.reduce((sum, i) => sum + i.runs, 0);
     
@@ -466,22 +470,22 @@ function renderLiveScore(data) {
     const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
     const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
-    // Section header for current innings - white text, no background
+    // Section header for current innings - white text, no background - consistent 10px font
     html += `
         <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 10px; font-weight: bold;">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
     
-    // Batting table - only show current 2 batsmen
+    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - consistent 10px font
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10px;">
             <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; font-size: 8px;">Batters</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">B</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">4s</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">6s</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 60%;">Batters</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">B</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">4s</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">6s</th>
             </tr>
     `;
     
@@ -493,11 +497,11 @@ function renderLiveScore(data) {
         if (striker) {
             html += `
                 <tr>
-                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${striker.name || currentInnings.striker}*</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${striker.runs}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${striker.balls}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${striker.fours || 0}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${striker.sixes || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${striker.name || currentInnings.striker}*</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${striker.runs}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${striker.balls}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${striker.fours || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${striker.sixes || 0}</td>
                 </tr>
             `;
         }
@@ -505,11 +509,11 @@ function renderLiveScore(data) {
         if (nonStriker) {
             html += `
                 <tr>
-                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${nonStriker.name || currentInnings.nonStriker}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${nonStriker.runs}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${nonStriker.balls}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${nonStriker.fours || 0}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${nonStriker.sixes || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.name || currentInnings.nonStriker}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.runs}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.balls}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.fours || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.sixes || 0}</td>
                 </tr>
             `;
         }
@@ -517,15 +521,15 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Bowling table - only show current 2 bowlers
+    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - consistent 10px font
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0;">
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 10px;">
             <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; font-size: 8px;">Bowlers</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">O</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">M</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">W</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 60%;">Bowlers</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">O</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">M</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">W</th>
             </tr>
     `;
     
@@ -537,11 +541,11 @@ function renderLiveScore(data) {
             const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
             html += `
                 <tr>
-                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${currentBowler.name || 'Unknown'}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${oversStr}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${currentBowler.maidens || 0}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${currentBowler.runs}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${currentBowler.wickets}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.name || 'Unknown'}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.maidens || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.runs}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.wickets}</td>
                 </tr>
             `;
         }
@@ -556,11 +560,11 @@ function renderLiveScore(data) {
             const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
             html += `
                 <tr>
-                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${prevBowler.name || 'Unknown'}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${oversStr}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${prevBowler.maidens || 0}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${prevBowler.runs}</td>
-                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${prevBowler.wickets}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.name || 'Unknown'}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.maidens || 0}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.runs}</td>
+                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.wickets}</td>
                 </tr>
             `;
         }
@@ -568,7 +572,7 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Recent over at bottom - most recent ball first, proper formatting
+    // Recent over at bottom - most recent ball first, proper formatting - consistent 10px font
     if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
         html += '<div style="color: var(--teletext-cyan); font-size: 10px; margin: 20px 0 10px 0;">';
         
@@ -584,15 +588,15 @@ function renderLiveScore(data) {
                 ballDisplay = 'W';
             } else if (ball.extras > 0) {
                 // Handle extras: WD, NB, B, LB, PEN
-                const extrasType = ball.extrasType || 'wd'; // default to wide
+                const extrasType = ball.extrasType || 'wd';
                 const extrasLabel = extrasType.toUpperCase();
                 
                 if (ball.runs > 0) {
-                    // e.g., "5WD" or "4NB"
-                    ballDisplay = `${ball.runs + ball.extras}${extrasLabel}`;
+                    // Format: "4+NB" (runs + extras label)
+                    ballDisplay = `${ball.runs}+${extrasLabel}`;
                 } else {
-                    // Just the extras label
-                    ballDisplay = extrasLabel;
+                    // Format: "5WD" (total with extras label)
+                    ballDisplay = `${ball.extras}${extrasLabel}`;
                 }
             } else if (ball.runs === 4) {
                 ballDisplay = '4';
@@ -618,14 +622,14 @@ function renderLiveScore(data) {
         html += '</div>';
     }
     
-    // Footer with promotion message (like in mockup)
+    // Footer with promotion message (like in mockup) - consistent 10px font
     html += `
         <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 10px;">
             Buy the latest Tailenders merch.<br>Go Well!
         </div>
     `;
     
-    // Navigation links at bottom
+    // Navigation links at bottom - consistent 10px font
     html += `
         <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 10px;">
             <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
