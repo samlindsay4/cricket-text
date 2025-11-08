@@ -1,6 +1,7 @@
 // Admin Dashboard JavaScript
 let sessionId = null;
 let currentSeriesId = null;
+let pendingNewBowlerModal = false; // Track if we need to show bowler modal after batsman selection
 
 /**
  * Login function
@@ -1152,10 +1153,12 @@ async function recordBallFromDashboard() {
             setupScoringInterface();
             
             // Show incoming batsman modal if a wicket fell
+            // If over is also complete, store flag to show bowler modal after batsman selection
             if (wicketFell) {
+                pendingNewBowlerModal = overComplete; // Remember if we need to show bowler modal next
                 showIncomingBatsmanModalFromDashboard(dismissedBatsman);
             } else if (overComplete) {
-                // Show new bowler modal if over is complete
+                // Show new bowler modal if over is complete (no wicket)
                 showNewBowlerModalFromDashboard();
             }
         } else {
@@ -1470,6 +1473,13 @@ async function confirmIncomingBatsmanFromDashboard() {
             hideIncomingBatsmanModalFromDashboard();
             currentScoringMatch = await response.json();
             setupScoringInterface();
+            
+            // Check if we need to show the new bowler modal
+            // (e.g., wicket fell on the last ball of the over)
+            if (pendingNewBowlerModal) {
+                pendingNewBowlerModal = false; // Reset flag
+                showNewBowlerModalFromDashboard();
+            }
         } else {
             const error = await response.json();
             alert('Failed to select batsman: ' + (error.error || 'Unknown error'));
