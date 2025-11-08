@@ -2473,6 +2473,11 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     if (currentInnings.wickets >= 10) {
       currentInnings.status = 'completed';
       calculateMatchResult(match);
+      
+      // If match is now completed, update series immediately
+      if (match.status === 'completed' && match.result && match.result.winner) {
+        updateSeriesMatchStatus(matchId, match);
+      }
     }
   }
   
