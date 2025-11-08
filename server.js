@@ -2742,7 +2742,14 @@ app.post('/api/series/:seriesId/match/:matchId/select-incoming-batsman', require
     }
   }
   
+  // Save match to series directory
   if (saveSeriesMatch(seriesId, matchId, match)) {
+    // Also save to legacy location for consistency
+    saveMatch(match);
+    
+    // Update series stats to ensure cached data is refreshed
+    calculateSeriesStats(seriesId);
+    
     res.json(match);
   } else {
     res.status(500).json({ error: 'Failed to select batsman' });
