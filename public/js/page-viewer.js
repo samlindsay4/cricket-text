@@ -517,30 +517,38 @@ function renderLiveScore(data) {
                 `;
             });
         } else {
-            // For live matches, show striker and non-striker
+            // For live matches, show striker and non-striker (always show both even if nonStriker hasn't faced yet)
             const striker = currentInnings.allBatsmen[currentInnings.striker];
             const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
             
+            // Always show striker
             if (striker) {
                 html += `
                     <tr>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.name || currentInnings.striker}*</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.runs || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.balls || 0}</td>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.fours || 0}</td>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.sixes || 0}</td>
                     </tr>
                 `;
             }
             
-            if (nonStriker) {
+            // Always show non-striker (even if they haven't faced a ball yet - show 0s)
+            if (nonStriker || currentInnings.nonStriker) {
+                const nsName = nonStriker ? (nonStriker.name || currentInnings.nonStriker) : currentInnings.nonStriker;
+                const nsRuns = nonStriker ? (nonStriker.runs || 0) : 0;
+                const nsBalls = nonStriker ? (nonStriker.balls || 0) : 0;
+                const nsFours = nonStriker ? (nonStriker.fours || 0) : 0;
+                const nsSixes = nonStriker ? (nonStriker.sixes || 0) : 0;
+                
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.name || currentInnings.nonStriker}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.balls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.sixes || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsName}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsRuns}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsBalls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsFours}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsSixes}</td>
                     </tr>
                 `;
             }
@@ -624,11 +632,26 @@ function renderLiveScore(data) {
     html += '</table>';
     
     // Recent over at bottom - most recent ball first, proper formatting - font size 18px
+    // Show current over if it exists, otherwise show previous completed over
+    let overToDisplay = null;
+    let overLabel = '';
+    
     if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
-        html += '<div style="color: var(--teletext-cyan); font-size: 18px; margin: 20px 0 10px 0; font-family: var(--font-teletext);">';
+        // Show current over in progress
+        overToDisplay = currentInnings.currentOver;
+        overLabel = `Current over (Over ${currentInnings.overs}):`;
+    } else if (currentInnings.previousOver && currentInnings.previousOver.length > 0) {
+        // No current over balls yet, show previous completed over
+        overToDisplay = currentInnings.previousOver;
+        overLabel = `Previous over (Over ${currentInnings.overs - 1}):`;
+    }
+    
+    if (overToDisplay) {
+        html += `<div style="color: var(--teletext-cyan); font-size: 18px; margin: 20px 0 5px 0; font-family: var(--font-teletext);">${overLabel}</div>`;
+        html += '<div style="color: var(--teletext-cyan); font-size: 18px; margin: 5px 0 10px 0; font-family: var(--font-teletext);">';
         
         // Reverse the order so most recent ball is first
-        const ballsReversed = [...currentInnings.currentOver].reverse();
+        const ballsReversed = [...overToDisplay].reverse();
         
         ballsReversed.forEach((ball, idx) => {
             if (idx > 0) html += ' ';
@@ -640,19 +663,33 @@ function renderLiveScore(data) {
             } else if (ball.overthrows && ball.overthrows > 0) {
                 // Overthrows scenario: "1+4" means 1 run + 4 overthrows = 5 total
                 ballDisplay = `${ball.runs}+${ball.overthrows}`;
-            } else if (ball.extras > 0 || ball.extrasType) {
-                // Handle extras: WD, NB, B, LB, PEN
-                const extrasType = ball.extrasType || 'nb'; // Default to nb if not specified but extras exist
-                const extrasLabel = extrasType.toUpperCase();
+            } else if (ball.extrasType) {
+                // Handle extras based on extrasType: NB, WD, B, LB, PEN
+                const extrasType = ball.extrasType.toLowerCase();
+                let extrasLabel = '';
+                
+                if (extrasType === 'nb' || extrasType === 'noball') {
+                    extrasLabel = 'NB';
+                } else if (extrasType === 'wd' || extrasType === 'wide') {
+                    extrasLabel = 'WD';
+                } else if (extrasType === 'b' || extrasType === 'bye') {
+                    extrasLabel = 'B';
+                } else if (extrasType === 'lb' || extrasType === 'legbye') {
+                    extrasLabel = 'LB';
+                } else if (extrasType === 'pen' || extrasType === 'penalty') {
+                    extrasLabel = 'PEN';
+                } else {
+                    extrasLabel = ball.extrasType.toUpperCase();
+                }
                 
                 if (ball.runs > 0 && ball.extras > 0) {
                     // Runs + extras (e.g., "4+NB" for 4 runs off a no ball)
                     ballDisplay = `${ball.runs}+${extrasLabel}`;
-                } else if (ball.extras > 0) {
-                    // Just extras (e.g., "5WD" for 5 wides)
+                } else if (ball.extras > 1) {
+                    // Multiple extras (e.g., "5WD" for 5 wides)
                     ballDisplay = `${ball.extras}${extrasLabel}`;
                 } else if (ball.runs > 0) {
-                    // Just runs with no ball (e.g., "4+NB" but runs=4, extras=0)
+                    // Just runs with extras type (e.g., "4+NB")
                     ballDisplay = `${ball.runs}+${extrasLabel}`;
                 } else {
                     // Just the extras label (e.g., "NB" for no ball with 0 runs)

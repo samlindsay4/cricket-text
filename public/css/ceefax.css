@@ -49,7 +49,7 @@ body {
   line-height: 1.8;
   padding: 0;
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
   text-transform: uppercase;
 }
 
@@ -374,12 +374,12 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
   .ceefax-header {
-    font-size: 12px;
+    font-size: 16px;
     padding: 0.375rem 0.75rem;
   }
   
   .page-number-box {
-    font-size: 12px;
+    font-size: 16px;
     margin-right: 0.5rem;
   }
   
@@ -388,12 +388,12 @@ body {
   }
   
   .match-title {
-    font-size: 14px;
+    font-size: 18px;
     padding: 0.375rem 0.75rem;
   }
   
   .team-score {
-    font-size: 18px;
+    font-size: 20px;
   }
   
   .batsman-name {
@@ -411,7 +411,7 @@ body {
 
 @media (max-width: 480px) {
   body {
-    font-size: 14px;
+    font-size: 18px;
   }
   
   .batsman {
