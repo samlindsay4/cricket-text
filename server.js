@@ -2939,6 +2939,10 @@ app.post('/api/series/:seriesId/match/:matchId/declare-draw', requireAuth, (req,
   
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);
+  
+  // Update series with the draw result
+  updateSeriesMatchStatus(matchId, match);
+  
   calculateSeriesStats(seriesId);
   
   res.json({ match, message: 'Match declared as draw' });
