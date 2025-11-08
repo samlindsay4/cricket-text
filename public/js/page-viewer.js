@@ -640,9 +640,10 @@ function renderLiveScore(data) {
             } else if (ball.overthrows && ball.overthrows > 0) {
                 // Overthrows scenario: "1+4" means 1 run + 4 overthrows = 5 total
                 ballDisplay = `${ball.runs}+${ball.overthrows}`;
-            } else if (ball.extrasType) {
-                // Handle extras: WD, NB, B, LB, PEN - only if extrasType is explicitly set
-                const extrasLabel = ball.extrasType.toUpperCase();
+            } else if (ball.extras > 0 || ball.extrasType) {
+                // Handle extras: WD, NB, B, LB, PEN
+                const extrasType = ball.extrasType || 'nb'; // Default to nb if not specified but extras exist
+                const extrasLabel = extrasType.toUpperCase();
                 
                 if (ball.runs > 0 && ball.extras > 0) {
                     // Runs + extras (e.g., "4+NB" for 4 runs off a no ball)
