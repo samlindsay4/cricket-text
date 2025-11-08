@@ -325,7 +325,7 @@ function renderSeriesOverview(data) {
 }
 
 /**
- * Render Live Score (reuse existing scorecard logic)
+ * Render Live Score - TELETEST Style
  */
 function renderLiveScore(data) {
     const match = data.match;
@@ -339,96 +339,201 @@ function renderLiveScore(data) {
         return;
     }
     
-    // Use similar rendering to the original scorecard
     const currentInnings = match.innings[match.innings.length - 1];
     
+    // Calculate match situation
+    let matchSituation = '';
+    let inningsNumber = currentInnings.number || match.innings.length;
+    
+    // Determine day of test match (rough estimation based on overs)
+    let totalOvers = 0;
+    match.innings.forEach(inn => totalOvers += (inn.overs || 0));
+    let dayNum = Math.min(5, Math.ceil(totalOvers / 90) || 1);
+    
+    // Build match header with venue, day, and match status
     let html = `
-        <div class="headline" style="font-size: 14px;">
-            ${match.title.toUpperCase()} <span class="live-indicator">LIVE</span>
-        </div>
-        <div style="color: var(--teletext-cyan); font-size: 8px; margin: 10px 0;">${match.venue}</div>
-        
-        <div class="score-display">
-            <div class="team-score">
-                ${currentInnings.battingTeam.toUpperCase()} ${currentInnings.runs}/${currentInnings.wickets}
-            </div>
-            <div style="font-size: 10px;">(${currentInnings.overs}.${currentInnings.balls} overs)</div>
+        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 10px; margin-bottom: 10px;">
+            <span>${match.title.toUpperCase()}, ${match.venue || ''} (Day ${dayNum})</span>
+            <span>1/1</span>
         </div>
     `;
     
-    // Current batsmen
-    if (currentInnings.striker && currentInnings.allBatsmen) {
-        html += '<div class="batsmen">';
+    // Show all innings scores
+    match.innings.forEach((inn, idx) => {
+        const isCurrentInnings = (idx === match.innings.length - 1);
+        const color = isCurrentInnings ? 'var(--teletext-yellow)' : 'var(--teletext-yellow)';
+        html += `
+            <div style="color: ${color}; font-size: 12px; margin: 5px 0;">
+                ${inn.battingTeam} : ${inn.runs} @ ${inn.wickets < 10 ? inn.runs + '-' + inn.wickets : '200-7'} dec
+            </div>
+        `;
+    });
+    
+    // Match situation (lead/trail/chase)
+    if (match.innings.length >= 2) {
+        const firstInns = match.innings[0];
+        const secondInns = match.innings[match.innings.length - 1];
         
-        const striker = currentInnings.allBatsmen[currentInnings.striker];
-        const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
-        
-        if (striker) {
-            html += `
-                <div class="batsman">
-                    <span class="batsman-name">${striker.name || currentInnings.striker}*</span>
-                    <span class="batsman-stats">${striker.runs} (${striker.balls})</span>
-                </div>
-            `;
+        if (match.innings.length === 2) {
+            const lead = firstInns.runs - secondInns.runs;
+            if (lead > 0) {
+                matchSituation = `${secondInns.battingTeam} trail by ${lead} runs`;
+            } else if (lead < 0) {
+                matchSituation = `${secondInns.battingTeam} lead by ${Math.abs(lead)} runs`;
+            }
+        } else if (match.innings.length >= 3) {
+            // Calculate target if there's a chase
+            const totalFirst = match.innings.filter(i => i.battingTeam === firstInns.battingTeam)
+                .reduce((sum, i) => sum + i.runs, 0);
+            const totalSecond = match.innings.filter(i => i.battingTeam !== firstInns.battingTeam)
+                .reduce((sum, i) => sum + i.runs, 0);
+            const required = totalFirst - totalSecond + 1;
+            
+            if (required > 0) {
+                matchSituation = `${currentInnings.battingTeam} require ${required} to win`;
+            }
         }
+    }
+    
+    if (matchSituation) {
+        html += `
+            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 10px 0 15px 0;">
+                ${matchSituation}
+            </div>
+        `;
+    }
+    
+    // Section header for current innings
+    html += `
+        <div style="background: var(--teletext-cyan); color: var(--teletext-black); padding: 5px; margin: 15px 0 5px 0; font-size: 10px; font-weight: bold;">
+            ${currentInnings.battingTeam.toUpperCase()}, ${inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : inningsNumber === 3 ? '3rd' : inningsNumber + 'th'} Inns:
+        </div>
+    `;
+    
+    // Batting table
+    html += `
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+            <tr style="background: var(--teletext-black);">
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; font-size: 8px;">Batters</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">B</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">4s</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">6s</th>
+            </tr>
+    `;
+    
+    // Show current batsmen (or recent batsmen if innings complete)
+    if (currentInnings.allBatsmen) {
+        const batsmenArray = Object.values(currentInnings.allBatsmen)
+            .filter(b => b.balls > 0 || b.status === 'batting')
+            .sort((a, b) => {
+                // Batting players first, then by order
+                if (a.status === 'batting' && b.status !== 'batting') return -1;
+                if (b.status === 'batting' && a.status !== 'batting') return 1;
+                return 0;
+            });
         
-        if (nonStriker) {
+        // Show up to 4 batsmen (2 current + 2 recent)
+        batsmenArray.slice(0, 4).forEach(batsman => {
+            const isStriker = batsman.name === currentInnings.striker;
+            const nameDisplay = batsman.name + (isStriker ? '*' : '');
             html += `
-                <div class="batsman">
-                    <span class="batsman-name">${nonStriker.name || currentInnings.nonStriker}</span>
-                    <span class="batsman-stats">${nonStriker.runs} (${nonStriker.balls})</span>
-                </div>
+                <tr>
+                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${nameDisplay}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${batsman.runs}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${batsman.balls}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${batsman.fours || 0}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${batsman.sixes || 0}</td>
+                </tr>
             `;
+        });
+    }
+    
+    html += '</table>';
+    
+    // Bowling table
+    html += `
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0;">
+            <tr style="background: var(--teletext-black);">
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; font-size: 8px;">Bowlers</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">O</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">M</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: center; padding: 4px; font-size: 8px;">W</th>
+            </tr>
+    `;
+    
+    // Show current bowler and recent bowlers
+    if (currentInnings.allBowlers) {
+        const bowlersArray = Object.values(currentInnings.allBowlers)
+            .filter(b => b.balls > 0)
+            .sort((a, b) => {
+                // Current bowler first
+                if (currentInnings.currentBowler && a.name === currentInnings.currentBowler.name) return -1;
+                if (currentInnings.currentBowler && b.name === currentInnings.currentBowler.name) return 1;
+                return b.balls - a.balls; // Then by balls bowled
+            });
+        
+        // Show up to 3 bowlers
+        bowlersArray.slice(0, 3).forEach(bowler => {
+            const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
+            html += `
+                <tr>
+                    <td style="color: var(--teletext-white); padding: 4px; font-size: 8px;">${bowler.name}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${oversStr}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${bowler.maidens || 0}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${bowler.runs}</td>
+                    <td style="color: var(--teletext-white); text-align: center; padding: 4px; font-size: 8px;">${bowler.wickets}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += '</table>';
+    
+    // Recent over at bottom (styled like the mockup)
+    if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
+        html += '<div style="color: var(--teletext-cyan); font-size: 10px; margin: 20px 0 10px 0; letter-spacing: 0.3em;">';
+        
+        currentInnings.currentOver.forEach((ball, idx) => {
+            if (idx > 0) html += ' . ';
+            
+            if (ball.wicket) {
+                html += '<span style="color: var(--teletext-red);">W</span>';
+            } else if (ball.runs === 4) {
+                html += '<span style="color: var(--teletext-green);">4</span>';
+            } else if (ball.runs === 6) {
+                html += '<span style="color: var(--teletext-green);">6</span>';
+            } else if (ball.runs > 0 || ball.extras > 0) {
+                html += `<span style="color: var(--teletext-white);">${ball.runs + ball.extras}</span>`;
+            } else {
+                html += '<span style="color: var(--teletext-white);">•</span>';
+            }
+        });
+        
+        // Add dots for remaining balls in over
+        const ballsRemaining = 6 - currentInnings.currentOver.length;
+        for (let i = 0; i < ballsRemaining; i++) {
+            html += ' . <span style="color: #666;">•</span>';
         }
         
         html += '</div>';
     }
     
-    // Current bowler
-    if (currentInnings.currentBowler && currentInnings.allBowlers) {
-        const bowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
-        if (bowler) {
-            html += `
-                <div class="bowler">
-                    <div class="bowler-name">${bowler.name}</div>
-                    <div>${bowler.overs}.${bowler.balls % 6}-${bowler.maidens}-${bowler.runs}-${bowler.wickets}</div>
-                </div>
-            `;
-        }
-    }
-    
-    // Current over
-    if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
-        html += '<div class="current-over-section"><div class="over-title">THIS OVER</div><div class="over-balls">';
-        
-        currentInnings.currentOver.forEach(ball => {
-            let ballClass = 'ball ball-dot';
-            let ballText = '•';
-            
-            if (ball.wicket) {
-                ballClass = 'ball ball-wicket';
-                ballText = 'W';
-            } else if (ball.runs === 4) {
-                ballClass = 'ball ball-boundary';
-                ballText = '4';
-            } else if (ball.runs === 6) {
-                ballClass = 'ball ball-boundary';
-                ballText = '6';
-            } else if (ball.runs > 0 || ball.extras > 0) {
-                ballClass = 'ball ball-runs';
-                ballText = (ball.runs + ball.extras).toString();
-            }
-            
-            html += `<div class="${ballClass}">${ballText}</div>`;
-        });
-        
-        html += '</div></div>';
-    }
-    
+    // Footer with promotion message (like in mockup)
     html += `
-        <div style="margin-top: 20px;">
-            <span class="page-link" onclick="navigatePage(${data.series.startPage + 2})">Full Scorecard</span>
-            <span class="page-link" style="float: right;">p${data.series.startPage + 2}</span>
+        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 10px;">
+            Buy the latest Tailenders merch.<br>Go Well!
+        </div>
+    `;
+    
+    // Navigation links at bottom
+    html += `
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 10px;">
+            <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
+            <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
+            <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
+            <span class="page-link" style="color: var(--teletext-cyan);" onclick="navigatePage(${data.series.startPage})">Donate</span>
         </div>
     `;
     
