@@ -399,8 +399,9 @@ function renderLiveScore(data) {
         if (team1Innings.length > 0) {
             const firstInns = team1Innings[0];
             const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+            const decText = firstInns.declared ? ' d' : '';
             const isCurrentFirst = firstInns === currentInnings;
-            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}`;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
             
             if (team1Innings.length > 1) {
                 const secondInns = team1Innings[1];
@@ -427,8 +428,9 @@ function renderLiveScore(data) {
         if (team2Innings.length > 0) {
             const firstInns = team2Innings[0];
             const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+            const decText = firstInns.declared ? ' d' : '';
             const isCurrentFirst = firstInns === currentInnings;
-            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}`;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
             
             if (team2Innings.length > 1) {
                 const secondInns = team2Innings[1];
