@@ -3001,6 +3001,17 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
   
+  // Recalculate match situation after edit (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
+  
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);
   calculateSeriesStats(seriesId);
