@@ -365,9 +365,9 @@ function renderLiveScore(data) {
         ).join(' ');
     };
     
-    // Build match header with venue and day - font size 18px
+    // Build match header with venue and day - font size 32px
     let html = `
-        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 18px; margin-bottom: 10px; font-family: var(--font-teletext);">
+        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 32px; margin-bottom: 10px; font-family: var(--font-teletext);">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
             <span style="color: var(--teletext-white);">1/1</span>
         </div>
@@ -398,7 +398,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 32px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team1)}: ${scoreText}
             </div>
         `;
@@ -421,7 +421,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 32px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
@@ -464,7 +464,7 @@ function renderLiveScore(data) {
     
     if (matchSituation) {
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 32px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
                 ${matchSituation}
             </div>
         `;
@@ -474,16 +474,16 @@ function renderLiveScore(data) {
     const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
     const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
-    // Section header for current innings - white text, no background - font size 18px
+    // Section header for current innings - white text, no background - font size 32px
     html += `
-        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 18px; font-weight: bold; font-family: var(--font-teletext);">
+        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 32px; font-weight: bold; font-family: var(--font-teletext);">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
     
-    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - font size 18px
+    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - font size 32px
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 18px; font-family: var(--font-teletext);">
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 32px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Batters</th>
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
@@ -557,9 +557,9 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - font size 18px
+    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - font size 32px
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 18px; font-family: var(--font-teletext);">
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 32px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Bowlers</th>
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">O</th>
@@ -591,14 +591,15 @@ function renderLiveScore(data) {
                 `;
             });
         } else {
-            // For live matches, show current bowler
-            const currentBowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
+            // For live matches, show current bowler with proper null checking
+            const bowlerName = currentInnings.currentBowler?.name || 'Unknown';
+            const currentBowler = currentInnings.allBowlers[bowlerName];
             
             if (currentBowler) {
                 const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowlerName}</td>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.maidens || 0}</td>
                         <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.runs}</td>
@@ -609,7 +610,7 @@ function renderLiveScore(data) {
             
             // Find previous bowler (not current bowler, sorted by most recent) - only show if there are other bowlers
             const otherBowlers = Object.values(currentInnings.allBowlers)
-                .filter(b => b.balls > 0 && b.name !== currentInnings.currentBowler.name)
+                .filter(b => b.balls > 0 && b.name !== bowlerName)
                 .sort((a, b) => b.balls - a.balls);
             
             // Only show previous bowler if there is one (i.e., not in first over)
@@ -647,8 +648,8 @@ function renderLiveScore(data) {
     }
     
     if (overToDisplay) {
-        html += `<div style="color: var(--teletext-cyan); font-size: 18px; margin: 20px 0 5px 0; font-family: var(--font-teletext);">${overLabel}</div>`;
-        html += '<div style="color: var(--teletext-cyan); font-size: 18px; margin: 5px 0 10px 0; font-family: var(--font-teletext);">';
+        html += `<div style="color: var(--teletext-cyan); font-size: 32px; margin: 20px 0 5px 0; font-family: var(--font-teletext);">${overLabel}</div>`;
+        html += '<div style="color: var(--teletext-cyan); font-size: 32px; margin: 5px 0 10px 0; font-family: var(--font-teletext);">';
         
         // Reverse the order so most recent ball is first
         const ballsReversed = [...overToDisplay].reverse();
@@ -665,21 +666,22 @@ function renderLiveScore(data) {
                 ballDisplay = `${ball.runs}+${ball.overthrows}`;
             } else if (ball.extrasType) {
                 // Handle extras based on extrasType: NB, WD, B, LB, PEN
-                const extrasType = ball.extrasType.toLowerCase();
+                // Use toUpperCase for case-insensitive comparison
+                const extrasType = (ball.extrasType || '').toUpperCase();
                 let extrasLabel = '';
                 
-                if (extrasType === 'nb' || extrasType === 'noball') {
+                if (extrasType === 'NB' || extrasType === 'NOBALL') {
                     extrasLabel = 'NB';
-                } else if (extrasType === 'wd' || extrasType === 'wide') {
+                } else if (extrasType === 'WD' || extrasType === 'WIDE') {
                     extrasLabel = 'WD';
-                } else if (extrasType === 'b' || extrasType === 'bye') {
+                } else if (extrasType === 'B' || extrasType === 'BYE') {
                     extrasLabel = 'B';
-                } else if (extrasType === 'lb' || extrasType === 'legbye') {
+                } else if (extrasType === 'LB' || extrasType === 'LEGBYE') {
                     extrasLabel = 'LB';
-                } else if (extrasType === 'pen' || extrasType === 'penalty') {
+                } else if (extrasType === 'PEN' || extrasType === 'PENALTY') {
                     extrasLabel = 'PEN';
                 } else {
-                    extrasLabel = ball.extrasType.toUpperCase();
+                    extrasLabel = extrasType; // fallback - already uppercase
                 }
                 
                 if (ball.runs > 0 && ball.extras > 0) {
@@ -719,16 +721,16 @@ function renderLiveScore(data) {
         html += '</div>';
     }
     
-    // Footer with promotion message (like in mockup) - font size 18px
+    // Footer with promotion message (like in mockup) - font size 32px
     html += `
-        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 18px; font-family: var(--font-teletext);">
+        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 32px; font-family: var(--font-teletext);">
             Buy the latest Tailenders merch.<br>Go Well!
         </div>
     `;
     
-    // Navigation links at bottom - font size 18px
+    // Navigation links at bottom - font size 32px
     html += `
-        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 18px; font-family: var(--font-teletext);">
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 32px; font-family: var(--font-teletext);">
             <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
             <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
             <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
