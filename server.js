@@ -2462,6 +2462,12 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // Update match situation
   if (match.format === 'test') {
     calculateMatchSituation(match);
+    
+    // Check if innings just ended (all out) and calculate match result
+    if (currentInnings.wickets >= 10) {
+      currentInnings.status = 'completed';
+      calculateMatchResult(match);
+    }
   }
   
   // Save match to series directory
