@@ -3240,7 +3240,16 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
   
   // Page +1: Live Score
   if (pageOffset === 1) {
-    const currentMatch = series.matches.find(m => m.status === 'live');
+    // Show live matches first, or most recent completed match if no live match
+    let currentMatch = series.matches.find(m => m.status === 'live');
+    if (!currentMatch) {
+      // Find the most recently completed match
+      const completedMatches = series.matches.filter(m => m.status === 'completed');
+      if (completedMatches.length > 0) {
+        currentMatch = completedMatches[completedMatches.length - 1];
+      }
+    }
+    
     if (!currentMatch) {
       return res.json({
         type: 'series-live',

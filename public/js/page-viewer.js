@@ -431,7 +431,11 @@ function renderLiveScore(data) {
     const team1Total = team1Innings.reduce((sum, i) => sum + i.runs, 0);
     const team2Total = team2Innings.reduce((sum, i) => sum + i.runs, 0);
     
-    if (match.innings.length === 2) {
+    // Check if match is completed and show result
+    if (match.status === 'completed' && match.result) {
+        // Show the match result
+        matchSituation = match.result;
+    } else if (match.innings.length === 2) {
         // First innings of each team complete
         const lead = team1Total - team2Total;
         
@@ -489,33 +493,57 @@ function renderLiveScore(data) {
             </tr>
     `;
     
-    // Show only current batsmen (striker and non-striker)
-    if (currentInnings.striker && currentInnings.nonStriker && currentInnings.allBatsmen) {
-        const striker = currentInnings.allBatsmen[currentInnings.striker];
-        const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
-        
-        if (striker) {
-            html += `
-                <tr>
-                    <td style="color: var(--teletext-white); padding: 4px;">${striker.name || currentInnings.striker}*</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${striker.runs}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${striker.balls}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${striker.fours || 0}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${striker.sixes || 0}</td>
-                </tr>
-            `;
-        }
-        
-        if (nonStriker) {
-            html += `
-                <tr>
-                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.name || currentInnings.nonStriker}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.runs}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.balls}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.fours || 0}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.sixes || 0}</td>
-                </tr>
-            `;
+    // Show batsmen - for completed matches show last 2, for live show striker and non-striker
+    if (currentInnings.allBatsmen) {
+        if (match.status === 'completed' || !currentInnings.striker || !currentInnings.nonStriker) {
+            // For completed matches or when striker info is missing, show last 2 batsmen who batted
+            const batsmenArray = Object.values(currentInnings.allBatsmen)
+                .filter(b => b.balls > 0)
+                .sort((a, b) => {
+                    // Sort by batting order or balls faced
+                    return (b.balls || 0) - (a.balls || 0);
+                })
+                .slice(0, 2);
+            
+            batsmenArray.forEach(batsman => {
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.sixes || 0}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            // For live matches, show striker and non-striker
+            const striker = currentInnings.allBatsmen[currentInnings.striker];
+            const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
+            
+            if (striker) {
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${striker.name || currentInnings.striker}*</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${striker.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${striker.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${striker.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${striker.sixes || 0}</td>
+                    </tr>
+                `;
+            }
+            
+            if (nonStriker) {
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.name || currentInnings.nonStriker}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.sixes || 0}</td>
+                    </tr>
+                `;
+            }
         }
     }
     
@@ -533,40 +561,62 @@ function renderLiveScore(data) {
             </tr>
     `;
     
-    // Show only current bowler and previous bowler
-    if (currentInnings.currentBowler && currentInnings.allBowlers) {
-        const currentBowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
-        
-        if (currentBowler) {
-            const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
-            html += `
-                <tr>
-                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.name || 'Unknown'}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.maidens || 0}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.runs}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.wickets}</td>
-                </tr>
-            `;
-        }
-        
-        // Find previous bowler (not current bowler, sorted by most recent)
-        const otherBowlers = Object.values(currentInnings.allBowlers)
-            .filter(b => b.balls > 0 && b.name !== currentInnings.currentBowler.name)
-            .sort((a, b) => b.balls - a.balls);
-        
-        if (otherBowlers.length > 0) {
-            const prevBowler = otherBowlers[0];
-            const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
-            html += `
-                <tr>
-                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.name || 'Unknown'}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.maidens || 0}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.runs}</td>
-                    <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.wickets}</td>
-                </tr>
-            `;
+    // Show bowlers - for completed matches show last 2, for live show current and previous
+    if (currentInnings.allBowlers) {
+        if (match.status === 'completed' || !currentInnings.currentBowler) {
+            // For completed matches or when current bowler info is missing, show last 2 bowlers
+            const bowlersArray = Object.values(currentInnings.allBowlers)
+                .filter(b => b.balls > 0)
+                .sort((a, b) => b.balls - a.balls)
+                .slice(0, 2);
+            
+            bowlersArray.forEach(bowler => {
+                const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.wickets}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            // For live matches, show current bowler and previous bowler
+            const currentBowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
+            
+            if (currentBowler) {
+                const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.wickets}</td>
+                    </tr>
+                `;
+            }
+            
+            // Find previous bowler (not current bowler, sorted by most recent)
+            const otherBowlers = Object.values(currentInnings.allBowlers)
+                .filter(b => b.balls > 0 && b.name !== currentInnings.currentBowler.name)
+                .sort((a, b) => b.balls - a.balls);
+            
+            if (otherBowlers.length > 0) {
+                const prevBowler = otherBowlers[0];
+                const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.wickets}</td>
+                    </tr>
+                `;
+            }
         }
     }
     
