@@ -239,8 +239,16 @@ function displayMatch(match) {
       const sit = match.matchSituation;
       
       if (sit.lead && sit.leadBy > 0 && match.innings.length < 4) {
+        // BUG FIX #2: Show message from current batting team's perspective
+        const currentBattingTeam = currentInnings.battingTeam;
+        let message = '';
+        if (currentBattingTeam === sit.lead) {
+          message = `${currentBattingTeam} lead by ${sit.leadBy} runs`;
+        } else {
+          message = `${currentBattingTeam} trail by ${sit.leadBy} runs`;
+        }
         html += `<div class="match-situation">
-          ${sit.lead} lead by ${sit.leadBy} runs
+          ${message}
         </div>`;
       }
       
@@ -260,7 +268,9 @@ function displayMatch(match) {
     // Show result if match completed
     if (match.result && match.result.status === 'completed') {
       let resultText = '';
-      if (match.result.winType === 'wickets') {
+      if (match.result.winType === 'tie') {
+        resultText = 'Match tied';
+      } else if (match.result.winType === 'wickets') {
         resultText = `${match.result.winner} won by ${match.result.margin} wickets`;
       } else if (match.result.winType === 'runs') {
         resultText = `${match.result.winner} won by ${match.result.margin} runs`;

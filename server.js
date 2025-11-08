@@ -235,6 +235,7 @@ function saveMatchById(matchId, match) {
 
 function updateSeriesMatchStatus(matchId, match) {
   try {
+    // Update legacy series.json
     const series = loadSeries();
     const matchIndex = series.matches.findIndex(m => m.id === matchId);
     
@@ -265,6 +266,57 @@ function updateSeriesMatchStatus(matchId, match) {
       }
       
       saveSeries(series);
+    }
+    
+    // Also update new series directory if match has seriesId
+    if (match.seriesId) {
+      const newSeries = loadSeriesById(match.seriesId);
+      if (newSeries && newSeries.matches) {
+        const newMatchIndex = newSeries.matches.findIndex(m => m.id === matchId);
+        
+        if (newMatchIndex !== -1) {
+          const newSeriesMatch = newSeries.matches[newMatchIndex];
+          newSeriesMatch.status = match.status;
+          newSeriesMatch.venue = match.venue;
+          newSeriesMatch.date = match.date;
+          
+          // Update result if match completed
+          if (match.status === 'completed' && match.result && match.result.winner) {
+            const margin = match.result.margin || 0;
+            const winType = match.result.winType || 'unknown';
+            
+            // Format result text based on win type
+            let resultText;
+            if (winType === 'tie') {
+              resultText = 'Match tied';
+            } else {
+              resultText = `${match.result.winner} won by ${margin} ${winType}`;
+            }
+            
+            // Only update series score if this is a new result (not already counted)
+            if (newSeriesMatch.result !== resultText) {
+              newSeriesMatch.result = resultText;
+              
+              // Update series score only if not already counted and not a tie
+              if (winType !== 'tie') {
+                if (!newSeries.seriesScore) {
+                  newSeries.seriesScore = {};
+                  newSeries.seriesScore[newSeries.team1] = 0;
+                  newSeries.seriesScore[newSeries.team2] = 0;
+                }
+                
+                if (match.result.winner === newSeries.team1) {
+                  newSeries.seriesScore[newSeries.team1]++;
+                } else if (match.result.winner === newSeries.team2) {
+                  newSeries.seriesScore[newSeries.team2]++;
+                }
+              }
+            }
+          }
+          
+          saveSeriesById(match.seriesId, newSeries);
+        }
+      }
     }
   } catch (error) {
     console.error('Error updating series match status:', error);
@@ -966,8 +1018,21 @@ function calculateMatchSituation(match) {
     const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
     const team2Total = innings2.runs + (innings4.battingTeam === innings2.battingTeam ? innings4.runs : 0);
     
-    // The batting team needs to chase the target
-    const target = (innings4.battingTeam === innings1.battingTeam ? team2Total : team1Total) + 1;
+    // BUG FIX: Target should be deficit + 1, not opponent's total + 1
+    // In Test cricket, team batting 4th needs to overcome the deficit from their first innings
+    // Example: TeamA: 26 (15+11), TeamB: 8 → deficit is 18, target is 19 (not 27)
+    let opponentTotal, yourFirstInnings;
+    if (innings4.battingTeam === innings1.battingTeam) {
+      // Team1 batting in 4th innings (rare, only after follow-on)
+      opponentTotal = team2Total;
+      yourFirstInnings = innings1.runs;
+    } else {
+      // Team2 batting in 4th innings (normal case)
+      opponentTotal = team1Total;
+      yourFirstInnings = innings2.runs;
+    }
+    
+    const target = opponentTotal - yourFirstInnings + 1;
     match.matchSituation.target = target;
     match.matchSituation.toWin = target - innings4.runs;
     
@@ -986,7 +1051,7 @@ function calculateMatchResult(match) {
   
   const innings = match.innings;
   
-  // BUG FIX #11: Check for innings victory after 3rd innings (follow-on scenario)
+  // BUG FIX #5: Innings victory after 3rd innings (follow-on scenario)
   if (innings.length === 3 && match.followOn && match.followOn.enforced && innings[2].status === 'completed' && innings[2].wickets >= 10) {
     const team1Total = innings[0].runs;
     const team2Total = innings[1].runs + innings[2].runs;
@@ -999,37 +1064,66 @@ function calculateMatchResult(match) {
     }
   }
   
-  // Match can end after 4 innings or if team batting 4th is all out or declares
+  // BUG FIX #5: Match can end after 4 innings
   if (innings.length === 4 && (innings[3].status === 'completed' || innings[3].wickets >= 10)) {
     const innings4 = innings[3];
     const target = match.matchSituation.target || 0;
     
-    if (innings4.runs >= target) {
+    // Check for tie first
+    if (innings4.runs === target - 1 && innings4.wickets >= 10) {
+      // Scores are level and team is all out - it's a tie!
+      match.result.status = 'completed';
+      match.result.winner = null;
+      match.result.winType = 'tie';
+      match.result.margin = 0;
+      match.status = 'completed';
+    } else if (innings4.runs >= target) {
       // Batting team won
       match.result.status = 'completed';
       match.result.winner = innings4.battingTeam;
       match.result.winType = 'wickets';
       match.result.margin = 10 - innings4.wickets;
+      match.status = 'completed';
     } else {
-      // Bowling team won
+      // Bowling team won - check if it's an innings victory
+      const innings1 = innings[0];
+      const innings2 = innings[1];
+      const innings3 = innings[2];
+      
+      // Calculate total scores for both teams
+      const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
+      const team2Total = innings2.runs + (innings4.battingTeam === innings2.battingTeam ? innings4.runs : 0);
+      
       match.result.status = 'completed';
       match.result.winner = innings4.bowlingTeam;
-      match.result.winType = 'runs';
-      match.result.margin = target - innings4.runs - 1;
-    }
-    
-    match.status = 'completed';
-  } else if (innings.length === 2 && innings[1].status === 'completed' && innings[1].wickets >= 10) {
-    // BUG FIX #11: If batting second and all out with deficit, batting first team wins by innings
-    const deficit = innings[0].runs - innings[1].runs;
-    if (deficit > 0) {
-      match.result.status = 'completed';
-      match.result.winner = innings[0].battingTeam;
-      match.result.winType = 'innings';
-      match.result.margin = deficit;
+      
+      // Check if it's an innings victory
+      // For innings victory: winning team must have batted ONCE, losing team batted TWICE
+      const team1BattedTwice = innings3.battingTeam === innings1.battingTeam;
+      const team2BattedTwice = innings4.battingTeam === innings2.battingTeam;
+      
+      if (team2BattedTwice && !team1BattedTwice && team2Total < innings1.runs) {
+        // Team 2 batted twice (2nd & 4th), Team 1 batted once (1st only)
+        // Team 2 couldn't match Team 1's single innings
+        match.result.winType = 'innings';
+        match.result.margin = innings1.runs - team2Total;
+      } else if (team1BattedTwice && !team2BattedTwice && team1Total < innings2.runs) {
+        // Team 1 batted twice (1st & 3rd), Team 2 batted once (2nd only)
+        // Team 1 couldn't match Team 2's single innings
+        match.result.winType = 'innings';
+        match.result.margin = innings2.runs - team1Total;
+      } else {
+        // Normal runs victory - both teams batted twice OR deficit not an innings
+        match.result.winType = 'runs';
+        match.result.margin = target - innings4.runs - 1;
+      }
+      
       match.status = 'completed';
     }
   }
+  
+  // BUG FIX #5: REMOVED - Do NOT declare innings victory after just 2 innings
+  // After 2nd innings ends, the match must continue to 3rd innings (follow-on or normal)
 }
 
 // Simple session storage (in-memory for simplicity)
@@ -1296,7 +1390,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     currentOver: [],
     fallOfWickets: [],
     allBalls: [],
-    recentOvers: [] // Store last 5-10 overs
+    recentOvers: [], // Store last 5-10 overs
+    lastCompletedOver: null // BUG FIX #1: Initialize to null, will be set after first over completes
   };
   
   // BUG FIX #5: Initialize openers in allBatsmen
@@ -2446,6 +2541,22 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // Update match situation
   if (match.format === 'test') {
     calculateMatchSituation(match);
+    
+    // Check if innings just ended (all out OR target reached in 4th innings)
+    const inningsEnded = currentInnings.wickets >= 10;
+    const targetReached = match.innings.length === 4 && 
+                          match.matchSituation.target && 
+                          currentInnings.runs >= match.matchSituation.target;
+    
+    if (inningsEnded || targetReached) {
+      currentInnings.status = 'completed';
+      calculateMatchResult(match);
+      
+      // If match is now completed, update series immediately
+      if (match.status === 'completed' && match.result && match.result.winner) {
+        updateSeriesMatchStatus(matchId, match);
+      }
+    }
   }
   
   // Save match to series directory
@@ -2555,6 +2666,17 @@ app.post('/api/series/:seriesId/match/:matchId/undo', requireAuth, (req, res) =>
   // Use the proper recalculateInnings function to rebuild all stats correctly
   // This fixes duplicate entries in currentOver and prevents 11 wickets bug
   recalculateInnings(currentInnings);
+  
+  // Recalculate match situation after undo (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
   
   // Save
   saveSeriesMatch(seriesId, matchId, match);
@@ -2720,7 +2842,14 @@ app.post('/api/series/:seriesId/match/:matchId/select-incoming-batsman', require
     }
   }
   
+  // Save match to series directory
   if (saveSeriesMatch(seriesId, matchId, match)) {
+    // Also save to legacy location for consistency
+    saveMatch(match);
+    
+    // Update series stats to ensure cached data is refreshed
+    calculateSeriesStats(seriesId);
+    
     res.json(match);
   } else {
     res.status(500).json({ error: 'Failed to select batsman' });
@@ -2876,6 +3005,17 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   
   // Recalculate innings from all balls
   recalculateInnings(currentInnings);
+  
+  // Recalculate match situation after edit (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
   
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);

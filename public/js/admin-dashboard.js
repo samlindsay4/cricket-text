@@ -1,6 +1,7 @@
 // Admin Dashboard JavaScript
 let sessionId = null;
 let currentSeriesId = null;
+let pendingNewBowlerModal = false; // Track if we need to show bowler modal after batsman selection
 
 /**
  * Login function
@@ -866,13 +867,13 @@ function updateScorecardPreview() {
         `;
     }
     
-    // FEATURE #4: Show previous over's bowler (if not first over and different from current)
+    // BUG FIX #1: Show previous over's bowler (if not first over and different from current)
     if (innings.overs > 0 && innings.lastCompletedOver && innings.lastCompletedOver.bowler) {
         const prevBowlerName = innings.lastCompletedOver.bowler;
         if (prevBowlerName !== innings.currentBowler?.name && innings.allBowlers && innings.allBowlers[prevBowlerName]) {
             const prevBowlerStats = innings.allBowlers[prevBowlerName];
             html += `
-                <div style="margin-top: 5px; color: #888;">
+                <div style="margin-top: 5px; color: #aaaaaa;">
                     ${prevBowlerName}: ${prevBowlerStats.overs}.${prevBowlerStats.balls % 6}-${prevBowlerStats.maidens}-${prevBowlerStats.runs}-${prevBowlerStats.wickets}
                 </div>
             `;
@@ -1152,10 +1153,12 @@ async function recordBallFromDashboard() {
             setupScoringInterface();
             
             // Show incoming batsman modal if a wicket fell
+            // If over is also complete, store flag to show bowler modal after batsman selection
             if (wicketFell) {
+                pendingNewBowlerModal = overComplete; // Remember if we need to show bowler modal next
                 showIncomingBatsmanModalFromDashboard(dismissedBatsman);
             } else if (overComplete) {
-                // Show new bowler modal if over is complete
+                // Show new bowler modal if over is complete (no wicket)
                 showNewBowlerModalFromDashboard();
             }
         } else {
@@ -1406,11 +1409,29 @@ function showIncomingBatsmanModalFromDashboard(dismissedBatsmanName) {
     });
     
     select.innerHTML = '<option value="">-- Select incoming batsman --</option>';
+    
+    // BUG FIX #4: Find the next batsman in batting order for pre-selection
+    let nextBatsmanName = null;
+    for (const name of currentInnings.battingOrder) {
+        const batsmanStats = currentInnings.allBatsmen[name];
+        if (!batsmanStats || batsmanStats.status === 'not batted') {
+            // This is the next batsman who hasn't batted yet
+            nextBatsmanName = name;
+            break;
+        }
+    }
+    
     availableBatsmen.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         const isRetiredHurt = currentInnings.allBatsmen[name]?.status === 'retired hurt';
         option.textContent = isRetiredHurt ? `${name} (resuming)` : name;
+        
+        // BUG FIX #4: Pre-select the next batsman in batting order
+        if (name === nextBatsmanName) {
+            option.selected = true;
+        }
+        
         select.appendChild(option);
     });
     
@@ -1452,6 +1473,13 @@ async function confirmIncomingBatsmanFromDashboard() {
             hideIncomingBatsmanModalFromDashboard();
             currentScoringMatch = await response.json();
             setupScoringInterface();
+            
+            // Check if we need to show the new bowler modal
+            // (e.g., wicket fell on the last ball of the over)
+            if (pendingNewBowlerModal) {
+                pendingNewBowlerModal = false; // Reset flag
+                showNewBowlerModalFromDashboard();
+            }
         } else {
             const error = await response.json();
             alert('Failed to select batsman: ' + (error.error || 'Unknown error'));
