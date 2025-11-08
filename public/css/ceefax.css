@@ -54,7 +54,7 @@ body {
 }
 
 .container {
-  max-width: 90ch;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
   background-color: var(--teletext-black);
