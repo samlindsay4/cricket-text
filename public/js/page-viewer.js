@@ -365,9 +365,9 @@ function renderLiveScore(data) {
         ).join(' ');
     };
     
-    // Build match header with venue and day - consistent 14px font
+    // Build match header with venue and day - font size 18px
     let html = `
-        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 14px; margin-bottom: 10px; font-family: var(--font-teletext);">
+        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 18px; margin-bottom: 10px; font-family: var(--font-teletext);">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
             <span style="color: var(--teletext-white);">1/1</span>
         </div>
@@ -380,7 +380,7 @@ function renderLiveScore(data) {
     const team1Innings = match.innings.filter(i => i.battingTeam === team1);
     const team2Innings = match.innings.filter(i => i.battingTeam === team2);
     
-    // Display team scores - ALWAYS show at least first innings - consistent 10px font
+    // Display team scores - ALWAYS show at least first innings - font size 18px
     if (team1Innings.length > 0) {
         const firstInns = team1Innings[0];
         const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
@@ -398,7 +398,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team1)}: ${scoreText}
             </div>
         `;
@@ -421,7 +421,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
@@ -464,7 +464,7 @@ function renderLiveScore(data) {
     
     if (matchSituation) {
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
+            <div style="color: var(--teletext-yellow); font-size: 18px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
                 ${matchSituation}
             </div>
         `;
@@ -474,16 +474,16 @@ function renderLiveScore(data) {
     const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
     const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
-    // Section header for current innings - white text, no background - consistent 14px font
+    // Section header for current innings - white text, no background - font size 18px
     html += `
-        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 14px; font-weight: bold; font-family: var(--font-teletext);">
+        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 18px; font-weight: bold; font-family: var(--font-teletext);">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
     
-    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - consistent 14px font
+    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - font size 18px
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; font-family: var(--font-teletext);">
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 18px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Batters</th>
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
@@ -549,9 +549,9 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - consistent 14px font
+    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - font size 18px
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 14px; font-family: var(--font-teletext);">
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 18px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Bowlers</th>
                 <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">O</th>
@@ -623,9 +623,9 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Recent over at bottom - most recent ball first, proper formatting - consistent 14px font
+    // Recent over at bottom - most recent ball first, proper formatting - font size 18px
     if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
-        html += '<div style="color: var(--teletext-cyan); font-size: 14px; margin: 20px 0 10px 0; font-family: var(--font-teletext);">';
+        html += '<div style="color: var(--teletext-cyan); font-size: 18px; margin: 20px 0 10px 0; font-family: var(--font-teletext);">';
         
         // Reverse the order so most recent ball is first
         const ballsReversed = [...currentInnings.currentOver].reverse();
@@ -640,17 +640,19 @@ function renderLiveScore(data) {
             } else if (ball.overthrows && ball.overthrows > 0) {
                 // Overthrows scenario: "1+4" means 1 run + 4 overthrows = 5 total
                 ballDisplay = `${ball.runs}+${ball.overthrows}`;
-            } else if (ball.extras > 0 || ball.extrasType) {
-                // Handle extras: WD, NB, B, LB, PEN
-                const extrasType = ball.extrasType || 'wd';
-                const extrasLabel = extrasType.toUpperCase();
+            } else if (ball.extrasType) {
+                // Handle extras: WD, NB, B, LB, PEN - only if extrasType is explicitly set
+                const extrasLabel = ball.extrasType.toUpperCase();
                 
-                if (ball.runs > 0) {
+                if (ball.runs > 0 && ball.extras > 0) {
                     // Runs + extras (e.g., "4+NB" for 4 runs off a no ball)
                     ballDisplay = `${ball.runs}+${extrasLabel}`;
                 } else if (ball.extras > 0) {
                     // Just extras (e.g., "5WD" for 5 wides)
                     ballDisplay = `${ball.extras}${extrasLabel}`;
+                } else if (ball.runs > 0) {
+                    // Just runs with no ball (e.g., "4+NB" but runs=4, extras=0)
+                    ballDisplay = `${ball.runs}+${extrasLabel}`;
                 } else {
                     // Just the extras label (e.g., "NB" for no ball with 0 runs)
                     ballDisplay = extrasLabel;
@@ -679,16 +681,16 @@ function renderLiveScore(data) {
         html += '</div>';
     }
     
-    // Footer with promotion message (like in mockup) - consistent 14px font
+    // Footer with promotion message (like in mockup) - font size 18px
     html += `
-        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 14px; font-family: var(--font-teletext);">
+        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 18px; font-family: var(--font-teletext);">
             Buy the latest Tailenders merch.<br>Go Well!
         </div>
     `;
     
-    // Navigation links at bottom - consistent 14px font
+    // Navigation links at bottom - font size 18px
     html += `
-        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 14px; font-family: var(--font-teletext);">
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 18px; font-family: var(--font-teletext);">
             <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
             <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
             <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
