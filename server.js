@@ -1004,7 +1004,15 @@ function calculateMatchResult(match) {
     const innings4 = innings[3];
     const target = match.matchSituation.target || 0;
     
-    if (innings4.runs >= target) {
+    // Check for tie first
+    if (innings4.runs === target - 1 && innings4.wickets >= 10) {
+      // Scores are level and team is all out - it's a tie!
+      match.result.status = 'completed';
+      match.result.winner = null;
+      match.result.winType = 'tie';
+      match.result.margin = 0;
+      match.status = 'completed';
+    } else if (innings4.runs >= target) {
       // Batting team won
       match.result.status = 'completed';
       match.result.winner = innings4.battingTeam;
