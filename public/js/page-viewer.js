@@ -188,7 +188,7 @@ function renderHomepage(data) {
                     <div style="color: var(--teletext-white); margin-top: 5px;">
                         ${currentInnings.battingTeam} ${currentInnings.runs}/${currentInnings.wickets} (${currentInnings.overs}.${currentInnings.balls} overs)
                     </div>
-                    ${match.matchSituation.leadBy ? `<div style="color: var(--teletext-cyan); font-size: 8px;">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
+                    ${match.matchSituation && match.matchSituation.leadBy ? `<div style="color: var(--teletext-cyan); font-size: 8px;">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
                 </div>
             `;
         });
