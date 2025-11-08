@@ -1,7 +1,7 @@
 /* Ceefax/Teletext Styling */
 
-/* Import Press Start 2P Font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* Import VT323 Font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
 /* Teletext color palette */
 :root {
@@ -13,7 +13,7 @@
   --teletext-magenta: #FF00FF;
   --teletext-cyan: #00FFFF;
   --teletext-white: #FFFFFF;
-  --font-teletext: 'Press Start 2P', 'Courier New', monospace;
+  --font-teletext: 'VT323', 'Courier New', monospace;
 }
 
 * {

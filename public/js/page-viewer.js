@@ -365,9 +365,9 @@ function renderLiveScore(data) {
         ).join(' ');
     };
     
-    // Build match header with venue and day - consistent 10px font
+    // Build match header with venue and day - consistent 14px font
     let html = `
-        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 10px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 14px; margin-bottom: 10px; font-family: var(--font-teletext);">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
             <span style="color: var(--teletext-white);">1/1</span>
         </div>
@@ -398,7 +398,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 5px 0;">
+            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team1)}: ${scoreText}
             </div>
         `;
@@ -421,7 +421,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 5px 0;">
+            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 5px 0; font-family: var(--font-teletext);">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
@@ -464,7 +464,7 @@ function renderLiveScore(data) {
     
     if (matchSituation) {
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 10px; margin: 10px 0 15px 0;">
+            <div style="color: var(--teletext-yellow); font-size: 14px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
                 ${matchSituation}
             </div>
         `;
@@ -474,22 +474,22 @@ function renderLiveScore(data) {
     const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
     const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
-    // Section header for current innings - white text, no background - consistent 10px font
+    // Section header for current innings - white text, no background - consistent 14px font
     html += `
-        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 10px; font-weight: bold;">
+        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 14px; font-weight: bold; font-family: var(--font-teletext);">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
     
-    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - consistent 10px font
+    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - consistent 14px font
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10px;">
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 60%;">Batters</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">B</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">4s</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">6s</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Batters</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">B</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">4s</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">6s</th>
             </tr>
     `;
     
@@ -508,11 +508,11 @@ function renderLiveScore(data) {
             batsmenArray.forEach(batsman => {
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.balls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${batsman.sixes || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.sixes || 0}</td>
                     </tr>
                 `;
             });
@@ -524,11 +524,11 @@ function renderLiveScore(data) {
             if (striker) {
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${striker.name || currentInnings.striker}*</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${striker.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${striker.balls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${striker.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${striker.sixes || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.name || currentInnings.striker}*</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.sixes || 0}</td>
                     </tr>
                 `;
             }
@@ -536,11 +536,11 @@ function renderLiveScore(data) {
             if (nonStriker) {
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.name || currentInnings.nonStriker}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.balls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${nonStriker.sixes || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.name || currentInnings.nonStriker}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nonStriker.sixes || 0}</td>
                     </tr>
                 `;
             }
@@ -549,19 +549,19 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - consistent 10px font
+    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - consistent 14px font
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 10px;">
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 14px; font-family: var(--font-teletext);">
             <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 60%;">Bowlers</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">O</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">M</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px; width: 10%;">W</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Bowlers</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">O</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">M</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">W</th>
             </tr>
     `;
     
-    // Show bowlers - for completed matches show last 2, for live show current and previous
+    // Show bowlers - for completed matches show last 2, for live show current and previous (only if there are 2+)
     if (currentInnings.allBowlers) {
         if (match.status === 'completed' || !currentInnings.currentBowler) {
             // For completed matches or when current bowler info is missing, show last 2 bowlers
@@ -574,46 +574,47 @@ function renderLiveScore(data) {
                 const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.maidens || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${bowler.wickets}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.wickets}</td>
                     </tr>
                 `;
             });
         } else {
-            // For live matches, show current bowler and previous bowler
+            // For live matches, show current bowler
             const currentBowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
             
             if (currentBowler) {
                 const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.maidens || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${currentBowler.wickets}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.wickets}</td>
                     </tr>
                 `;
             }
             
-            // Find previous bowler (not current bowler, sorted by most recent)
+            // Find previous bowler (not current bowler, sorted by most recent) - only show if there are other bowlers
             const otherBowlers = Object.values(currentInnings.allBowlers)
                 .filter(b => b.balls > 0 && b.name !== currentInnings.currentBowler.name)
                 .sort((a, b) => b.balls - a.balls);
             
+            // Only show previous bowler if there is one (i.e., not in first over)
             if (otherBowlers.length > 0) {
                 const prevBowler = otherBowlers[0];
                 const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${oversStr}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.maidens || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px;">${prevBowler.wickets}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.wickets}</td>
                     </tr>
                 `;
             }
@@ -622,9 +623,9 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Recent over at bottom - most recent ball first, proper formatting - consistent 10px font
+    // Recent over at bottom - most recent ball first, proper formatting - consistent 14px font
     if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
-        html += '<div style="color: var(--teletext-cyan); font-size: 10px; margin: 20px 0 10px 0;">';
+        html += '<div style="color: var(--teletext-cyan); font-size: 14px; margin: 20px 0 10px 0; font-family: var(--font-teletext);">';
         
         // Reverse the order so most recent ball is first
         const ballsReversed = [...currentInnings.currentOver].reverse();
@@ -636,17 +637,23 @@ function renderLiveScore(data) {
             
             if (ball.wicket) {
                 ballDisplay = 'W';
-            } else if (ball.extras > 0) {
+            } else if (ball.overthrows && ball.overthrows > 0) {
+                // Overthrows scenario: "1+4" means 1 run + 4 overthrows = 5 total
+                ballDisplay = `${ball.runs}+${ball.overthrows}`;
+            } else if (ball.extras > 0 || ball.extrasType) {
                 // Handle extras: WD, NB, B, LB, PEN
                 const extrasType = ball.extrasType || 'wd';
                 const extrasLabel = extrasType.toUpperCase();
                 
                 if (ball.runs > 0) {
-                    // Format: "4+NB" (runs + extras label)
+                    // Runs + extras (e.g., "4+NB" for 4 runs off a no ball)
                     ballDisplay = `${ball.runs}+${extrasLabel}`;
-                } else {
-                    // Format: "5WD" (total with extras label)
+                } else if (ball.extras > 0) {
+                    // Just extras (e.g., "5WD" for 5 wides)
                     ballDisplay = `${ball.extras}${extrasLabel}`;
+                } else {
+                    // Just the extras label (e.g., "NB" for no ball with 0 runs)
+                    ballDisplay = extrasLabel;
                 }
             } else if (ball.runs === 4) {
                 ballDisplay = '4';
@@ -672,16 +679,16 @@ function renderLiveScore(data) {
         html += '</div>';
     }
     
-    // Footer with promotion message (like in mockup) - consistent 10px font
+    // Footer with promotion message (like in mockup) - consistent 14px font
     html += `
-        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 10px;">
+        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 14px; font-family: var(--font-teletext);">
             Buy the latest Tailenders merch.<br>Go Well!
         </div>
     `;
     
-    // Navigation links at bottom - consistent 10px font
+    // Navigation links at bottom - consistent 14px font
     html += `
-        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 10px;">
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 14px; font-family: var(--font-teletext);">
             <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
             <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
             <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
