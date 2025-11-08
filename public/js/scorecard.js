@@ -268,7 +268,9 @@ function displayMatch(match) {
     // Show result if match completed
     if (match.result && match.result.status === 'completed') {
       let resultText = '';
-      if (match.result.winType === 'wickets') {
+      if (match.result.winType === 'tie') {
+        resultText = 'Match tied';
+      } else if (match.result.winType === 'wickets') {
         resultText = `${match.result.winner} won by ${match.result.margin} wickets`;
       } else if (match.result.winType === 'runs') {
         resultText = `${match.result.winner} won by ${match.result.margin} runs`;
