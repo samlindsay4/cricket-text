@@ -235,6 +235,7 @@ function saveMatchById(matchId, match) {
 
 function updateSeriesMatchStatus(matchId, match) {
   try {
+    // Update legacy series.json
     const series = loadSeries();
     const matchIndex = series.matches.findIndex(m => m.id === matchId);
     
@@ -265,6 +266,57 @@ function updateSeriesMatchStatus(matchId, match) {
       }
       
       saveSeries(series);
+    }
+    
+    // Also update new series directory if match has seriesId
+    if (match.seriesId) {
+      const newSeries = loadSeriesById(match.seriesId);
+      if (newSeries && newSeries.matches) {
+        const newMatchIndex = newSeries.matches.findIndex(m => m.id === matchId);
+        
+        if (newMatchIndex !== -1) {
+          const newSeriesMatch = newSeries.matches[newMatchIndex];
+          newSeriesMatch.status = match.status;
+          newSeriesMatch.venue = match.venue;
+          newSeriesMatch.date = match.date;
+          
+          // Update result if match completed
+          if (match.status === 'completed' && match.result && match.result.winner) {
+            const margin = match.result.margin || 0;
+            const winType = match.result.winType || 'unknown';
+            
+            // Format result text based on win type
+            let resultText;
+            if (winType === 'tie') {
+              resultText = 'Match tied';
+            } else {
+              resultText = `${match.result.winner} won by ${margin} ${winType}`;
+            }
+            
+            // Only update series score if this is a new result (not already counted)
+            if (newSeriesMatch.result !== resultText) {
+              newSeriesMatch.result = resultText;
+              
+              // Update series score only if not already counted and not a tie
+              if (winType !== 'tie') {
+                if (!newSeries.seriesScore) {
+                  newSeries.seriesScore = {};
+                  newSeries.seriesScore[newSeries.team1] = 0;
+                  newSeries.seriesScore[newSeries.team2] = 0;
+                }
+                
+                if (match.result.winner === newSeries.team1) {
+                  newSeries.seriesScore[newSeries.team1]++;
+                } else if (match.result.winner === newSeries.team2) {
+                  newSeries.seriesScore[newSeries.team2]++;
+                }
+              }
+            }
+          }
+          
+          saveSeriesById(match.seriesId, newSeries);
+        }
+      }
     }
   } catch (error) {
     console.error('Error updating series match status:', error);
