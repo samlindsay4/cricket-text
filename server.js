@@ -1024,17 +1024,23 @@ function calculateMatchResult(match) {
       match.result.status = 'completed';
       match.result.winner = innings4.bowlingTeam;
       
-      // Check if it's an innings victory (team batting 4th never exceeded opponent's first innings)
-      if (innings4.battingTeam === innings1.battingTeam && team1Total < innings2.runs) {
-        // Team 1 batted twice but couldn't match team 2's single innings
-        match.result.winType = 'innings';
-        match.result.margin = innings2.runs - team1Total;
-      } else if (innings4.battingTeam === innings2.battingTeam && team2Total < innings1.runs) {
-        // Team 2 batted twice but couldn't match team 1's single innings
+      // Check if it's an innings victory
+      // For innings victory: winning team must have batted ONCE, losing team batted TWICE
+      const team1BattedTwice = innings3.battingTeam === innings1.battingTeam;
+      const team2BattedTwice = innings4.battingTeam === innings2.battingTeam;
+      
+      if (team2BattedTwice && !team1BattedTwice && team2Total < innings1.runs) {
+        // Team 2 batted twice (2nd & 4th), Team 1 batted once (1st only)
+        // Team 2 couldn't match Team 1's single innings
         match.result.winType = 'innings';
         match.result.margin = innings1.runs - team2Total;
+      } else if (team1BattedTwice && !team2BattedTwice && team1Total < innings2.runs) {
+        // Team 1 batted twice (1st & 3rd), Team 2 batted once (2nd only)
+        // Team 1 couldn't match Team 2's single innings
+        match.result.winType = 'innings';
+        match.result.margin = innings2.runs - team1Total;
       } else {
-        // Normal runs victory
+        // Normal runs victory - both teams batted twice OR deficit not an innings
         match.result.winType = 'runs';
         match.result.margin = target - innings4.runs - 1;
       }
