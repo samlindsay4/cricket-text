@@ -2542,8 +2542,13 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   if (match.format === 'test') {
     calculateMatchSituation(match);
     
-    // Check if innings just ended (all out) and calculate match result
-    if (currentInnings.wickets >= 10) {
+    // Check if innings just ended (all out OR target reached in 4th innings)
+    const inningsEnded = currentInnings.wickets >= 10;
+    const targetReached = match.innings.length === 4 && 
+                          match.matchSituation.target && 
+                          currentInnings.runs >= match.matchSituation.target;
+    
+    if (inningsEnded || targetReached) {
       currentInnings.status = 'completed';
       calculateMatchResult(match);
       
