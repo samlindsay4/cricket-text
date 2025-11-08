@@ -374,8 +374,19 @@ function renderLiveScore(data) {
     `;
     
     // Group innings by team and calculate cumulative scores
-    const team1 = match.team1;
-    const team2 = match.team2;
+    // Get team names from match.team1/team2 OR derive from innings data
+    let team1 = match.team1;
+    let team2 = match.team2;
+    
+    // If team1/team2 not set, extract from innings
+    if (!team1 && match.innings && match.innings.length > 0) {
+        team1 = match.innings[0].battingTeam;
+        if (match.innings.length > 1 && match.innings[1].battingTeam !== team1) {
+            team2 = match.innings[1].battingTeam;
+        } else if (match.innings.length > 2) {
+            team2 = match.innings[2].battingTeam;
+        }
+    }
     
     const team1Innings = match.innings.filter(i => i.battingTeam === team1);
     const team2Innings = match.innings.filter(i => i.battingTeam === team2);
@@ -652,11 +663,12 @@ function renderLiveScore(data) {
     if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
         // Show current over in progress
         overToDisplay = currentInnings.currentOver;
-        overLabel = `Current over (Over ${currentInnings.overs}):`;
+        // Add 1 to overs because currentInnings.overs is 0-indexed (first over shows as 0, should be 1)
+        overLabel = `Current over (Over ${currentInnings.overs + 1}):`;
     } else if (currentInnings.previousOver && currentInnings.previousOver.length > 0) {
         // No current over balls yet, show previous completed over
         overToDisplay = currentInnings.previousOver;
-        overLabel = `Previous over (Over ${currentInnings.overs - 1}):`;
+        overLabel = `Previous over (Over ${currentInnings.overs}):`;
     }
     
     if (overToDisplay) {
