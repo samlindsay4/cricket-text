@@ -966,8 +966,21 @@ function calculateMatchSituation(match) {
     const team1Total = innings1.runs + (innings3.battingTeam === innings1.battingTeam ? innings3.runs : 0);
     const team2Total = innings2.runs + (innings4.battingTeam === innings2.battingTeam ? innings4.runs : 0);
     
-    // The batting team needs to chase the target
-    const target = (innings4.battingTeam === innings1.battingTeam ? team2Total : team1Total) + 1;
+    // BUG FIX: Target should be deficit + 1, not opponent's total + 1
+    // In Test cricket, team batting 4th needs to overcome the deficit from their first innings
+    // Example: TeamA: 26 (15+11), TeamB: 8 → deficit is 18, target is 19 (not 27)
+    let opponentTotal, yourFirstInnings;
+    if (innings4.battingTeam === innings1.battingTeam) {
+      // Team1 batting in 4th innings (rare, only after follow-on)
+      opponentTotal = team2Total;
+      yourFirstInnings = innings1.runs;
+    } else {
+      // Team2 batting in 4th innings (normal case)
+      opponentTotal = team1Total;
+      yourFirstInnings = innings2.runs;
+    }
+    
+    const target = opponentTotal - yourFirstInnings + 1;
     match.matchSituation.target = target;
     match.matchSituation.toWin = target - innings4.runs;
     
