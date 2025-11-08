@@ -1285,6 +1285,36 @@ async function endInningsFromDashboard() {
 }
 
 /**
+ * Declare match as draw
+ */
+async function declareDrawFromDashboard() {
+    if (!confirm('Declare this match as a draw? This will end the match immediately. This cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/declare-draw`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentScoringMatch = data.match;
+            displayScoringMatchDetails();
+            alert('Match declared as draw');
+        } else {
+            const error = await response.json();
+            alert('Failed to declare draw: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error declaring draw:', error);
+        alert('Failed to declare draw');
+    }
+}
+
+/**
  * Show retire batsman modal
  */
 function showRetireBatsmanModalFromDashboard() {

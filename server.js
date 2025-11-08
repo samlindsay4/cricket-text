@@ -246,17 +246,26 @@ function updateSeriesMatchStatus(matchId, match) {
       seriesMatch.date = match.date;
       
       // Update result if match completed
-      if (match.status === 'completed' && match.result && match.result.winner) {
-        // Safely construct result string with null checks
-        const margin = match.result.margin || 0;
-        const winType = match.result.winType || 'unknown';
-        const resultText = `${match.result.winner} won by ${margin} ${winType}`;
+      if (match.status === 'completed' && match.result) {
+        let resultText;
+        
+        // Handle different result types
+        if (match.result.winType === 'draw') {
+          resultText = 'Match drawn';
+        } else if (match.result.winType === 'tie') {
+          resultText = 'Match tied';
+        } else if (match.result.winner) {
+          // Safely construct result string with null checks
+          const margin = match.result.margin || 0;
+          const winType = match.result.winType || 'unknown';
+          resultText = `${match.result.winner} won by ${margin} ${winType}`;
+        }
         
         // Only update series score if this is a new result (not already counted)
-        if (seriesMatch.result !== resultText) {
+        if (resultText && seriesMatch.result !== resultText) {
           seriesMatch.result = resultText;
           
-          // Update series score only if not already counted
+          // Update series score only if not already counted and there's a winner
           if (match.result.winner === 'England') {
             series.seriesScore.England++;
           } else if (match.result.winner === 'Australia') {
@@ -281,24 +290,26 @@ function updateSeriesMatchStatus(matchId, match) {
           newSeriesMatch.date = match.date;
           
           // Update result if match completed
-          if (match.status === 'completed' && match.result && match.result.winner) {
+          if (match.status === 'completed' && match.result) {
             const margin = match.result.margin || 0;
             const winType = match.result.winType || 'unknown';
             
             // Format result text based on win type
             let resultText;
-            if (winType === 'tie') {
+            if (winType === 'draw') {
+              resultText = 'Match drawn';
+            } else if (winType === 'tie') {
               resultText = 'Match tied';
-            } else {
+            } else if (match.result.winner) {
               resultText = `${match.result.winner} won by ${margin} ${winType}`;
             }
             
             // Only update series score if this is a new result (not already counted)
-            if (newSeriesMatch.result !== resultText) {
+            if (resultText && newSeriesMatch.result !== resultText) {
               newSeriesMatch.result = resultText;
               
-              // Update series score only if not already counted and not a tie
-              if (winType !== 'tie') {
+              // Update series score only if not already counted and not a tie or draw
+              if (winType !== 'tie' && winType !== 'draw' && match.result.winner) {
                 if (!newSeries.seriesScore) {
                   newSeries.seriesScore = {};
                   newSeries.seriesScore[newSeries.team1] = 0;
@@ -2886,6 +2897,51 @@ app.post('/api/series/:seriesId/match/:matchId/declare', requireAuth, (req, res)
   calculateSeriesStats(seriesId);
   
   res.json(match);
+});
+
+// Declare match as draw for series match
+app.post('/api/series/:seriesId/match/:matchId/declare-draw', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.status === 'completed') {
+    return res.status(400).json({ error: 'Match already completed' });
+  }
+  
+  // Mark current innings as completed if there is one
+  if (match.innings && match.innings.length > 0) {
+    const currentInnings = match.innings[match.innings.length - 1];
+    if (currentInnings.status === 'live') {
+      currentInnings.status = 'completed';
+      
+      // Mark current batsmen as not out
+      if (currentInnings.striker && currentInnings.allBatsmen[currentInnings.striker]) {
+        currentInnings.allBatsmen[currentInnings.striker].status = 'not out';
+      }
+      if (currentInnings.nonStriker && currentInnings.allBatsmen[currentInnings.nonStriker]) {
+        currentInnings.allBatsmen[currentInnings.nonStriker].status = 'not out';
+      }
+    }
+  }
+  
+  // Set match result to draw
+  match.result = {
+    status: 'completed',
+    winner: null,
+    winType: 'draw',
+    margin: null
+  };
+  match.status = 'completed';
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json({ match, message: 'Match declared as draw' });
 });
 
 // End innings for series match
