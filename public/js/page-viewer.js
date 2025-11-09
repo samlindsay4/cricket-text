@@ -166,10 +166,10 @@ async function loadPage(pageNum) {
 function showErrorPage(message) {
     const content = document.getElementById('page-content');
     content.innerHTML = `
-        <div style="text-align: center; color: var(--teletext-red); padding: 40px;">
-            <div style="font-size: 16px; margin-bottom: 20px;">PAGE NOT FOUND</div>
-            <div style="font-size: 10px;">${message}</div>
-            <div style="margin-top: 20px;">
+        <div class="error-page">
+            <div class="error-page-title">PAGE NOT FOUND</div>
+            <div class="error-page-message">${message}</div>
+            <div class="error-page-link-container">
                 <span class="page-link" onclick="navigatePage(340)">Return to Homepage (p340)</span>
             </div>
         </div>
@@ -180,24 +180,24 @@ function showErrorPage(message) {
  * Render Homepage (Page 340)
  */
 function renderHomepage(data) {
-    let html = '<div class="headline" style="font-size: 16px; margin-bottom: 20px;">CEEFAX CRICKET</div>';
+    let html = '<div class="headline homepage-headline">CEEFAX CRICKET</div>';
     
     // Live Matches
     if (data.liveMatches && data.liveMatches.length > 0) {
-        html += '<div class="section-header" style="background: var(--teletext-yellow); color: var(--teletext-black); padding: 8px; margin: 15px 0;">LIVE MATCHES</div>';
+        html += '<div class="section-header section-header-yellow">LIVE MATCHES</div>';
         
         data.liveMatches.forEach(match => {
             const currentInnings = match.innings[match.innings.length - 1];
             html += `
                 <div class="mini-score">
-                    <div style="color: var(--teletext-yellow); font-size: 12px;">
+                    <div class="mini-score-series-link">
                         → ${match.seriesName.toUpperCase()}
                         <span class="page-link" onclick="navigatePage(${match.seriesPage})">p${match.seriesPage}</span>
                     </div>
-                    <div style="color: var(--teletext-white); margin-top: 5px;">
+                    <div class="mini-score-current">
                         ${currentInnings.battingTeam} ${currentInnings.runs}/${currentInnings.wickets} (${currentInnings.overs}.${currentInnings.balls} overs)
                     </div>
-                    ${match.matchSituation && match.matchSituation.leadBy ? `<div style="color: var(--teletext-cyan); font-size: 8px;">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
+                    ${match.matchSituation && match.matchSituation.leadBy ? `<div class="mini-score-situation">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
                 </div>
             `;
         });
@@ -205,13 +205,13 @@ function renderHomepage(data) {
     
     // News
     if (data.news && data.news.length > 0) {
-        html += '<div class="section-header" style="background: var(--teletext-yellow); color: var(--teletext-black); padding: 8px; margin: 15px 0;">NEWS</div>';
+        html += '<div class="section-header section-header-yellow">NEWS</div>';
         
         data.news.forEach(newsItem => {
             html += `
-                <div style="margin: 10px 0;">
+                <div class="item-container">
                     <span class="page-link" onclick="navigatePage(${newsItem.page})">${newsItem.title}</span>
-                    <span class="page-link" style="float: right;">p${newsItem.page}</span>
+                    <span class="page-link page-link-right">p${newsItem.page}</span>
                 </div>
             `;
         });
@@ -219,7 +219,7 @@ function renderHomepage(data) {
     
     // Series
     if (data.series && data.series.length > 0) {
-        html += '<div class="section-header" style="background: var(--teletext-yellow); color: var(--teletext-black); padding: 8px; margin: 15px 0;">SERIES</div>';
+        html += '<div class="section-header section-header-yellow">SERIES</div>';
         
         data.series.forEach(series => {
             const seriesScore = Object.entries(series.seriesScore)
@@ -227,10 +227,10 @@ function renderHomepage(data) {
                 .join(' - ');
             
             html += `
-                <div style="margin: 10px 0;">
+                <div class="item-container">
                     <span class="page-link" onclick="navigatePage(${series.startPage})">${series.name}</span>
-                    <span class="page-link" style="float: right;">p${series.startPage}</span>
-                    <div style="color: var(--teletext-cyan); font-size: 8px; margin-top: 3px;">${seriesScore}</div>
+                    <span class="page-link page-link-right">p${series.startPage}</span>
+                    <div class="item-subscore">${seriesScore}</div>
                 </div>
             `;
         });
@@ -246,12 +246,12 @@ function renderHomepage(data) {
 function renderNewsPage(data) {
     const news = data.newsItem;
     const html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${news.title.toUpperCase()}</div>
-        <div style="color: var(--teletext-cyan); font-size: 8px; margin-bottom: 15px;">${news.date}</div>
+        <div class="headline news-headline">${news.title.toUpperCase()}</div>
+        <div class="news-date">${news.date}</div>
         <div class="news-content">${news.content}</div>
-        <div style="margin-top: 20px;">
+        <div class="news-footer">
             <span class="page-link" onclick="navigatePage(340)">Homepage</span>
-            <span class="page-link" style="float: right;">p340</span>
+            <span class="page-link page-link-right">p340</span>
         </div>
     `;
     
@@ -269,8 +269,8 @@ function renderSeriesOverview(data) {
         .join(' - ');
     
     let html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${series.name.toUpperCase()}</div>
-        <div style="color: var(--teletext-white); margin-bottom: 10px;">${series.team1} vs ${series.team2}</div>
+        <div class="headline series-overview-headline">${series.name.toUpperCase()}</div>
+        <div class="series-teams">${series.team1} vs ${series.team2}</div>
         <div class="series-score-line">SERIES: ${seriesScoreText}</div>
     `;
     
@@ -278,10 +278,10 @@ function renderSeriesOverview(data) {
     if (data.currentMatch) {
         const match = data.currentMatch;
         html += `
-            <div class="section-header" style="background: var(--teletext-cyan); color: var(--teletext-black); padding: 8px; margin: 15px 0;">
+            <div class="section-header section-header-cyan">
                 CURRENT MATCH <span class="live-indicator">LIVE</span>
             </div>
-            <div style="color: var(--teletext-white);">
+            <div class="match-info-text">
                 ${match.title} - ${match.venue}
             </div>
         `;
@@ -291,40 +291,40 @@ function renderSeriesOverview(data) {
     if (data.nextMatch) {
         const match = data.nextMatch;
         html += `
-            <div class="section-header" style="background: var(--teletext-yellow); color: var(--teletext-black); padding: 8px; margin: 15px 0;">NEXT MATCH</div>
-            <div style="color: var(--teletext-white);">
+            <div class="section-header section-header-yellow">NEXT MATCH</div>
+            <div class="match-info-text">
                 ${match.title} - ${match.venue || 'TBC'}
-                <div style="color: var(--teletext-cyan); font-size: 8px; margin-top: 5px;">${match.date || 'Date TBC'}</div>
+                <div class="match-date">${match.date || 'Date TBC'}</div>
             </div>
         `;
     }
     
     // Navigation links
     html += `
-        <div style="margin-top: 30px; color: var(--teletext-white);">
-            <div style="margin: 5px 0;">
+        <div class="nav-links-container">
+            <div class="nav-link-item">
                 <span>Live Score</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 1})">p${series.startPage + 1}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 1})">p${series.startPage + 1}</span>
             </div>
-            <div style="margin: 5px 0;">
+            <div class="nav-link-item">
                 <span>Full Scorecard</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 2})">p${series.startPage + 2}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 2})">p${series.startPage + 2}</span>
             </div>
-            <div style="margin: 5px 0;">
+            <div class="nav-link-item">
                 <span>Fixtures</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 3})">p${series.startPage + 3}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 3})">p${series.startPage + 3}</span>
             </div>
-            <div style="margin: 5px 0;">
+            <div class="nav-link-item">
                 <span>Results</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 4})">p${series.startPage + 4}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 4})">p${series.startPage + 4}</span>
             </div>
-            <div style="margin: 5px 0;">
+            <div class="nav-link-item">
                 <span>Leading Run Scorers</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 5})">p${series.startPage + 5}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 5})">p${series.startPage + 5}</span>
             </div>
-            <div style="margin: 5px 0;">
+            <div class="nav-link-item">
                 <span>Leading Wicket Takers</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 6})">p${series.startPage + 6}</span>
+                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 6})">p${series.startPage + 6}</span>
             </div>
         </div>
     `;
@@ -341,7 +341,7 @@ function renderLiveScore(data) {
     
     if (!match || !match.innings || match.innings.length === 0) {
         document.getElementById('page-content').innerHTML = `
-            <div style="text-align: center; color: var(--teletext-yellow); padding: 40px;">
+            <div class="no-match-center">
                 NO LIVE MATCH
             </div>
         `;
@@ -365,11 +365,11 @@ function renderLiveScore(data) {
         ).join(' ');
     };
     
-    // Build match header with venue and day - font size 26px
+    // Build match header with venue and day
     let html = `
-        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 26px; margin-bottom: 10px; font-family: var(--font-teletext);">
+        <div class="live-match-header">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
-            <span style="color: var(--teletext-white);">1/1</span>
+            <span class="live-subpage-indicator">1/1</span>
         </div>
     `;
     
@@ -391,7 +391,7 @@ function renderLiveScore(data) {
     const team1Innings = match.innings.filter(i => i.battingTeam === team1);
     const team2Innings = match.innings.filter(i => i.battingTeam === team2);
     
-    // ALWAYS display team scores (even if 0-0) - font size 26px
+    // ALWAYS display team scores (even if 0-0)
     // Team 1 score
     if (team1) {
         let scoreText = '0-0 (0 ov)'; // Default for no innings
@@ -415,7 +415,7 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div class="live-team-score">
                 ${capitalizeWords(team1)}: ${scoreText}
             </div>
         `;
@@ -444,13 +444,13 @@ function renderLiveScore(data) {
         }
         
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 5px 0; font-family: var(--font-teletext);">
+            <div class="live-team-score">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
     }
     
-    // Match situation (lead/trail/chase) - sentence case - font size 26px
+    // Match situation (lead/trail/chase) - sentence case
     const team1Total = team1Innings.reduce((sum, i) => sum + i.runs, 0);
     const team2Total = team2Innings.reduce((sum, i) => sum + i.runs, 0);
     
@@ -487,7 +487,7 @@ function renderLiveScore(data) {
     
     if (matchSituation) {
         html += `
-            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
+            <div class="live-match-situation">
                 ${matchSituation}
             </div>
         `;
@@ -497,22 +497,22 @@ function renderLiveScore(data) {
     const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
     const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
-    // Section header for current innings - white text, no background - font size 32px
+    // Section header for current innings
     html += `
-        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 26px; font-weight: bold; font-family: var(--font-teletext);">
+        <div class="live-innings-header">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
     
-    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - font size 32px
+    // Batting table - only show current 2 batsmen
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 26px; font-family: var(--font-teletext);">
-            <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Batters</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">B</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">4s</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">6s</th>
+        <table class="live-batting-table">
+            <tr class="live-batting-table-header">
+                <th>Batters</th>
+                <th>R</th>
+                <th>B</th>
+                <th>4s</th>
+                <th>6s</th>
             </tr>
     `;
     
@@ -531,11 +531,11 @@ function renderLiveScore(data) {
             batsmenArray.forEach(batsman => {
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.balls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.sixes || 0}</td>
+                        <td>${batsman.name || 'Unknown'}</td>
+                        <td>${batsman.runs}</td>
+                        <td>${batsman.balls}</td>
+                        <td>${batsman.fours || 0}</td>
+                        <td>${batsman.sixes || 0}</td>
                     </tr>
                 `;
             });
@@ -548,11 +548,11 @@ function renderLiveScore(data) {
             if (striker) {
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.name || currentInnings.striker}*</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.runs || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.balls || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.fours || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.sixes || 0}</td>
+                        <td>${striker.name || currentInnings.striker}*</td>
+                        <td>${striker.runs || 0}</td>
+                        <td>${striker.balls || 0}</td>
+                        <td>${striker.fours || 0}</td>
+                        <td>${striker.sixes || 0}</td>
                     </tr>
                 `;
             }
@@ -567,11 +567,11 @@ function renderLiveScore(data) {
                 
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsName}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsRuns}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsBalls}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsFours}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsSixes}</td>
+                        <td>${nsName}</td>
+                        <td>${nsRuns}</td>
+                        <td>${nsBalls}</td>
+                        <td>${nsFours}</td>
+                        <td>${nsSixes}</td>
                     </tr>
                 `;
             }
@@ -580,15 +580,15 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - font size 32px
+    // Bowling table - only show current 2 bowlers
     html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 26px; font-family: var(--font-teletext);">
-            <tr style="background: var(--teletext-black);">
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Bowlers</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">O</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">M</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
-                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">W</th>
+        <table class="live-bowling-table">
+            <tr class="live-bowling-table-header">
+                <th>Bowlers</th>
+                <th>O</th>
+                <th>M</th>
+                <th>R</th>
+                <th>W</th>
             </tr>
     `;
     
@@ -605,11 +605,11 @@ function renderLiveScore(data) {
                 const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
                 html += `
                     <tr>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.name || 'Unknown'}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.maidens || 0}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.runs}</td>
-                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.wickets}</td>
+                        <td>${bowler.name || 'Unknown'}</td>
+                        <td>${oversStr}</td>
+                        <td>${bowler.maidens || 0}</td>
+                        <td>${bowler.runs}</td>
+                        <td>${bowler.wickets}</td>
                     </tr>
                 `;
             });
@@ -623,11 +623,11 @@ function renderLiveScore(data) {
                     const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
                     html += `
                         <tr>
-                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowlerName}</td>
-                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
-                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.maidens || 0}</td>
-                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.runs}</td>
-                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.wickets}</td>
+                            <td>${bowlerName}</td>
+                            <td>${oversStr}</td>
+                            <td>${currentBowler.maidens || 0}</td>
+                            <td>${currentBowler.runs}</td>
+                            <td>${currentBowler.wickets}</td>
                         </tr>
                     `;
                     
@@ -642,11 +642,11 @@ function renderLiveScore(data) {
                         const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
                         html += `
                             <tr>
-                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.name}</td>
-                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
-                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.maidens || 0}</td>
-                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.runs}</td>
-                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.wickets}</td>
+                                <td>${prevBowler.name}</td>
+                                <td>${oversStr}</td>
+                                <td>${prevBowler.maidens || 0}</td>
+                                <td>${prevBowler.runs}</td>
+                                <td>${prevBowler.wickets}</td>
                             </tr>
                         `;
                     }
@@ -657,7 +657,7 @@ function renderLiveScore(data) {
     
     html += '</table>';
     
-    // Recent over at bottom - most recent ball first, proper formatting - font size 18px
+    // Recent over at bottom - most recent ball first, proper formatting
     // Show current over if it exists, otherwise show previous completed over
     let overToDisplay = null;
     let overLabel = '';
@@ -674,8 +674,8 @@ function renderLiveScore(data) {
     }
     
     if (overToDisplay) {
-        html += `<div style="color: var(--teletext-cyan); font-size: 26px; margin: 20px 0 5px 0; font-family: var(--font-teletext);">${overLabel}</div>`;
-        html += '<div style="color: var(--teletext-cyan); font-size: 26px; margin: 5px 0 10px 0; font-family: var(--font-teletext);">';
+        html += `<div class="live-over-label">${overLabel}</div>`;
+        html += '<div class="live-over-balls">';
         
         // Reverse the order so most recent ball is first
         const ballsReversed = [...overToDisplay].reverse();
@@ -733,34 +733,34 @@ function renderLiveScore(data) {
                 ballDisplay = '•';
             }
             
-            // Color coding
-            let color = 'var(--teletext-white)';
+            // Color coding with CSS classes
+            let colorClass = 'ball-normal-color';
             if (ball.wicket) {
-                color = 'var(--teletext-red)';
+                colorClass = 'ball-wicket-color';
             } else if (ball.runs === 4 || ball.runs === 6) {
-                color = 'var(--teletext-green)';
+                colorClass = 'ball-boundary-color';
             }
             
-            html += `<span style="color: ${color};">${ballDisplay}</span>`;
+            html += `<span class="${colorClass}">${ballDisplay}</span>`;
         });
         
         html += '</div>';
     }
     
-    // Footer with promotion message (like in mockup) - font size 32px
+    // Footer with promotion message
     html += `
-        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 26px; font-family: var(--font-teletext);">
+        <div class="live-promo-bar">
             Buy the latest Tailenders merch.<br>Go Well!
         </div>
     `;
     
-    // Navigation links at bottom - font size 32px
+    // Navigation links at bottom
     html += `
-        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 26px; font-family: var(--font-teletext);">
-            <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
-            <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
-            <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
-            <span class="page-link" style="color: var(--teletext-cyan);" onclick="navigatePage(${data.series.startPage})">Donate</span>
+        <div class="live-footer-nav">
+            <span class="page-link footer-link-red" onclick="navigatePage(340)">Cricket</span>
+            <span class="page-link footer-link-green" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
+            <span class="page-link footer-link-yellow" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
+            <span class="page-link footer-link-cyan" onclick="navigatePage(${data.series.startPage})">Donate</span>
         </div>
     `;
     
@@ -820,10 +820,10 @@ function renderScorecardSubpage(match, subpage) {
     const innings = match.innings[inningsIndex];
     
     let html = `
-        <div class="headline" style="font-size: 14px;">${match.title.toUpperCase()}</div>
-        <div style="color: var(--teletext-cyan); font-size: 8px; margin: 10px 0;">${match.venue}</div>
+        <div class="headline scorecard-headline">${match.title.toUpperCase()}</div>
+        <div class="scorecard-venue">${match.venue}</div>
         
-        <div class="section-header" style="background: var(--teletext-yellow); color: var(--teletext-black); padding: 8px; margin: 15px 0;">
+        <div class="section-header scorecard-innings-header">
             ${innings.battingTeam.toUpperCase()} ${isBatting ? 'BATTING' : 'BOWLING'} - INNINGS ${innings.number}
         </div>
     `;
@@ -890,26 +890,27 @@ function renderFixtures(data) {
     const series = data.series;
     
     let html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${series.name.toUpperCase()} - FIXTURES</div>
+        <div class="headline fixtures-headline">${series.name.toUpperCase()} - FIXTURES</div>
     `;
     
     series.matches.forEach(match => {
         const statusIcon = match.status === 'completed' ? '✓' : match.status === 'live' ? '→' : '';
-        const statusColor = match.status === 'completed' ? 'var(--teletext-green)' : 
-                           match.status === 'live' ? 'var(--teletext-red)' : 'var(--teletext-yellow)';
+        let statusClass = 'fixture-status-upcoming';
+        if (match.status === 'completed') statusClass = 'fixture-status-completed';
+        else if (match.status === 'live') statusClass = 'fixture-status-live';
         
         html += `
             <div class="fixture-item">
-                <div style="color: ${statusColor}; font-size: 10px;">
+                <div class="${statusClass}">
                     ${statusIcon} ${match.title.toUpperCase()}
                 </div>
-                <div style="color: var(--teletext-white); margin-top: 5px;">
+                <div class="fixture-venue">
                     ${match.venue || 'Venue TBC'}
                 </div>
-                <div style="color: var(--teletext-cyan); font-size: 8px; margin-top: 3px;">
+                <div class="fixture-date">
                     ${match.date || 'Date TBC'}
                 </div>
-                ${match.result ? `<div style="color: var(--teletext-yellow); font-size: 8px; margin-top: 3px;">${match.result}</div>` : ''}
+                ${match.result ? `<div class="fixture-result">${match.result}</div>` : ''}
             </div>
         `;
     });
@@ -925,25 +926,25 @@ function renderResults(data) {
     const series = data.series;
     
     let html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${series.name.toUpperCase()} - RESULTS</div>
+        <div class="headline fixtures-headline">${series.name.toUpperCase()} - RESULTS</div>
     `;
     
     if (data.completedMatches && data.completedMatches.length > 0) {
         data.completedMatches.forEach(match => {
             html += `
                 <div class="fixture-item">
-                    <div style="color: var(--teletext-green); font-size: 10px;">
+                    <div class="fixture-status-completed">
                         ✓ ${match.title.toUpperCase()}
                     </div>
-                    <div style="color: var(--teletext-white); margin-top: 5px;">
+                    <div class="fixture-venue">
                         ${match.venue}
                     </div>
-                    ${match.result ? `<div style="color: var(--teletext-yellow); font-size: 8px; margin-top: 5px;">${match.result}</div>` : ''}
+                    ${match.result ? `<div class="fixture-result">${match.result}</div>` : ''}
                 </div>
             `;
         });
     } else {
-        html += `<div style="text-align: center; color: var(--teletext-yellow); padding: 20px;">NO COMPLETED MATCHES</div>`;
+        html += `<div class="no-stats-message">NO COMPLETED MATCHES</div>`;
     }
     
     document.getElementById('page-content').innerHTML = html;
@@ -958,7 +959,7 @@ function renderBattingStats(data) {
     const batsmen = data.batsmen || [];
     
     let html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${series.name.toUpperCase()} - LEADING RUN SCORERS</div>
+        <div class="headline stats-headline">${series.name.toUpperCase()} - LEADING RUN SCORERS</div>
     `;
     
     if (batsmen.length > 0) {
@@ -979,7 +980,7 @@ function renderBattingStats(data) {
         
         html += '</table>';
     } else {
-        html += `<div style="text-align: center; color: var(--teletext-yellow); padding: 20px;">NO STATS AVAILABLE YET</div>`;
+        html += `<div class="no-stats-message">NO STATS AVAILABLE YET</div>`;
     }
     
     document.getElementById('page-content').innerHTML = html;
@@ -994,7 +995,7 @@ function renderBowlingStats(data) {
     const bowlers = data.bowlers || [];
     
     let html = `
-        <div class="headline" style="font-size: 14px; margin-bottom: 15px;">${series.name.toUpperCase()} - LEADING WICKET TAKERS</div>
+        <div class="headline stats-headline">${series.name.toUpperCase()} - LEADING WICKET TAKERS</div>
     `;
     
     if (bowlers.length > 0) {
@@ -1015,7 +1016,7 @@ function renderBowlingStats(data) {
         
         html += '</table>';
     } else {
-        html += `<div style="text-align: center; color: var(--teletext-yellow); padding: 20px;">NO STATS AVAILABLE YET</div>`;
+        html += `<div class="no-stats-message">NO STATS AVAILABLE YET</div>`;
     }
     
     document.getElementById('page-content').innerHTML = html;

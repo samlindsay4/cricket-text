@@ -517,3 +517,375 @@ body {
   font-size: 10px;
   color: var(--teletext-white);
 }
+
+/* ========================================
+   PAGE-SPECIFIC STYLES FOR PAGE-VIEWER.JS
+   ======================================== */
+
+/* Error Page Styles */
+.error-page {
+  text-align: center;
+  color: var(--teletext-red);
+  padding: 40px;
+}
+
+.error-page-title {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.error-page-message {
+  font-size: 10px;
+}
+
+.error-page-link-container {
+  margin-top: 20px;
+}
+
+/* Homepage Styles */
+.homepage-headline {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+/* Section Headers - used across multiple page types */
+.section-header-yellow {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+.section-header-cyan {
+  background: var(--teletext-cyan);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+/* Mini Score Display (used on homepage) */
+.mini-score-series-link {
+  color: var(--teletext-yellow);
+  font-size: 12px;
+}
+
+.mini-score-current {
+  color: var(--teletext-white);
+  margin-top: 5px;
+}
+
+.mini-score-situation {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+}
+
+/* News and Series Items */
+.item-container {
+  margin: 10px 0;
+}
+
+.page-link-right {
+  float: right;
+}
+
+.item-subscore {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+/* News Page Styles */
+.news-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.news-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-bottom: 15px;
+}
+
+.news-footer {
+  margin-top: 20px;
+}
+
+/* Series Overview Styles */
+.series-overview-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.series-teams {
+  color: var(--teletext-white);
+  margin-bottom: 10px;
+}
+
+.match-info-text {
+  color: var(--teletext-white);
+}
+
+.match-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 5px;
+}
+
+.nav-links-container {
+  margin-top: 30px;
+  color: var(--teletext-white);
+}
+
+.nav-link-item {
+  margin: 5px 0;
+}
+
+/* Live Score Page Styles - TELETEST Design */
+
+/* Match Header with Venue and Day */
+.live-match-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--teletext-green);
+  font-size: 26px;
+  margin-bottom: 10px;
+  font-family: var(--font-teletext);
+}
+
+.live-subpage-indicator {
+  color: var(--teletext-white);
+}
+
+/* Team Score Lines */
+.live-team-score {
+  color: var(--teletext-yellow);
+  font-size: 26px;
+  margin: 5px 0;
+  font-family: var(--font-teletext);
+}
+
+/* Match Situation (lead/trail/target) */
+.live-match-situation {
+  color: var(--teletext-yellow);
+  font-size: 26px;
+  margin: 10px 0 15px 0;
+  font-family: var(--font-teletext);
+}
+
+/* Current Innings Section Header */
+.live-innings-header {
+  color: var(--teletext-white);
+  padding: 5px 0;
+  margin: 15px 0 5px 0;
+  font-size: 26px;
+  font-weight: bold;
+  font-family: var(--font-teletext);
+}
+
+/* Batting Table */
+.live-batting-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.live-batting-table-header {
+  background: var(--teletext-black);
+}
+
+.live-batting-table th {
+  color: var(--teletext-cyan);
+  text-align: left;
+  padding: 4px 4px 4px 0;
+}
+
+.live-batting-table th:nth-child(1) {
+  width: 60%;
+}
+
+.live-batting-table th:nth-child(2),
+.live-batting-table th:nth-child(3),
+.live-batting-table th:nth-child(4),
+.live-batting-table th:nth-child(5) {
+  width: 10%;
+}
+
+.live-batting-table td {
+  color: var(--teletext-white);
+  padding: 4px 4px 4px 0;
+}
+
+/* Bowling Table */
+.live-bowling-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0 10px 0;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.live-bowling-table-header {
+  background: var(--teletext-black);
+}
+
+.live-bowling-table th {
+  color: var(--teletext-cyan);
+  text-align: left;
+  padding: 4px 4px 4px 0;
+}
+
+.live-bowling-table th:nth-child(1) {
+  width: 60%;
+}
+
+.live-bowling-table th:nth-child(2),
+.live-bowling-table th:nth-child(3),
+.live-bowling-table th:nth-child(4),
+.live-bowling-table th:nth-child(5) {
+  width: 10%;
+}
+
+.live-bowling-table td {
+  color: var(--teletext-white);
+  padding: 4px 4px 4px 0;
+}
+
+/* Over Display */
+.live-over-label {
+  color: var(--teletext-cyan);
+  font-size: 26px;
+  margin: 20px 0 5px 0;
+  font-family: var(--font-teletext);
+}
+
+.live-over-balls {
+  color: var(--teletext-cyan);
+  font-size: 26px;
+  margin: 5px 0 10px 0;
+  font-family: var(--font-teletext);
+}
+
+.ball-wicket-color {
+  color: var(--teletext-red);
+}
+
+.ball-boundary-color {
+  color: var(--teletext-green);
+}
+
+.ball-normal-color {
+  color: var(--teletext-white);
+}
+
+/* Promo/Footer Bar */
+.live-promo-bar {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  padding: 10px;
+  margin-top: 20px;
+  text-align: center;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+/* Footer Navigation Links */
+.live-footer-nav {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.footer-link-red {
+  color: var(--teletext-red);
+}
+
+.footer-link-green {
+  color: var(--teletext-green);
+}
+
+.footer-link-yellow {
+  color: var(--teletext-yellow);
+}
+
+.footer-link-cyan {
+  color: var(--teletext-cyan);
+}
+
+/* Scorecard Page Styles */
+.scorecard-headline {
+  font-size: 14px;
+}
+
+.scorecard-venue {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin: 10px 0;
+}
+
+.scorecard-innings-header {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+/* Fixtures and Results Styles */
+.fixtures-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.fixture-status-completed {
+  color: var(--teletext-green);
+  font-size: 10px;
+}
+
+.fixture-status-live {
+  color: var(--teletext-red);
+  font-size: 10px;
+}
+
+.fixture-status-upcoming {
+  color: var(--teletext-yellow);
+  font-size: 10px;
+}
+
+.fixture-venue {
+  color: var(--teletext-white);
+  margin-top: 5px;
+}
+
+.fixture-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+.fixture-result {
+  color: var(--teletext-yellow);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+/* Stats Page Styles */
+.stats-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.no-stats-message {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 20px;
+}
+
+/* No Match/Content Message */
+.no-match-center {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 40px;
+}
