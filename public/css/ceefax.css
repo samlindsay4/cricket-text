@@ -1102,3 +1102,202 @@ body {
   color: var(--teletext-yellow);
   padding: 40px;
 }
+
+/* ========================================
+   COMMON UI COMPONENTS (used in page.html/index.html)
+   ======================================== */
+
+/*
+ * PAGE NAVIGATION
+ * Navigation buttons and page number input at bottom of pages
+ * Classes: page-navigation, nav-btn, page-number-input
+ */
+
+.page-navigation {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.nav-btn {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  border: 2px solid var(--teletext-cyan);
+  padding: 8px 16px;
+  font-family: var(--font-teletext);
+  font-size: 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.nav-btn:hover {
+  background: var(--teletext-cyan);
+  color: var(--teletext-black);
+}
+
+.page-number-input {
+  background: var(--teletext-black);
+  color: var(--teletext-cyan);
+  border: 2px solid var(--teletext-cyan);
+  padding: 8px;
+  font-family: var(--font-teletext);
+  font-size: 10px;
+  width: 80px;
+  text-align: center;
+}
+
+/*
+ * PAGE LINKS
+ * Interactive links used throughout pages
+ * Class: page-link
+ */
+
+.page-link {
+  color: var(--teletext-magenta);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.page-link:hover {
+  text-decoration: underline;
+}
+
+/*
+ * SUBPAGE INDICATOR
+ * Shows current subpage in multi-page displays
+ * Class: subpage-indicator
+ */
+
+.subpage-indicator {
+  color: var(--teletext-white);
+  font-size: 8px;
+  text-align: right;
+  margin-top: 10px;
+}
+
+/*
+ * LIVE INDICATOR
+ * Blinking "LIVE" indicator for live matches
+ * Class: live-indicator
+ */
+
+.live-indicator {
+  color: var(--teletext-red);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/*
+ * SERIES SCORE LINE
+ * Large yellow bar showing series score
+ * Class: series-score-line
+ */
+
+.series-score-line {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 15px 0;
+}
+
+/*
+ * MINI SCORE
+ * Compact score display on homepage
+ * Class: mini-score
+ */
+
+.mini-score {
+  background: rgba(0, 0, 85, 0.7);
+  border: 1px solid var(--teletext-cyan);
+  padding: 8px;
+  margin: 8px 0;
+}
+
+/*
+ * FIXTURE ITEM
+ * Container for individual fixture/result entries
+ * Class: fixture-item, fixture-status
+ */
+
+.fixture-item {
+  border: 1px solid var(--teletext-cyan);
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.fixture-status {
+  color: var(--teletext-green);
+}
+
+/*
+ * STATS TABLE
+ * Table layout for batting/bowling statistics
+ * Classes: stats-table, stats-table-total-row
+ * Used across scorecard, batting stats, and bowling stats pages
+ */
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+.stats-table th {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  padding: 6px;
+  text-align: left;
+  font-size: 8px;
+  border: 1px solid var(--teletext-cyan);
+}
+
+.stats-table td {
+  color: var(--teletext-white);
+  padding: 6px;
+  font-size: 8px;
+  border: 1px solid var(--teletext-cyan);
+}
+
+.stats-table-total-row {
+  background: var(--teletext-blue);
+}
+
+/*
+ * NEWS CONTENT
+ * News article text content
+ * Class: news-content
+ */
+
+.news-content {
+  color: var(--teletext-white);
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 15px 0;
+}
+
+/*
+ * RESPONSIVE STYLES FOR PAGE HEADER
+ * Adjusts header layout on smaller screens
+ */
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-wrap: wrap;
+    gap: 5px !important;
+  }
+  
+  .page-header > div {
+    gap: 10px !important;
+  }
+  
+  .page-header span {
+    font-size: 10px !important;
+  }
+}

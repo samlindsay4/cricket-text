@@ -776,7 +776,7 @@ function renderScorecard(data) {
     
     if (!match || !match.innings || match.innings.length === 0) {
         document.getElementById('page-content').innerHTML = `
-            <div style="text-align: center; color: var(--teletext-yellow); padding: 40px;">
+            <div class="no-match-center">
                 NO MATCH DATA
             </div>
         `;
@@ -849,7 +849,7 @@ function renderScorecardSubpage(match, subpage) {
         }
         
         html += `
-            <tr style="background: var(--teletext-blue);">
+            <tr class="stats-table-total-row">
                 <td><strong>TOTAL</strong></td>
                 <td><strong>${innings.runs}/${innings.wickets}</strong></td>
                 <td colspan="3"><strong>(${innings.overs}.${innings.balls} overs)</strong></td>
