@@ -144,25 +144,25 @@
 <body>
     <div class="container">
         <!-- Ceefax Header with Page Number -->
-        <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--teletext-black); color: var(--teletext-white); font-size: 12px;">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <span style="font-weight: bold;">TELETEST</span>
-                <span id="page-number-display" style="font-weight: bold;">340</span>
+        <header class="page-header">
+            <div class="page-header-left">
+                <span class="page-header-brand">TELETEST</span>
+                <span id="page-number-display" class="page-header-page-number">340</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="page-header-right">
                 <span class="ceefax-date" id="ceefax-date"></span>
-                <span class="ceefax-time" id="ceefax-time" style="color: var(--teletext-yellow);"></span>
+                <span class="ceefax-time page-header-time" id="ceefax-time"></span>
             </div>
         </header>
 
         <!-- CRICKET Header Bar - TELETEST Style -->
-        <div style="background: var(--teletext-blue); color: var(--teletext-green); text-shadow: 3px 3px 0px rgba(0, 0, 0, 1); font-size: 36px; padding: 25px 15px; text-align: center; border: none; letter-spacing: 0.2em; font-weight: bold; line-height: 0.9; font-family: var(--font-teletext);">
+        <div class="main-title-bar">
             CRICKET
         </div>
 
         <!-- Content Area -->
         <div class="content" id="page-content">
-            <div style="text-align: center; color: var(--teletext-yellow); padding: 40px;">
+            <div class="loading-message">
                 LOADING...
             </div>
         </div>

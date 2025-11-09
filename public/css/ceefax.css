@@ -1,5 +1,33 @@
 /* Ceefax/Teletext Styling */
 
+/* 
+ * =================================================================
+ * CRICKET TEXT - TELETEST STYLE GUIDE
+ * =================================================================
+ * 
+ * This stylesheet defines all styles for the cricket text application
+ * using authentic Ceefax/Teletext aesthetics. All page components use
+ * CSS classes instead of inline styles for easy maintenance.
+ * 
+ * USAGE GUIDE:
+ * - All styles use CSS custom properties (variables) for colors
+ * - Font: VT323 (imported from Google Fonts) for authentic teletext look
+ * - No inline styles should be used - all styling is done via classes
+ * - All pages (homepage, live, scorecard, fixtures, results, stats) share classes
+ * 
+ * COLOR PALETTE (CSS Variables):
+ * - --teletext-black: #000000 (background)
+ * - --teletext-red: #FF0000 (errors, wickets)
+ * - --teletext-green: #00FF00 (success, boundaries)
+ * - --teletext-yellow: #FFFF00 (highlights, team scores)
+ * - --teletext-blue: #0000FF (headers, containers)
+ * - --teletext-magenta: #FF00FF (links)
+ * - --teletext-cyan: #00FFFF (info, labels)
+ * - --teletext-white: #FFFFFF (primary text)
+ * 
+ * =================================================================
+ */
+
 /* Import VT323 Font from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -522,6 +550,12 @@ body {
    PAGE-SPECIFIC STYLES FOR PAGE-VIEWER.JS
    ======================================== */
 
+/*
+ * ERROR PAGE
+ * Used when page not found or loading errors
+ * Classes: error-page, error-page-title, error-page-message, error-page-link-container
+ */
+
 /* Error Page Styles */
 .error-page {
   text-align: center;
@@ -542,11 +576,25 @@ body {
   margin-top: 20px;
 }
 
+/*
+ * HOMEPAGE (Page 340)
+ * Main landing page showing live matches, news, and series links
+ * Classes: homepage-headline, mini-score-*, item-container, item-subscore
+ */
+
 /* Homepage Styles */
 .homepage-headline {
   font-size: 16px;
   margin-bottom: 20px;
 }
+
+/*
+ * SECTION HEADERS
+ * Used across all page types for major sections
+ * Classes: section-header-yellow, section-header-cyan
+ * - Yellow: Default section headers (news, series, fixtures)
+ * - Cyan: Live/active content headers
+ */
 
 /* Section Headers - used across multiple page types */
 .section-header-yellow {
@@ -562,6 +610,12 @@ body {
   padding: 8px;
   margin: 15px 0;
 }
+
+/*
+ * MINI SCORE DISPLAY
+ * Compact score cards shown on homepage for live matches
+ * Classes: mini-score, mini-score-series-link, mini-score-current, mini-score-situation
+ */
 
 /* Mini Score Display (used on homepage) */
 .mini-score-series-link {
@@ -594,6 +648,12 @@ body {
   margin-top: 3px;
 }
 
+/*
+ * NEWS PAGE
+ * Displays news articles with date and content
+ * Classes: news-headline, news-date, news-footer
+ */
+
 /* News Page Styles */
 .news-headline {
   font-size: 14px;
@@ -609,6 +669,13 @@ body {
 .news-footer {
   margin-top: 20px;
 }
+
+/*
+ * SERIES OVERVIEW PAGE
+ * Shows series information, current/next matches, and navigation
+ * Classes: series-overview-headline, series-teams, match-info-text, 
+ *          match-date, nav-links-container, nav-link-item
+ */
 
 /* Series Overview Styles */
 .series-overview-headline {
@@ -639,6 +706,30 @@ body {
 .nav-link-item {
   margin: 5px 0;
 }
+
+/*
+ * LIVE SCORE PAGE - MAIN TELETEST DESIGN
+ * The flagship page showing live cricket match scores with TELETEST styling
+ * 
+ * Key Features:
+ * - Large 26px font for match header, team scores, and situation
+ * - Batting/bowling tables with fixed column widths
+ * - Color-coded ball-by-ball over display
+ * - Promotional footer and navigation links
+ * 
+ * Classes:
+ * - live-match-header: Match title with venue and day
+ * - live-team-score: Team score lines (yellow text, 26px)
+ * - live-match-situation: Lead/trail/target info
+ * - live-innings-header: Current innings section header
+ * - live-batting-table: Batsmen statistics table
+ * - live-bowling-table: Bowlers statistics table
+ * - live-over-label, live-over-balls: Current/previous over display
+ * - ball-*-color: Color classes for balls (wicket/boundary/normal)
+ * - live-promo-bar: Footer promotional message
+ * - live-footer-nav: Bottom navigation links
+ * - footer-link-*: Colored footer link classes
+ */
 
 /* Live Score Page Styles - TELETEST Design */
 
@@ -815,6 +906,13 @@ body {
   color: var(--teletext-cyan);
 }
 
+/*
+ * SCORECARD PAGE
+ * Full scorecard with batting/bowling details per innings
+ * Cycles through subpages (batting/bowling for each innings)
+ * Classes: scorecard-headline, scorecard-venue, scorecard-innings-header
+ */
+
 /* Scorecard Page Styles */
 .scorecard-headline {
   font-size: 14px;
@@ -832,6 +930,21 @@ body {
   padding: 8px;
   margin: 15px 0;
 }
+
+/*
+ * FIXTURES AND RESULTS PAGES
+ * List of matches with status indicators and results
+ * 
+ * Classes:
+ * - fixtures-headline: Page title
+ * - fixture-item: Container for each match (with border)
+ * - fixture-status-completed: Green text for completed matches
+ * - fixture-status-live: Red text for live matches
+ * - fixture-status-upcoming: Yellow text for upcoming matches
+ * - fixture-venue: Venue name display
+ * - fixture-date: Match date display
+ * - fixture-result: Match result text
+ */
 
 /* Fixtures and Results Styles */
 .fixtures-headline {
@@ -871,6 +984,14 @@ body {
   margin-top: 3px;
 }
 
+/*
+ * STATISTICS PAGES
+ * Batting and bowling statistics tables
+ * Shows leading run scorers and wicket takers
+ * Classes: stats-headline, no-stats-message
+ * Uses: stats-table (defined in common styles)
+ */
+
 /* Stats Page Styles */
 .stats-headline {
   font-size: 14px;
@@ -883,8 +1004,100 @@ body {
   padding: 20px;
 }
 
+/*
+ * COMMON MESSAGE DISPLAYS
+ * Used across multiple pages for empty states
+ * Classes: no-match-center, loading-message
+ */
+
 /* No Match/Content Message */
 .no-match-center {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 40px;
+}
+
+/* ========================================
+   HTML PAGE STRUCTURE STYLES
+   ======================================== */
+
+/*
+ * PAGE HEADER (TELETEST Brand Bar)
+ * Top bar showing TELETEST branding, page number, date and time
+ * 
+ * Classes:
+ * - page-header: Main container
+ * - page-header-left/right: Layout sections
+ * - page-header-brand: "TELETEST" text
+ * - page-header-page-number: Page number display (e.g., "340")
+ * - page-header-time: Time display (yellow colored)
+ */
+
+/* Header styles (TELETEST header bar) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: var(--teletext-black);
+  color: var(--teletext-white);
+  font-size: 12px;
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-header-brand {
+  font-weight: bold;
+}
+
+.page-header-page-number {
+  font-weight: bold;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-header-time {
+  color: var(--teletext-yellow);
+}
+
+/*
+ * MAIN TITLE BAR
+ * Large "CRICKET" title bar with blue background and green text
+ * Authentic TELETEST styling with text-shadow
+ * Class: main-title-bar
+ */
+
+/* Main Cricket Title Bar */
+.main-title-bar {
+  background: var(--teletext-blue);
+  color: var(--teletext-green);
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 1);
+  font-size: 36px;
+  padding: 25px 15px;
+  text-align: center;
+  border: none;
+  letter-spacing: 0.2em;
+  font-weight: bold;
+  line-height: 0.9;
+  font-family: var(--font-teletext);
+}
+
+/*
+ * LOADING MESSAGE
+ * Displayed while content is being fetched
+ * Class: loading-message
+ */
+
+/* Loading message */
+.loading-message {
   text-align: center;
   color: var(--teletext-yellow);
   padding: 40px;
