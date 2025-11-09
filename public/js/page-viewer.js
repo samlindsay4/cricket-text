@@ -33,9 +33,19 @@ function updateURL(page) {
  */
 function updateHeaderDateTime() {
     const now = new Date();
-    const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-    const dateStr = now.toLocaleDateString('en-GB', dateOptions);
-    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    // Format: SAT 08 NOV
+    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const dayName = days[now.getDay()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = months[now.getMonth()];
+    const dateStr = `${dayName} ${day} ${month}`;
+    
+    // Format: 16:51/12
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}/${seconds}`;
     
     const dateElement = document.getElementById('ceefax-date');
     const timeElement = document.getElementById('ceefax-time');
@@ -92,8 +102,7 @@ async function loadPage(pageNum) {
         currentSubpage = 1;
         
         // Update page number display
-        document.getElementById('page-number-display').textContent = `P${pageNum}`;
-        document.getElementById('current-page-num').textContent = pageNum;
+        document.getElementById('page-number-display').textContent = pageNum;
         
         const response = await fetch(`/api/page-data?page=${pageNum}&_t=${Date.now()}`, {
             cache: 'no-store'
@@ -188,7 +197,7 @@ function renderHomepage(data) {
                     <div style="color: var(--teletext-white); margin-top: 5px;">
                         ${currentInnings.battingTeam} ${currentInnings.runs}/${currentInnings.wickets} (${currentInnings.overs}.${currentInnings.balls} overs)
                     </div>
-                    ${match.matchSituation.leadBy ? `<div style="color: var(--teletext-cyan); font-size: 8px;">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
+                    ${match.matchSituation && match.matchSituation.leadBy ? `<div style="color: var(--teletext-cyan); font-size: 8px;">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
                 </div>
             `;
         });
@@ -325,7 +334,7 @@ function renderSeriesOverview(data) {
 }
 
 /**
- * Render Live Score (reuse existing scorecard logic)
+ * Render Live Score - TELETEST Style
  */
 function renderLiveScore(data) {
     const match = data.match;
@@ -339,96 +348,419 @@ function renderLiveScore(data) {
         return;
     }
     
-    // Use similar rendering to the original scorecard
     const currentInnings = match.innings[match.innings.length - 1];
     
+    // Calculate match situation
+    let matchSituation = '';
+    
+    // Determine day of test match (rough estimation based on overs)
+    let totalOvers = 0;
+    match.innings.forEach(inn => totalOvers += (inn.overs || 0));
+    let dayNum = Math.min(5, Math.ceil(totalOvers / 90) || 1);
+    
+    // Helper function to capitalize first letter of each word
+    const capitalizeWords = (str) => {
+        return str.split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    };
+    
+    // Build match header with venue and day - font size 26px
     let html = `
-        <div class="headline" style="font-size: 14px;">
-            ${match.title.toUpperCase()} <span class="live-indicator">LIVE</span>
-        </div>
-        <div style="color: var(--teletext-cyan); font-size: 8px; margin: 10px 0;">${match.venue}</div>
-        
-        <div class="score-display">
-            <div class="team-score">
-                ${currentInnings.battingTeam.toUpperCase()} ${currentInnings.runs}/${currentInnings.wickets}
-            </div>
-            <div style="font-size: 10px;">(${currentInnings.overs}.${currentInnings.balls} overs)</div>
+        <div style="display: flex; justify-content: space-between; color: var(--teletext-green); font-size: 26px; margin-bottom: 10px; font-family: var(--font-teletext);">
+            <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
+            <span style="color: var(--teletext-white);">1/1</span>
         </div>
     `;
     
-    // Current batsmen
-    if (currentInnings.striker && currentInnings.allBatsmen) {
-        html += '<div class="batsmen">';
+    // Group innings by team and calculate cumulative scores
+    // Get team names from match.team1/team2 OR derive from innings data
+    let team1 = match.team1;
+    let team2 = match.team2;
+    
+    // If team1/team2 not set, extract from innings
+    if (!team1 && match.innings && match.innings.length > 0) {
+        team1 = match.innings[0].battingTeam;
+        if (match.innings.length > 1 && match.innings[1].battingTeam !== team1) {
+            team2 = match.innings[1].battingTeam;
+        } else if (match.innings.length > 2) {
+            team2 = match.innings[2].battingTeam;
+        }
+    }
+    
+    const team1Innings = match.innings.filter(i => i.battingTeam === team1);
+    const team2Innings = match.innings.filter(i => i.battingTeam === team2);
+    
+    // ALWAYS display team scores (even if 0-0) - font size 26px
+    // Team 1 score
+    if (team1) {
+        let scoreText = '0-0 (0 ov)'; // Default for no innings
         
-        const striker = currentInnings.allBatsmen[currentInnings.striker];
-        const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
-        
-        if (striker) {
-            html += `
-                <div class="batsman">
-                    <span class="batsman-name">${striker.name || currentInnings.striker}*</span>
-                    <span class="batsman-stats">${striker.runs} (${striker.balls})</span>
-                </div>
-            `;
+        if (team1Innings.length > 0) {
+            const firstInns = team1Innings[0];
+            const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+            const decText = firstInns.declared ? ' d' : '';
+            const isCurrentFirst = firstInns === currentInnings;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
+            
+            if (team1Innings.length > 1) {
+                const secondInns = team1Innings[1];
+                const decText = secondInns.declared ? ' dec' : '';
+                const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+                // Only show overs for ongoing innings (current innings)
+                const isCurrentInnings = secondInns === currentInnings;
+                const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
+                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
+            }
         }
         
-        if (nonStriker) {
-            html += `
-                <div class="batsman">
-                    <span class="batsman-name">${nonStriker.name || currentInnings.nonStriker}</span>
-                    <span class="batsman-stats">${nonStriker.runs} (${nonStriker.balls})</span>
-                </div>
-            `;
+        html += `
+            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 5px 0; font-family: var(--font-teletext);">
+                ${capitalizeWords(team1)}: ${scoreText}
+            </div>
+        `;
+    }
+    
+    // Team 2 score
+    if (team2) {
+        let scoreText = '0-0 (0 ov)'; // Default for no innings
+        
+        if (team2Innings.length > 0) {
+            const firstInns = team2Innings[0];
+            const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
+            const decText = firstInns.declared ? ' d' : '';
+            const isCurrentFirst = firstInns === currentInnings;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
+            
+            if (team2Innings.length > 1) {
+                const secondInns = team2Innings[1];
+                const decText = secondInns.declared ? ' dec' : '';
+                const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
+                // Only show overs for ongoing innings (current innings)
+                const isCurrentInnings = secondInns === currentInnings;
+                const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
+                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
+            }
         }
+        
+        html += `
+            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 5px 0; font-family: var(--font-teletext);">
+                ${capitalizeWords(team2)}: ${scoreText}
+            </div>
+        `;
+    }
+    
+    // Match situation (lead/trail/chase) - sentence case - font size 26px
+    const team1Total = team1Innings.reduce((sum, i) => sum + i.runs, 0);
+    const team2Total = team2Innings.reduce((sum, i) => sum + i.runs, 0);
+    
+    // Check if match is completed and show result
+    if (match.status === 'completed' && match.result) {
+        // Show the match result
+        matchSituation = match.result;
+    } else if (match.innings.length === 2) {
+        // First innings of each team complete
+        const lead = team1Total - team2Total;
+        
+        if (lead > 0 && currentInnings.battingTeam === team2) {
+            matchSituation = `${capitalizeWords(team2)} trail by ${lead} runs`;
+        } else if (lead < 0 && currentInnings.battingTeam === team1) {
+            matchSituation = `${capitalizeWords(team1)} trail by ${Math.abs(lead)} runs`;
+        }
+    } else if (match.innings.length >= 4 || (match.innings.length === 3 && currentInnings.number === 4)) {
+        // Fourth innings - calculate chase target
+        const target = team1Total - team2Total + 1;
+        if (target > 0 && currentInnings.battingTeam === team2) {
+            matchSituation = `${capitalizeWords(team2)} require ${target} to win`;
+        } else if (target < 0 && currentInnings.battingTeam === team1) {
+            matchSituation = `${capitalizeWords(team1)} require ${Math.abs(target)} to win`;
+        }
+    } else if (match.innings.length === 3) {
+        // Third innings - show lead
+        const lead = team1Total - team2Total;
+        if (lead > 0 && currentInnings.battingTeam === team1) {
+            matchSituation = `${capitalizeWords(team1)} lead by ${lead} runs`;
+        } else if (lead < 0 && currentInnings.battingTeam === team2) {
+            matchSituation = `${capitalizeWords(team2)} lead by ${Math.abs(lead)} runs`;
+        }
+    }
+    
+    if (matchSituation) {
+        html += `
+            <div style="color: var(--teletext-yellow); font-size: 26px; margin: 10px 0 15px 0; font-family: var(--font-teletext);">
+                ${matchSituation}
+            </div>
+        `;
+    }
+    
+    // Calculate innings number for this team (1st or 2nd)
+    const teamInningsCount = match.innings.filter(i => i.battingTeam === currentInnings.battingTeam).length;
+    const teamInningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
+    
+    // Section header for current innings - white text, no background - font size 32px
+    html += `
+        <div style="color: var(--teletext-white); padding: 5px 0; margin: 15px 0 5px 0; font-size: 26px; font-weight: bold; font-family: var(--font-teletext);">
+            ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
+        </div>
+    `;
+    
+    // Batting table - only show current 2 batsmen - with fixed column widths for alignment - font size 32px
+    html += `
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 26px; font-family: var(--font-teletext);">
+            <tr style="background: var(--teletext-black);">
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Batters</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">B</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">4s</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">6s</th>
+            </tr>
+    `;
+    
+    // Show batsmen - for completed matches show last 2, for live show striker and non-striker
+    if (currentInnings.allBatsmen) {
+        if (match.status === 'completed' || !currentInnings.striker || !currentInnings.nonStriker) {
+            // For completed matches or when striker info is missing, show last 2 batsmen who batted
+            const batsmenArray = Object.values(currentInnings.allBatsmen)
+                .filter(b => b.balls > 0)
+                .sort((a, b) => {
+                    // Sort by batting order or balls faced
+                    return (b.balls || 0) - (a.balls || 0);
+                })
+                .slice(0, 2);
+            
+            batsmenArray.forEach(batsman => {
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.balls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${batsman.sixes || 0}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            // For live matches, show striker and non-striker (always show both even if nonStriker hasn't faced yet)
+            const striker = currentInnings.allBatsmen[currentInnings.striker];
+            const nonStriker = currentInnings.allBatsmen[currentInnings.nonStriker];
+            
+            // Always show striker
+            if (striker) {
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.name || currentInnings.striker}*</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.runs || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.balls || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.fours || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${striker.sixes || 0}</td>
+                    </tr>
+                `;
+            }
+            
+            // Always show non-striker (even if they haven't faced a ball yet - show 0s)
+            if (nonStriker || currentInnings.nonStriker) {
+                const nsName = nonStriker ? (nonStriker.name || currentInnings.nonStriker) : currentInnings.nonStriker;
+                const nsRuns = nonStriker ? (nonStriker.runs || 0) : 0;
+                const nsBalls = nonStriker ? (nonStriker.balls || 0) : 0;
+                const nsFours = nonStriker ? (nonStriker.fours || 0) : 0;
+                const nsSixes = nonStriker ? (nonStriker.sixes || 0) : 0;
+                
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsName}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsRuns}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsBalls}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsFours}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${nsSixes}</td>
+                    </tr>
+                `;
+            }
+        }
+    }
+    
+    html += '</table>';
+    
+    // Bowling table - only show current 2 bowlers - with fixed column widths for alignment - font size 32px
+    html += `
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0 10px 0; font-size: 26px; font-family: var(--font-teletext);">
+            <tr style="background: var(--teletext-black);">
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 60%;">Bowlers</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">O</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">M</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">R</th>
+                <th style="color: var(--teletext-cyan); text-align: left; padding: 4px 4px 4px 0; width: 10%;">W</th>
+            </tr>
+    `;
+    
+    // Show bowlers - for completed matches show last 2, for live show current and previous (only if there are 2+)
+    if (currentInnings.allBowlers) {
+        if (match.status === 'completed' || !currentInnings.currentBowler) {
+            // For completed matches or when current bowler info is missing, show last 2 bowlers
+            const bowlersArray = Object.values(currentInnings.allBowlers)
+                .filter(b => b.balls > 0)
+                .sort((a, b) => b.balls - a.balls)
+                .slice(0, 2);
+            
+            bowlersArray.forEach(bowler => {
+                const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
+                html += `
+                    <tr>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.name || 'Unknown'}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.maidens || 0}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.runs}</td>
+                        <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowler.wickets}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            // For live matches, show current bowler with proper null checking
+            if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
+                const bowlerName = currentInnings.currentBowler.name;
+                const currentBowler = currentInnings.allBowlers[bowlerName];
+                
+                if (currentBowler) {
+                    const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
+                    html += `
+                        <tr>
+                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${bowlerName}</td>
+                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.maidens || 0}</td>
+                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.runs}</td>
+                            <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${currentBowler.wickets}</td>
+                        </tr>
+                    `;
+                    
+                    // Find previous bowler (not current bowler, sorted by most recent) - only show if there are other bowlers
+                    const otherBowlers = Object.values(currentInnings.allBowlers)
+                        .filter(b => b.balls > 0 && b.name !== bowlerName)
+                        .sort((a, b) => b.balls - a.balls);
+                    
+                    // Only show previous bowler if there is one (i.e., not in first over)
+                    if (otherBowlers.length > 0) {
+                        const prevBowler = otherBowlers[0];
+                        const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
+                        html += `
+                            <tr>
+                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.name}</td>
+                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${oversStr}</td>
+                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.maidens || 0}</td>
+                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.runs}</td>
+                                <td style="color: var(--teletext-white); padding: 4px 4px 4px 0;">${prevBowler.wickets}</td>
+                            </tr>
+                        `;
+                    }
+                }
+            }
+        }
+    }
+    
+    html += '</table>';
+    
+    // Recent over at bottom - most recent ball first, proper formatting - font size 18px
+    // Show current over if it exists, otherwise show previous completed over
+    let overToDisplay = null;
+    let overLabel = '';
+    
+    if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
+        // Show current over in progress
+        overToDisplay = currentInnings.currentOver;
+        // Add 1 to overs because currentInnings.overs is 0-indexed (first over shows as 0, should be 1)
+        overLabel = `Current over (Over ${currentInnings.overs + 1}):`;
+    } else if (currentInnings.previousOver && currentInnings.previousOver.length > 0) {
+        // No current over balls yet, show previous completed over
+        overToDisplay = currentInnings.previousOver;
+        overLabel = `Previous over (Over ${currentInnings.overs}):`;
+    }
+    
+    if (overToDisplay) {
+        html += `<div style="color: var(--teletext-cyan); font-size: 26px; margin: 20px 0 5px 0; font-family: var(--font-teletext);">${overLabel}</div>`;
+        html += '<div style="color: var(--teletext-cyan); font-size: 26px; margin: 5px 0 10px 0; font-family: var(--font-teletext);">';
+        
+        // Reverse the order so most recent ball is first
+        const ballsReversed = [...overToDisplay].reverse();
+        
+        ballsReversed.forEach((ball, idx) => {
+            if (idx > 0) html += ' ';
+            
+            let ballDisplay = '';
+            
+            if (ball.wicket) {
+                ballDisplay = 'W';
+            } else if (ball.overthrows && ball.overthrows > 0) {
+                // Overthrows scenario: "1+4" means 1 run + 4 overthrows = 5 total
+                ballDisplay = `${ball.runs}+${ball.overthrows}`;
+            } else if (ball.extraType) {
+                // Handle extras based on extrasType: NB, WD, B, LB, PEN
+                // Use toUpperCase for case-insensitive comparison
+                const extrasType = (ball.extraType || '').toUpperCase();
+                let extrasLabel = '';
+                
+                if (extrasType === 'NB' || extrasType === 'NOBALL') {
+                    extrasLabel = 'NB';
+                } else if (extrasType === 'WD' || extrasType === 'WIDE') {
+                    extrasLabel = 'WD';
+                } else if (extrasType === 'B' || extrasType === 'BYE') {
+                    extrasLabel = 'B';
+                } else if (extrasType === 'LB' || extrasType === 'LEGBYE') {
+                    extrasLabel = 'LB';
+                } else if (extrasType === 'PEN' || extrasType === 'PENALTY') {
+                    extrasLabel = 'PEN';
+                } else {
+                    extrasLabel = extrasType; // fallback - already uppercase
+                }
+                
+                if (ball.runs > 0 && ball.extras > 0) {
+                    // Runs + extras (e.g., "4+NB" for 4 runs off a no ball)
+                    ballDisplay = `${ball.runs}+${extrasLabel}`;
+                } else if (ball.extras > 1) {
+                    // Multiple extras (e.g., "5WD" for 5 wides)
+                    ballDisplay = `${ball.extras}${extrasLabel}`;
+                } else if (ball.runs > 0) {
+                    // Just runs with extras type (e.g., "4+NB")
+                    ballDisplay = `${ball.runs}+${extrasLabel}`;
+                } else {
+                    // Just the extras label (e.g., "NB" for no ball with 0 runs)
+                    ballDisplay = extrasLabel;
+                }
+            } else if (ball.runs === 4) {
+                ballDisplay = '4';
+            } else if (ball.runs === 6) {
+                ballDisplay = '6';
+            } else if (ball.runs > 0) {
+                ballDisplay = ball.runs.toString();
+            } else {
+                ballDisplay = '•';
+            }
+            
+            // Color coding
+            let color = 'var(--teletext-white)';
+            if (ball.wicket) {
+                color = 'var(--teletext-red)';
+            } else if (ball.runs === 4 || ball.runs === 6) {
+                color = 'var(--teletext-green)';
+            }
+            
+            html += `<span style="color: ${color};">${ballDisplay}</span>`;
+        });
         
         html += '</div>';
     }
     
-    // Current bowler
-    if (currentInnings.currentBowler && currentInnings.allBowlers) {
-        const bowler = currentInnings.allBowlers[currentInnings.currentBowler.name];
-        if (bowler) {
-            html += `
-                <div class="bowler">
-                    <div class="bowler-name">${bowler.name}</div>
-                    <div>${bowler.overs}.${bowler.balls % 6}-${bowler.maidens}-${bowler.runs}-${bowler.wickets}</div>
-                </div>
-            `;
-        }
-    }
-    
-    // Current over
-    if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
-        html += '<div class="current-over-section"><div class="over-title">THIS OVER</div><div class="over-balls">';
-        
-        currentInnings.currentOver.forEach(ball => {
-            let ballClass = 'ball ball-dot';
-            let ballText = '•';
-            
-            if (ball.wicket) {
-                ballClass = 'ball ball-wicket';
-                ballText = 'W';
-            } else if (ball.runs === 4) {
-                ballClass = 'ball ball-boundary';
-                ballText = '4';
-            } else if (ball.runs === 6) {
-                ballClass = 'ball ball-boundary';
-                ballText = '6';
-            } else if (ball.runs > 0 || ball.extras > 0) {
-                ballClass = 'ball ball-runs';
-                ballText = (ball.runs + ball.extras).toString();
-            }
-            
-            html += `<div class="${ballClass}">${ballText}</div>`;
-        });
-        
-        html += '</div></div>';
-    }
-    
+    // Footer with promotion message (like in mockup) - font size 32px
     html += `
-        <div style="margin-top: 20px;">
-            <span class="page-link" onclick="navigatePage(${data.series.startPage + 2})">Full Scorecard</span>
-            <span class="page-link" style="float: right;">p${data.series.startPage + 2}</span>
+        <div style="background: var(--teletext-blue); color: var(--teletext-yellow); padding: 10px; margin-top: 20px; text-align: center; font-size: 26px; font-family: var(--font-teletext);">
+            Buy the latest Tailenders merch.<br>Go Well!
+        </div>
+    `;
+    
+    // Navigation links at bottom - font size 32px
+    html += `
+        <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 26px; font-family: var(--font-teletext);">
+            <span class="page-link" style="color: var(--teletext-red);" onclick="navigatePage(340)">Cricket</span>
+            <span class="page-link" style="color: var(--teletext-green);" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
+            <span class="page-link" style="color: var(--teletext-yellow);" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
+            <span class="page-link" style="color: var(--teletext-cyan);" onclick="navigatePage(${data.series.startPage})">Donate</span>
         </div>
     `;
     

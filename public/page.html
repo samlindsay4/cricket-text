@@ -123,25 +123,40 @@
             line-height: 1.6;
             margin: 15px 0;
         }
+        
+        /* Responsive header for mobile */
+        @media (max-width: 600px) {
+            header {
+                flex-wrap: wrap;
+                gap: 5px !important;
+            }
+            
+            header > div {
+                gap: 10px !important;
+            }
+            
+            header span {
+                font-size: 10px !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Ceefax Header with Page Number -->
-        <header class="ceefax-header">
-            <div class="ceefax-header-left">
-                <span class="page-number-box" id="page-number-display">P340</span>
-                <span class="page-title">CEEFAX 1</span>
-                <span id="current-page-num" style="margin-left: 10px;"></span>
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--teletext-black); color: var(--teletext-white); font-size: 12px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span style="font-weight: bold;">TELETEST</span>
+                <span id="page-number-display" style="font-weight: bold;">340</span>
             </div>
-            <div class="ceefax-header-right">
+            <div style="display: flex; align-items: center; gap: 20px;">
                 <span class="ceefax-date" id="ceefax-date"></span>
-                <span class="ceefax-time" id="ceefax-time"></span>
+                <span class="ceefax-time" id="ceefax-time" style="color: var(--teletext-yellow);"></span>
             </div>
         </header>
 
-        <!-- CRICKET Header Bar -->
-        <div class="ceefax-header" style="background: var(--teletext-blue); color: var(--teletext-green); text-shadow: 3px 3px black; font-size: 24px; padding: 15px; text-align: center; border: none;">
+        <!-- CRICKET Header Bar - TELETEST Style -->
+        <div style="background: var(--teletext-blue); color: var(--teletext-green); text-shadow: 3px 3px 0px rgba(0, 0, 0, 1); font-size: 36px; padding: 25px 15px; text-align: center; border: none; letter-spacing: 0.2em; font-weight: bold; line-height: 0.9; font-family: var(--font-teletext);">
             CRICKET
         </div>
 
