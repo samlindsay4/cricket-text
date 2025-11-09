@@ -1,5 +1,33 @@
 /* Ceefax/Teletext Styling */
 
+/* 
+ * =================================================================
+ * CRICKET TEXT - TELETEST STYLE GUIDE
+ * =================================================================
+ * 
+ * This stylesheet defines all styles for the cricket text application
+ * using authentic Ceefax/Teletext aesthetics. All page components use
+ * CSS classes instead of inline styles for easy maintenance.
+ * 
+ * USAGE GUIDE:
+ * - All styles use CSS custom properties (variables) for colors
+ * - Font: VT323 (imported from Google Fonts) for authentic teletext look
+ * - No inline styles should be used - all styling is done via classes
+ * - All pages (homepage, live, scorecard, fixtures, results, stats) share classes
+ * 
+ * COLOR PALETTE (CSS Variables):
+ * - --teletext-black: #000000 (background)
+ * - --teletext-red: #FF0000 (errors, wickets)
+ * - --teletext-green: #00FF00 (success, boundaries)
+ * - --teletext-yellow: #FFFF00 (highlights, team scores)
+ * - --teletext-blue: #0000FF (headers, containers)
+ * - --teletext-magenta: #FF00FF (links)
+ * - --teletext-cyan: #00FFFF (info, labels)
+ * - --teletext-white: #FFFFFF (primary text)
+ * 
+ * =================================================================
+ */
+
 /* Import VT323 Font from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -516,4 +544,760 @@ body {
 .series-header label {
   font-size: 10px;
   color: var(--teletext-white);
+}
+
+/* ========================================
+   PAGE-SPECIFIC STYLES FOR PAGE-VIEWER.JS
+   ======================================== */
+
+/*
+ * ERROR PAGE
+ * Used when page not found or loading errors
+ * Classes: error-page, error-page-title, error-page-message, error-page-link-container
+ */
+
+/* Error Page Styles */
+.error-page {
+  text-align: center;
+  color: var(--teletext-red);
+  padding: 40px;
+}
+
+.error-page-title {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.error-page-message {
+  font-size: 10px;
+}
+
+.error-page-link-container {
+  margin-top: 20px;
+}
+
+/*
+ * HOMEPAGE (Page 340)
+ * Main landing page showing live matches, news, and series links
+ * Classes: homepage-headline, mini-score-*, item-container, item-subscore
+ */
+
+/* Homepage Styles */
+.homepage-headline {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+/*
+ * SECTION HEADERS
+ * Used across all page types for major sections
+ * Classes: section-header-yellow, section-header-cyan
+ * - Yellow: Default section headers (news, series, fixtures)
+ * - Cyan: Live/active content headers
+ */
+
+/* Section Headers - used across multiple page types */
+.section-header-yellow {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+.section-header-cyan {
+  background: var(--teletext-cyan);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+/*
+ * MINI SCORE DISPLAY
+ * Compact score cards shown on homepage for live matches
+ * Classes: mini-score, mini-score-series-link, mini-score-current, mini-score-situation
+ */
+
+/* Mini Score Display (used on homepage) */
+.mini-score-series-link {
+  color: var(--teletext-yellow);
+  font-size: 12px;
+}
+
+.mini-score-current {
+  color: var(--teletext-white);
+  margin-top: 5px;
+}
+
+.mini-score-situation {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+}
+
+/* News and Series Items */
+.item-container {
+  margin: 10px 0;
+}
+
+.page-link-right {
+  float: right;
+}
+
+.item-subscore {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+/*
+ * NEWS PAGE
+ * Displays news articles with date and content
+ * Classes: news-headline, news-date, news-footer
+ */
+
+/* News Page Styles */
+.news-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.news-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-bottom: 15px;
+}
+
+.news-footer {
+  margin-top: 20px;
+}
+
+/*
+ * SERIES OVERVIEW PAGE
+ * Shows series information, current/next matches, and navigation
+ * Classes: series-overview-headline, series-teams, match-info-text, 
+ *          match-date, nav-links-container, nav-link-item
+ */
+
+/* Series Overview Styles */
+.series-overview-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.series-teams {
+  color: var(--teletext-white);
+  margin-bottom: 10px;
+}
+
+.match-info-text {
+  color: var(--teletext-white);
+}
+
+.match-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 5px;
+}
+
+.nav-links-container {
+  margin-top: 30px;
+  color: var(--teletext-white);
+}
+
+.nav-link-item {
+  margin: 5px 0;
+}
+
+/*
+ * LIVE SCORE PAGE - MAIN TELETEST DESIGN
+ * The flagship page showing live cricket match scores with TELETEST styling
+ * 
+ * Key Features:
+ * - Large 26px font for match header, team scores, and situation
+ * - Batting/bowling tables with fixed column widths
+ * - Color-coded ball-by-ball over display
+ * - Promotional footer and navigation links
+ * 
+ * Classes:
+ * - live-match-header: Match title with venue and day
+ * - live-team-score: Team score lines (yellow text, 26px)
+ * - live-match-situation: Lead/trail/target info
+ * - live-innings-header: Current innings section header
+ * - live-batting-table: Batsmen statistics table
+ * - live-bowling-table: Bowlers statistics table
+ * - live-over-label, live-over-balls: Current/previous over display
+ * - ball-*-color: Color classes for balls (wicket/boundary/normal)
+ * - live-promo-bar: Footer promotional message
+ * - live-footer-nav: Bottom navigation links
+ * - footer-link-*: Colored footer link classes
+ */
+
+/* Live Score Page Styles - TELETEST Design */
+
+/* Match Header with Venue and Day */
+.live-match-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--teletext-green);
+  font-size: 26px;
+  margin-bottom: 10px;
+  font-family: var(--font-teletext);
+}
+
+.live-subpage-indicator {
+  color: var(--teletext-white);
+}
+
+/* Team Score Lines */
+.live-team-score {
+  color: var(--teletext-yellow);
+  font-size: 26px;
+  margin: 5px 0;
+  font-family: var(--font-teletext);
+}
+
+/* Match Situation (lead/trail/target) */
+.live-match-situation {
+  color: var(--teletext-yellow);
+  font-size: 26px;
+  margin: 10px 0 15px 0;
+  font-family: var(--font-teletext);
+}
+
+/* Current Innings Section Header */
+.live-innings-header {
+  color: var(--teletext-white);
+  padding: 5px 0;
+  margin: 15px 0 5px 0;
+  font-size: 26px;
+  font-weight: bold;
+  font-family: var(--font-teletext);
+}
+
+/* Batting Table */
+.live-batting-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.live-batting-table-header {
+  background: var(--teletext-black);
+}
+
+.live-batting-table th {
+  color: var(--teletext-cyan);
+  text-align: left;
+  padding: 4px 4px 4px 0;
+}
+
+.live-batting-table th:nth-child(1) {
+  width: 60%;
+}
+
+.live-batting-table th:nth-child(2),
+.live-batting-table th:nth-child(3),
+.live-batting-table th:nth-child(4),
+.live-batting-table th:nth-child(5) {
+  width: 10%;
+}
+
+.live-batting-table td {
+  color: var(--teletext-white);
+  padding: 4px 4px 4px 0;
+}
+
+/* Bowling Table */
+.live-bowling-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0 10px 0;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.live-bowling-table-header {
+  background: var(--teletext-black);
+}
+
+.live-bowling-table th {
+  color: var(--teletext-cyan);
+  text-align: left;
+  padding: 4px 4px 4px 0;
+}
+
+.live-bowling-table th:nth-child(1) {
+  width: 60%;
+}
+
+.live-bowling-table th:nth-child(2),
+.live-bowling-table th:nth-child(3),
+.live-bowling-table th:nth-child(4),
+.live-bowling-table th:nth-child(5) {
+  width: 10%;
+}
+
+.live-bowling-table td {
+  color: var(--teletext-white);
+  padding: 4px 4px 4px 0;
+}
+
+/* Over Display */
+.live-over-label {
+  color: var(--teletext-cyan);
+  font-size: 26px;
+  margin: 20px 0 5px 0;
+  font-family: var(--font-teletext);
+}
+
+.live-over-balls {
+  color: var(--teletext-cyan);
+  font-size: 26px;
+  margin: 5px 0 10px 0;
+  font-family: var(--font-teletext);
+}
+
+.ball-wicket-color {
+  color: var(--teletext-red);
+}
+
+.ball-boundary-color {
+  color: var(--teletext-green);
+}
+
+.ball-normal-color {
+  color: var(--teletext-white);
+}
+
+/* Promo/Footer Bar */
+.live-promo-bar {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  padding: 10px;
+  margin-top: 20px;
+  text-align: center;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+/* Footer Navigation Links */
+.live-footer-nav {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 26px;
+  font-family: var(--font-teletext);
+}
+
+.footer-link-red {
+  color: var(--teletext-red);
+}
+
+.footer-link-green {
+  color: var(--teletext-green);
+}
+
+.footer-link-yellow {
+  color: var(--teletext-yellow);
+}
+
+.footer-link-cyan {
+  color: var(--teletext-cyan);
+}
+
+/*
+ * SCORECARD PAGE
+ * Full scorecard with batting/bowling details per innings
+ * Cycles through subpages (batting/bowling for each innings)
+ * Classes: scorecard-headline, scorecard-venue, scorecard-innings-header
+ */
+
+/* Scorecard Page Styles */
+.scorecard-headline {
+  font-size: 14px;
+}
+
+.scorecard-venue {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin: 10px 0;
+}
+
+.scorecard-innings-header {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 8px;
+  margin: 15px 0;
+}
+
+/*
+ * FIXTURES AND RESULTS PAGES
+ * List of matches with status indicators and results
+ * 
+ * Classes:
+ * - fixtures-headline: Page title
+ * - fixture-item: Container for each match (with border)
+ * - fixture-status-completed: Green text for completed matches
+ * - fixture-status-live: Red text for live matches
+ * - fixture-status-upcoming: Yellow text for upcoming matches
+ * - fixture-venue: Venue name display
+ * - fixture-date: Match date display
+ * - fixture-result: Match result text
+ */
+
+/* Fixtures and Results Styles */
+.fixtures-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.fixture-status-completed {
+  color: var(--teletext-green);
+  font-size: 10px;
+}
+
+.fixture-status-live {
+  color: var(--teletext-red);
+  font-size: 10px;
+}
+
+.fixture-status-upcoming {
+  color: var(--teletext-yellow);
+  font-size: 10px;
+}
+
+.fixture-venue {
+  color: var(--teletext-white);
+  margin-top: 5px;
+}
+
+.fixture-date {
+  color: var(--teletext-cyan);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+.fixture-result {
+  color: var(--teletext-yellow);
+  font-size: 8px;
+  margin-top: 3px;
+}
+
+/*
+ * STATISTICS PAGES
+ * Batting and bowling statistics tables
+ * Shows leading run scorers and wicket takers
+ * Classes: stats-headline, no-stats-message
+ * Uses: stats-table (defined in common styles)
+ */
+
+/* Stats Page Styles */
+.stats-headline {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.no-stats-message {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 20px;
+}
+
+/*
+ * COMMON MESSAGE DISPLAYS
+ * Used across multiple pages for empty states
+ * Classes: no-match-center, loading-message
+ */
+
+/* No Match/Content Message */
+.no-match-center {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 40px;
+}
+
+/* ========================================
+   HTML PAGE STRUCTURE STYLES
+   ======================================== */
+
+/*
+ * PAGE HEADER (TELETEST Brand Bar)
+ * Top bar showing TELETEST branding, page number, date and time
+ * 
+ * Classes:
+ * - page-header: Main container
+ * - page-header-left/right: Layout sections
+ * - page-header-brand: "TELETEST" text
+ * - page-header-page-number: Page number display (e.g., "340")
+ * - page-header-time: Time display (yellow colored)
+ */
+
+/* Header styles (TELETEST header bar) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: var(--teletext-black);
+  color: var(--teletext-white);
+  font-size: 12px;
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-header-brand {
+  font-weight: bold;
+}
+
+.page-header-page-number {
+  font-weight: bold;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-header-time {
+  color: var(--teletext-yellow);
+}
+
+/*
+ * MAIN TITLE BAR
+ * Large "CRICKET" title bar with blue background and green text
+ * Authentic TELETEST styling with text-shadow
+ * Class: main-title-bar
+ */
+
+/* Main Cricket Title Bar */
+.main-title-bar {
+  background: var(--teletext-blue);
+  color: var(--teletext-green);
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 1);
+  font-size: 36px;
+  padding: 25px 15px;
+  text-align: center;
+  border: none;
+  letter-spacing: 0.2em;
+  font-weight: bold;
+  line-height: 0.9;
+  font-family: var(--font-teletext);
+}
+
+/*
+ * LOADING MESSAGE
+ * Displayed while content is being fetched
+ * Class: loading-message
+ */
+
+/* Loading message */
+.loading-message {
+  text-align: center;
+  color: var(--teletext-yellow);
+  padding: 40px;
+}
+
+/* ========================================
+   COMMON UI COMPONENTS (used in page.html/index.html)
+   ======================================== */
+
+/*
+ * PAGE NAVIGATION
+ * Navigation buttons and page number input at bottom of pages
+ * Classes: page-navigation, nav-btn, page-number-input
+ */
+
+.page-navigation {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.nav-btn {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  border: 2px solid var(--teletext-cyan);
+  padding: 8px 16px;
+  font-family: var(--font-teletext);
+  font-size: 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.nav-btn:hover {
+  background: var(--teletext-cyan);
+  color: var(--teletext-black);
+}
+
+.page-number-input {
+  background: var(--teletext-black);
+  color: var(--teletext-cyan);
+  border: 2px solid var(--teletext-cyan);
+  padding: 8px;
+  font-family: var(--font-teletext);
+  font-size: 10px;
+  width: 80px;
+  text-align: center;
+}
+
+/*
+ * PAGE LINKS
+ * Interactive links used throughout pages
+ * Class: page-link
+ */
+
+.page-link {
+  color: var(--teletext-magenta);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.page-link:hover {
+  text-decoration: underline;
+}
+
+/*
+ * SUBPAGE INDICATOR
+ * Shows current subpage in multi-page displays
+ * Class: subpage-indicator
+ */
+
+.subpage-indicator {
+  color: var(--teletext-white);
+  font-size: 8px;
+  text-align: right;
+  margin-top: 10px;
+}
+
+/*
+ * LIVE INDICATOR
+ * Blinking "LIVE" indicator for live matches
+ * Class: live-indicator
+ */
+
+.live-indicator {
+  color: var(--teletext-red);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/*
+ * SERIES SCORE LINE
+ * Large yellow bar showing series score
+ * Class: series-score-line
+ */
+
+.series-score-line {
+  background: var(--teletext-yellow);
+  color: var(--teletext-black);
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 15px 0;
+}
+
+/*
+ * MINI SCORE
+ * Compact score display on homepage
+ * Class: mini-score
+ */
+
+.mini-score {
+  background: rgba(0, 0, 85, 0.7);
+  border: 1px solid var(--teletext-cyan);
+  padding: 8px;
+  margin: 8px 0;
+}
+
+/*
+ * FIXTURE ITEM
+ * Container for individual fixture/result entries
+ * Class: fixture-item, fixture-status
+ */
+
+.fixture-item {
+  border: 1px solid var(--teletext-cyan);
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.fixture-status {
+  color: var(--teletext-green);
+}
+
+/*
+ * STATS TABLE
+ * Table layout for batting/bowling statistics
+ * Classes: stats-table, stats-table-total-row
+ * Used across scorecard, batting stats, and bowling stats pages
+ */
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+.stats-table th {
+  background: var(--teletext-blue);
+  color: var(--teletext-yellow);
+  padding: 6px;
+  text-align: left;
+  font-size: 8px;
+  border: 1px solid var(--teletext-cyan);
+}
+
+.stats-table td {
+  color: var(--teletext-white);
+  padding: 6px;
+  font-size: 8px;
+  border: 1px solid var(--teletext-cyan);
+}
+
+.stats-table-total-row {
+  background: var(--teletext-blue);
+}
+
+/*
+ * NEWS CONTENT
+ * News article text content
+ * Class: news-content
+ */
+
+.news-content {
+  color: var(--teletext-white);
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 15px 0;
+}
+
+/*
+ * RESPONSIVE STYLES FOR PAGE HEADER
+ * Adjusts header layout on smaller screens
+ */
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-wrap: wrap;
+    gap: 5px !important;
+  }
+  
+  .page-header > div {
+    gap: 10px !important;
+  }
+  
+  .page-header span {
+    font-size: 10px !important;
+  }
 }
