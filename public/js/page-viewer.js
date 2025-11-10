@@ -1192,7 +1192,8 @@ function renderScorecardSubpage(match, subpage) {
     };
     
     // Calculate innings ordinal (1st or 2nd)
-    const teamInningsCount = match.innings.filter(i => i.battingTeam === innings.battingTeam).length;
+    // Count only innings up to and including the current one
+    const teamInningsCount = match.innings.slice(0, inningsIndex + 1).filter(i => i.battingTeam === innings.battingTeam).length;
     const inningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
     
     // Check if this is a follow-on innings
