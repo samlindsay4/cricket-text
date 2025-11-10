@@ -59,6 +59,8 @@ function showTab(tabName) {
     // Load data for the tab
     if (tabName === 'series') {
         loadSeries();
+    } else if (tabName === 'homepage') {
+        loadHomepageTab();
     } else if (tabName === 'news') {
         loadNews();
     }
@@ -102,11 +104,12 @@ async function loadSeries() {
                         Series Score: ${seriesScore}
                     </div>
                     <div style="color: #888; font-size: 12px;">
-                        Pages ${s.startPage} - ${s.endPage}
+                        Priority ${s.priority || 'N/A'} | Pages ${s.startPage} - ${s.endPage}
                     </div>
                     <div class="btn-group">
                         <button class="btn btn-primary btn-small" onclick="viewSeries('${s.id || s.dirName}')">View Matches</button>
                         <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${s.startPage}', '_blank')">View Public Page</button>
+                        <button class="btn btn-secondary btn-small" onclick="showEditPriorityModal('${s.id || s.dirName}', '${s.name}', ${s.priority || 1}, ${s.startPage}, ${s.endPage})">Edit Priority</button>
                         <button class="btn btn-danger btn-small" onclick="deleteSeries('${s.id || s.dirName}', '${s.name}')">Delete</button>
                     </div>
                 </div>
@@ -173,8 +176,8 @@ async function viewSeries(seriesId) {
                             <button class="btn btn-secondary btn-small" onclick="showEditSquadsModal('${seriesId}', '${match.id}', '${series.team1}', '${series.team2}')">Edit Squads</button>
                         `}
                         ${match.status !== 'upcoming' || match.venue ? `
-                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Live Score</button>
-                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 2}', '_blank')">View Scorecard</button>
+                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage}', '_blank')">View Live Score</button>
+                            <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Scorecard</button>
                         ` : ''}
                     </div>
                 </div>
@@ -216,6 +219,53 @@ async function deleteSeries(seriesId, seriesName) {
 }
 
 /**
+ * Show edit priority modal
+ */
+function showEditPriorityModal(seriesId, seriesName, currentPriority, startPage, endPage) {
+    document.getElementById('edit-series-id').value = seriesId;
+    document.getElementById('edit-series-name').value = seriesName;
+    document.getElementById('edit-current-pages').value = `${startPage} - ${endPage}`;
+    document.getElementById('edit-priority').value = currentPriority;
+    document.getElementById('edit-priority-modal').style.display = 'block';
+}
+
+/**
+ * Update series priority
+ */
+async function updateSeriesPriority() {
+    const seriesId = document.getElementById('edit-series-id').value;
+    const newPriority = parseInt(document.getElementById('edit-priority').value);
+    
+    if (!confirm('Are you sure you want to change the priority? This will move the series to different page numbers and may break existing bookmarks.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${seriesId}/priority`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ priority: newPriority })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Series priority updated successfully!');
+            closeModal('edit-priority-modal');
+            loadSeries();
+        } else {
+            alert('Failed to update priority: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating priority:', error);
+        alert('Failed to update priority');
+    }
+}
+
+/**
  * Show create series modal
  */
 function showCreateSeriesModal() {
@@ -223,13 +273,6 @@ function showCreateSeriesModal() {
     
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
-    
-    // Update page range when start page changes
-    document.getElementById('start-page').addEventListener('input', () => {
-        const startPage = parseInt(document.getElementById('start-page').value) || 0;
-        const endPage = startPage + 19;
-        document.getElementById('page-range').textContent = `${startPage} - ${endPage}`;
-    });
 }
 
 /**
@@ -240,15 +283,10 @@ async function createSeries() {
     const team1 = document.getElementById('team1').value;
     const team2 = document.getElementById('team2').value;
     const numMatches = parseInt(document.getElementById('num-matches').value);
-    const startPage = parseInt(document.getElementById('start-page').value);
+    const priority = parseInt(document.getElementById('priority').value);
     
-    if (!name || !team1 || !team2 || !startPage) {
+    if (!name || !team1 || !team2 || !priority) {
         alert('Please fill in all fields');
-        return;
-    }
-    
-    if (startPage < 350) {
-        alert('Start page must be 350 or higher');
         return;
     }
     
@@ -259,7 +297,7 @@ async function createSeries() {
                 'Content-Type': 'application/json',
                 'X-Session-Id': sessionId
             },
-            body: JSON.stringify({ name, team1, team2, numMatches, startPage })
+            body: JSON.stringify({ name, team1, team2, numMatches, priority })
         });
         
         const data = await response.json();
@@ -305,6 +343,7 @@ async function loadNews() {
                     </div>
                     <div class="btn-group">
                         <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${item.page}', '_blank')">View</button>
+                        <button class="btn btn-warning btn-small" onclick="showEditNewsModal('${item.id}')">Edit</button>
                         <button class="btn btn-primary btn-small" onclick="togglePublish('${item.id}', ${!item.published})">${item.published ? 'Unpublish' : 'Publish'}</button>
                         <button class="btn btn-danger btn-small" onclick="deleteNews('${item.id}', '${item.title}')">Delete</button>
                     </div>
@@ -367,6 +406,79 @@ async function createNews() {
     } catch (error) {
         console.error('Error creating news:', error);
         alert('Failed to create news');
+    }
+}
+
+/**
+ * Show edit news modal
+ */
+async function showEditNewsModal(newsId) {
+    try {
+        const response = await fetch('/api/news');
+        const data = await response.json();
+        
+        console.log('News data:', data);
+        console.log('Looking for ID:', newsId);
+        
+        const newsItem = data.find(n => n.id === newsId);
+        
+        if (!newsItem) {
+            alert('News item not found. ID: ' + newsId);
+            return;
+        }
+        
+        document.getElementById('edit-news-id').value = newsItem.id;
+        document.getElementById('edit-news-page').value = newsItem.page;
+        document.getElementById('edit-news-title').value = newsItem.title;
+        document.getElementById('edit-news-date').value = newsItem.date;
+        document.getElementById('edit-news-content').value = newsItem.content;
+        document.getElementById('edit-news-published').checked = newsItem.published;
+        
+        document.getElementById('edit-news-modal').style.display = 'block';
+    } catch (error) {
+        console.error('Error loading news item:', error);
+        alert('Failed to load news item: ' + error.message);
+    }
+}
+
+/**
+ * Update news
+ */
+async function updateNews() {
+    const id = document.getElementById('edit-news-id').value;
+    const page = parseInt(document.getElementById('edit-news-page').value);
+    const title = document.getElementById('edit-news-title').value;
+    const date = document.getElementById('edit-news-date').value;
+    const content = document.getElementById('edit-news-content').value;
+    const published = document.getElementById('edit-news-published').checked;
+    
+    if (!title || !content) {
+        alert('Please fill in title and content');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/news/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ page, title, date, content, published })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('News updated successfully!');
+            closeModal('edit-news-modal');
+            loadNews();
+        } else {
+            alert('Failed to update news: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating news:', error);
+        alert('Failed to update news');
     }
 }
 
@@ -2058,5 +2170,345 @@ async function confirmChangeBatsmenFromDashboard() {
     } catch (error) {
         console.error('Error changing batsmen:', error);
         alert('Failed to change batsmen');
+    }
+}
+
+// ========================================
+// HOMEPAGE BUILDER
+// ========================================
+
+let homepageConfig = { sections: [] };
+
+/**
+ * Load homepage tab
+ */
+async function loadHomepageTab() {
+    try {
+        const response = await fetch('/api/homepage');
+        homepageConfig = await response.json();
+        
+        renderHomepageSections();
+    } catch (error) {
+        console.error('Error loading homepage config:', error);
+        alert('Failed to load homepage configuration');
+    }
+}
+
+/**
+ * Show homepage builder modal (deprecated - keeping for backwards compatibility)
+ */
+async function showHomepageBuilder() {
+    showTab('homepage');
+}
+
+/**
+ * Render homepage sections list
+ */
+function renderHomepageSections() {
+    const container = document.getElementById('homepage-sections-list');
+    
+    if (!homepageConfig.sections || homepageConfig.sections.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">No sections yet. Add a section to get started.</div>';
+        return;
+    }
+    
+    let html = '';
+    homepageConfig.sections.forEach((section, index) => {
+        html += `
+            <div class="homepage-section-item" data-index="${index}" draggable="true">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="cursor: move; color: #888;">☰</span>
+                    <div style="flex: 1;">
+                        <strong>${getSectionTypeLabel(section.type)}</strong>
+                        ${getSectionPreview(section)}
+                    </div>
+                    <button class="btn btn-warning btn-small" onclick="editHomepageSection(${index})">Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteHomepageSection(${index})">Delete</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Add drag and drop handlers
+    setupDragAndDrop();
+}
+
+/**
+ * Get section type label
+ */
+function getSectionTypeLabel(type) {
+    const labels = {
+        'news-auto': 'Auto News',
+        'live-auto': 'Auto Live Matches',
+        'header': 'Header',
+        'links-grid': 'Links Grid (2 columns)',
+        'single-link': 'Single Link'
+    };
+    return labels[type] || type;
+}
+
+/**
+ * Get section preview
+ */
+function getSectionPreview(section) {
+    if (section.type === 'header') {
+        return `<div style="color: #888;">"${section.text}"</div>`;
+    } else if (section.type === 'news-auto') {
+        return `<div style="color: #888;">Limit: ${section.limit || 5}${section.includeLive ? ', includes live matches' : ''}</div>`;
+    } else if (section.type === 'links-grid') {
+        return `<div style="color: #888;">${section.links?.length || 0} links</div>`;
+    } else if (section.type === 'single-link') {
+        return `<div style="color: #888;">${section.text} → ${section.page}</div>`;
+    }
+    return '';
+}
+
+/**
+ * Setup drag and drop
+ */
+function setupDragAndDrop() {
+    const items = document.querySelectorAll('.homepage-section-item');
+    
+    items.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+}
+
+let draggedIndex = null;
+
+function handleDragStart(e) {
+    draggedIndex = parseInt(this.dataset.index);
+    this.style.opacity = '0.4';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    return false;
+}
+
+function handleDrop(e) {
+    e.stopPropagation();
+    const dropIndex = parseInt(this.dataset.index);
+    
+    if (draggedIndex !== dropIndex) {
+        // Reorder sections
+        const sections = [...homepageConfig.sections];
+        const [removed] = sections.splice(draggedIndex, 1);
+        sections.splice(dropIndex, 0, removed);
+        homepageConfig.sections = sections;
+        renderHomepageSections();
+    }
+    
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.style.opacity = '1';
+}
+
+/**
+ * Add homepage section
+ */
+function addHomepageSection(type) {
+    const newSection = {
+        id: `section-${Date.now()}`,
+        type: type
+    };
+    
+    // Set defaults based on type
+    if (type === 'header') {
+        newSection.text = 'Section Header';
+    } else if (type === 'news-auto') {
+        newSection.limit = 5;
+        newSection.includeLive = true;
+    } else if (type === 'links-grid') {
+        newSection.links = [];
+    } else if (type === 'single-link') {
+        newSection.text = 'Link Text';
+        newSection.page = 340;
+    }
+    
+    homepageConfig.sections.push(newSection);
+    renderHomepageSections();
+    
+    // Auto-open edit for the new section
+    editHomepageSection(homepageConfig.sections.length - 1);
+}
+
+/**
+ * Edit homepage section
+ */
+function editHomepageSection(index) {
+    const section = homepageConfig.sections[index];
+    
+    let form = '';
+    
+    if (section.type === 'header') {
+        form = `
+            <label>Header Text:</label>
+            <input type="text" id="section-edit-text" value="${section.text || ''}" style="width: 100%; padding: 8px; margin-top: 5px;">
+        `;
+    } else if (section.type === 'news-auto') {
+        form = `
+            <label>News Limit:</label>
+            <input type="number" id="section-edit-limit" value="${section.limit || 5}" style="width: 100px; padding: 8px; margin: 5px 0;">
+            <br>
+            <label>
+                <input type="checkbox" id="section-edit-includelive" ${section.includeLive ? 'checked' : ''}>
+                Include live matches
+            </label>
+        `;
+    } else if (section.type === 'links-grid') {
+        form = `
+            <div id="grid-links-editor"></div>
+            <button class="btn btn-primary btn-small" onclick="addGridLink(${index})">+ Add Link</button>
+        `;
+        setTimeout(() => renderGridLinksEditor(section, index), 100);
+    } else if (section.type === 'single-link') {
+        form = `
+            <label>Link Text:</label>
+            <input type="text" id="section-edit-text" value="${section.text || ''}" style="width: 100%; padding: 8px; margin-top: 5px;">
+            <br><br>
+            <label>Page Number:</label>
+            <input type="number" id="section-edit-page" value="${section.page || 340}" style="width: 100px; padding: 8px; margin-top: 5px;">
+        `;
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.id = 'section-edit-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close" onclick="closeSectionEditModal()">&times;</span>
+            <h3>Edit ${getSectionTypeLabel(section.type)}</h3>
+            ${form}
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveSectionEdit(${index})">Save</button>
+                <button class="btn btn-secondary" onclick="closeSectionEditModal()">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+/**
+ * Render grid links editor
+ */
+function renderGridLinksEditor(section, sectionIndex) {
+    const container = document.getElementById('grid-links-editor');
+    if (!container) return;
+    
+    let html = '';
+    (section.links || []).forEach((link, linkIndex) => {
+        html += `
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <input type="text" value="${link.text}" onchange="updateGridLink(${sectionIndex}, ${linkIndex}, 'text', this.value)" 
+                       placeholder="Link text" style="flex: 1; padding: 8px;">
+                <input type="number" value="${link.page}" onchange="updateGridLink(${sectionIndex}, ${linkIndex}, 'page', this.value)" 
+                       placeholder="Page" style="width: 100px; padding: 8px;">
+                <button class="btn btn-danger btn-small" onclick="deleteGridLink(${sectionIndex}, ${linkIndex})">×</button>
+            </div>
+        `;
+    });
+    container.innerHTML = html || '<div style="color: #888;">No links yet</div>';
+}
+
+/**
+ * Add grid link
+ */
+function addGridLink(sectionIndex) {
+    const section = homepageConfig.sections[sectionIndex];
+    if (!section.links) section.links = [];
+    section.links.push({ text: 'New Link', page: 340 });
+    renderGridLinksEditor(section, sectionIndex);
+}
+
+/**
+ * Update grid link
+ */
+function updateGridLink(sectionIndex, linkIndex, field, value) {
+    const section = homepageConfig.sections[sectionIndex];
+    section.links[linkIndex][field] = field === 'page' ? parseInt(value) : value;
+}
+
+/**
+ * Delete grid link
+ */
+function deleteGridLink(sectionIndex, linkIndex) {
+    const section = homepageConfig.sections[sectionIndex];
+    section.links.splice(linkIndex, 1);
+    renderGridLinksEditor(section, sectionIndex);
+}
+
+/**
+ * Save section edit
+ */
+function saveSectionEdit(index) {
+    const section = homepageConfig.sections[index];
+    
+    if (section.type === 'header') {
+        section.text = document.getElementById('section-edit-text').value;
+    } else if (section.type === 'news-auto') {
+        section.limit = parseInt(document.getElementById('section-edit-limit').value);
+        section.includeLive = document.getElementById('section-edit-includelive').checked;
+    } else if (section.type === 'single-link') {
+        section.text = document.getElementById('section-edit-text').value;
+        section.page = parseInt(document.getElementById('section-edit-page').value);
+    }
+    // links-grid is updated in real-time
+    
+    closeSectionEditModal();
+    renderHomepageSections();
+}
+
+/**
+ * Close section edit modal
+ */
+function closeSectionEditModal() {
+    const modal = document.getElementById('section-edit-modal');
+    if (modal) modal.remove();
+}
+
+/**
+ * Delete homepage section
+ */
+function deleteHomepageSection(index) {
+    if (confirm('Delete this section?')) {
+        homepageConfig.sections.splice(index, 1);
+        renderHomepageSections();
+    }
+}
+
+/**
+ * Save homepage configuration
+ */
+async function saveHomepageConfig() {
+    try {
+        const response = await fetch('/api/homepage', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify(homepageConfig)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Homepage saved successfully!');
+            closeModal('homepage-builder-modal');
+        } else {
+            alert('Failed to save homepage: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving homepage:', error);
+        alert('Failed to save homepage');
     }
 }

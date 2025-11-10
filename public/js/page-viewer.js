@@ -18,7 +18,7 @@ let bowlingStatsCycleInterval = null;
 let bowlingStatsPaused = false;
 
 // Constants
-const LIVE_REFRESH_INTERVAL = 5000; // 5 seconds
+const LIVE_REFRESH_INTERVAL = 10000; // 10 seconds
 const SUBPAGE_CYCLE_INTERVAL = 5000; // 5 seconds
 const SUBPAGES_PER_INNINGS = 2; // Batting and Bowling
 
@@ -88,8 +88,8 @@ async function navigatePage(target) {
         // Try to find next page with content
         let nextPage = currentPage + 1;
         let found = false;
-        // Try up to 100 pages ahead
-        for (let i = 0; i < 100; i++) {
+        // Try up to 20 pages ahead (reduced from 100 to avoid rate limiting)
+        for (let i = 0; i < 20; i++) {
             const exists = await checkPageExists(nextPage);
             if (exists) {
                 currentPage = nextPage;
@@ -98,8 +98,9 @@ async function navigatePage(target) {
             }
             nextPage++;
         }
+        // If no next page found, do nothing (stay on current page)
         if (!found) {
-            return; // Stay on current page if no next page found
+            return;
         }
     } else if (target === 'donate') {
         // TODO: Navigate to donation page when created
@@ -186,13 +187,18 @@ async function loadPage(pageNum, preserveSubpage = false) {
         document.getElementById('page-number-display').textContent = pageNum;
         
         const response = await fetch(`/api/page-data?page=${pageNum}&_t=${Date.now()}`, {
-            cache: 'no-store'
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
         });
         const data = await response.json();
         
         console.log('Page load response:', { pageNum, status: response.status, ok: response.ok, data });
         
         if (!response.ok) {
+            console.error('Failed to load page:', pageNum, data.error);
             showErrorPage(data.error || 'Page not found');
             return;
         }
@@ -208,12 +214,9 @@ async function loadPage(pageNum, preserveSubpage = false) {
             case 'news':
                 renderNewsPage(data);
                 break;
-            case 'series-overview':
-                renderSeriesOverview(data);
-                break;
             case 'series-live':
                 renderLiveScore(data);
-                // Auto-refresh every 2 seconds
+                // Auto-refresh every 5 seconds
                 refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             case 'scorecard':
@@ -246,79 +249,154 @@ function showErrorPage(message) {
     const content = document.getElementById('page-content');
     content.innerHTML = `
         <div style="text-align: center; padding: 40px;">
-            <div class="text-red" style="font-size: 32px; margin-bottom: 20px;">PAGE NOT FOUND</div>
-            <div class="text-yellow" style="margin-bottom: 30px;">${message}</div>
-            <div>
-                <span class="page-link" onclick="navigatePage(340)">Return to Homepage (p340)</span>
-            </div>
+            <div class="text-red" style="font-size: 32px;">PAGE NOT FOUND</div>
         </div>
+        ${getFooterNavigation()}
     `;
 }
 
 /**
  * Render Homepage (Page 340)
  */
-function renderHomepage(data) {
+async function renderHomepage(data) {
     let html = '';
     
-    // Live Matches
-    if (data.liveMatches && data.liveMatches.length > 0) {
-        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">LIVE MATCHES</div>';
-        
-        data.liveMatches.forEach(match => {
-            const currentInnings = match.innings[match.innings.length - 1];
-            html += `
-                <div class="mini-score">
-                    <div class="text-cyan">
-                        → ${match.seriesName.toUpperCase()}
-                        <span class="page-link" onclick="navigatePage(${match.seriesPage})">p${match.seriesPage}</span>
-                    </div>
-                    <div class="text-white">
-                        ${currentInnings.battingTeam} ${currentInnings.runs}/${currentInnings.wickets} (${currentInnings.overs}.${currentInnings.balls} overs)
-                    </div>
-                    ${match.matchSituation && match.matchSituation.leadBy ? `<div class="text-yellow">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
-                </div>
-            `;
-        });
-    }
+    // Load homepage configuration
+    const configResponse = await fetch('/api/homepage');
+    const config = await configResponse.json();
     
-    // News
-    if (data.news && data.news.length > 0) {
-        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">NEWS</div>';
-        
-        data.news.forEach(newsItem => {
-            html += `
-                <div class="item-container">
-                    <span class="page-link" onclick="navigatePage(${newsItem.page})">${newsItem.title}</span>
-                    <span class="page-link" style="float: right;">p${newsItem.page}</span>
-                </div>
-            `;
-        });
-    }
+    // Track first single-link for special styling
+    let firstSingleLink = true;
     
-    // Series
-    if (data.series && data.series.length > 0) {
-        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">SERIES</div>';
-        
-        data.series.forEach(series => {
-            const seriesScore = Object.entries(series.seriesScore)
-                .map(([team, wins]) => `${team} ${wins}`)
-                .join(' - ');
-            
-            html += `
-                <div class="item-container">
-                    <span class="page-link" onclick="navigatePage(${series.startPage})">${series.name}</span>
-                    <span class="page-link" style="float: right;">p${series.startPage}</span>
-                    <div class="text-cyan">${seriesScore}</div>
-                </div>
-            `;
-        });
+    // Render each section based on type
+    for (const section of config.sections) {
+        if (section.type === 'news-auto') {
+            html += await renderNewsAutoSection(data, section);
+        } else if (section.type === 'live-auto') {
+            html += await renderLiveAutoSection(data, section);
+        } else if (section.type === 'header') {
+            html += renderHeaderSection(section);
+        } else if (section.type === 'links-grid') {
+            html += renderLinksGridSection(section);
+        } else if (section.type === 'single-link') {
+            html += renderSingleLinkSection(section, firstSingleLink);
+            firstSingleLink = false; // Only first one gets special styling
+        }
     }
     
     html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
+}
+
+/**
+ * Render auto-populated news section
+ */
+async function renderNewsAutoSection(data, section) {
+    let html = '';
+    const limit = section.limit || 5;
+    
+    // Get published news
+    const newsItems = data.news?.filter(n => n.published)?.slice(0, limit) || [];
+    
+    // Add live matches if configured
+    if (section.includeLive && data.liveMatches && data.liveMatches.length > 0) {
+        data.liveMatches.forEach((match, index) => {
+            const currentInnings = match.innings?.[match.innings.length - 1];
+            if (currentInnings) {
+                const text = `${match.team1} bat in ${match.venue?.split(',')[0] || match.title}`;
+                const fontSize = index === 0 && newsItems.length === 0 ? '24px' : '16px';
+                html += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span class="page-link text-cyan" onclick="navigatePage(${match.livePage})" style="font-size: ${fontSize};">${text}</span>
+                        <span class="page-link text-white" onclick="navigatePage(${match.livePage})">${match.livePage}</span>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    // Add news items
+    newsItems.forEach((newsItem, index) => {
+        const isFirst = index === 0 && (!section.includeLive || !data.liveMatches || data.liveMatches.length === 0);
+        const fontSize = isFirst ? '24px' : '16px';
+        const color = isFirst ? 'text-white' : 'text-cyan';
+        html += `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span class="page-link ${color}" onclick="navigatePage(${newsItem.page})" style="font-size: ${fontSize};">${newsItem.title}</span>
+                <span class="page-link text-white" onclick="navigatePage(${newsItem.page})">${newsItem.page}</span>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+/**
+ * Render auto-populated live matches section
+ */
+async function renderLiveAutoSection(data, section) {
+    let html = '';
+    
+    if (data.liveMatches && data.liveMatches.length > 0) {
+        data.liveMatches.forEach(match => {
+            const currentInnings = match.innings?.[match.innings.length - 1];
+            if (currentInnings) {
+                const text = `${match.team1} bat in ${match.venue?.split(',')[0] || match.title}`;
+                html += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span class="page-link text-cyan" onclick="navigatePage(${match.livePage})">${text}</span>
+                        <span class="page-link text-white" onclick="navigatePage(${match.livePage})">${match.livePage}</span>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    return html;
+}
+
+/**
+ * Render header section
+ */
+function renderHeaderSection(section) {
+    return `<div class="text-white" style="margin-top: 20px;">${section.text}</div>`;
+}
+
+/**
+ * Render links grid section (2 columns)
+ */
+function renderLinksGridSection(section) {
+    let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px;">';
+    
+    (section.links || []).forEach(link => {
+        html += `
+            <div style="display: flex; justify-content: space-between;">
+                <span class="page-link text-cyan" onclick="navigatePage(${link.page})">${link.text}</span>
+                <span class="page-link text-white" onclick="navigatePage(${link.page})">${link.page}</span>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+/**
+ * Render single link section
+ */
+function renderSingleLinkSection(section, isFirst = false) {
+    const style = isFirst ? 'transform: scaleY(1.4); display: inline-block;' : '';
+    const color = isFirst ? 'text-white' : 'text-cyan';
+    const marginTop = isFirst ? 'margin-top: 15px; margin-bottom: 10px' : '';
+    
+    return `
+        <div style="display: flex; justify-content: space-between; gap: 20px; ${marginTop}">
+            <span class="page-link ${color}" onclick="navigatePage(${section.page})" style="${style}">${section.text}</span>
+            <span class="page-link text-white" onclick="navigatePage(${section.page})" style="${style}">${section.page}</span>
+        </div>
+    `;
 }
 
 /**
@@ -326,90 +404,19 @@ function renderHomepage(data) {
  */
 function renderNewsPage(data) {
     const news = data.newsItem;
-    let html = `
-        <div class="text-yellow" style="font-size: 32px; margin-bottom: 10px;">${news.title.toUpperCase()}</div>
-        <div class="text-cyan" style="margin-bottom: 20px;">${news.date}</div>
-        <div class="text-white" style="margin-bottom: 30px; line-height: 1.6;">${news.content}</div>
-    `;
     
-    html += getFooterNavigation();
-    
-    document.getElementById('page-content').innerHTML = html;
-    document.getElementById('subpage-indicator').textContent = '';
-}
-
-/**
- * Render Series Overview (Page +0)
- */
-function renderSeriesOverview(data) {
-    const series = data.series;
-    const seriesScoreText = Object.entries(series.seriesScore)
-        .map(([team, wins]) => `${team} ${wins}`)
-        .join(' - ');
+    // Split content by double newlines to get paragraphs
+    const paragraphs = news.content.split(/\n\n+/).filter(p => p.trim());
     
     let html = `
-        <div class="live-match-header">
-            <span class="text-cyan" style="font-size: 32px;">${series.name.toUpperCase()}</span>
-            <span class="text-white">1/1</span>
-        </div>
-        <div class="text-white" style="margin-bottom: 5px;">${series.team1} vs ${series.team2}</div>
-        <div class="text-yellow" style="margin-bottom: 20px;">SERIES: ${seriesScoreText}</div>
+        <div class="text-green" style="font-size: 24px; margin-bottom: 20px;">${news.title}</div>
     `;
     
-    // Current Match
-    if (data.currentMatch) {
-        const match = data.currentMatch;
-        html += `
-            <div class="text-cyan" style="margin-top: 20px; margin-bottom: 10px;">
-                CURRENT MATCH <span class="text-red">LIVE</span>
-            </div>
-            <div class="text-white">
-                ${match.title} - ${match.venue}
-            </div>
-        `;
-    }
-    
-    // Next Match
-    if (data.nextMatch) {
-        const match = data.nextMatch;
-        html += `
-            <div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">NEXT MATCH</div>
-            <div class="text-white">
-                ${match.title} - ${match.venue || 'TBC'}
-                <div class="text-cyan" style="margin-top: 5px;">${match.date || 'Date TBC'}</div>
-            </div>
-        `;
-    }
-    
-    // Navigation links
-    html += `
-        <div class="nav-links-container">
-            <div class="nav-link-item">
-                <span>Live Score</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 1})">p${series.startPage + 1}</span>
-            </div>
-            <div class="nav-link-item">
-                <span>Full Scorecard</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 2})">p${series.startPage + 2}</span>
-            </div>
-            <div class="nav-link-item">
-                <span>Fixtures</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 3})">p${series.startPage + 3}</span>
-            </div>
-            <div class="nav-link-item">
-                <span>Results</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 4})">p${series.startPage + 4}</span>
-            </div>
-            <div class="nav-link-item">
-                <span>Leading Run Scorers</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 5})">p${series.startPage + 5}</span>
-            </div>
-            <div class="nav-link-item">
-                <span>Leading Wicket Takers</span>
-                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 6})">p${series.startPage + 6}</span>
-            </div>
-        </div>
-    `;
+    // First paragraph in white, rest in cyan
+    paragraphs.forEach((paragraph, index) => {
+        const color = index === 0 ? 'text-white' : 'text-cyan';
+        html += `<div class="${color}" style="margin-bottom: 15px;">${paragraph}</div>`;
+    });
     
     html += getFooterNavigation();
     
@@ -1023,13 +1030,16 @@ function renderScorecard(data) {
     // Calculate total subpages (2 per innings: batting and bowling)
     totalSubpages = match.innings.length * SUBPAGES_PER_INNINGS;
     
-    // If this is the initial load, jump to the most recent innings
-    // Most recent innings is the last one, so calculate its batting subpage
+    // If this is the initial load, decide which innings to show
     if (isInitialScorecardLoad && currentSubpage === 1) {
-        // Last innings index (0-based)
-        const lastInningsIndex = match.innings.length - 1;
-        // Batting subpage for this innings: (inningsIndex * 2) + 1
-        currentSubpage = (lastInningsIndex * SUBPAGES_PER_INNINGS) + 1;
+        if (match.status === 'live') {
+            // For live matches, jump to the current (most recent) innings
+            const lastInningsIndex = match.innings.length - 1;
+            currentSubpage = (lastInningsIndex * SUBPAGES_PER_INNINGS) + 1;
+        } else {
+            // For completed matches, stay on first innings (subpage 1)
+            currentSubpage = 1;
+        }
         isInitialScorecardLoad = false; // Mark that we've done the initial jump
     }
     
@@ -1203,6 +1213,41 @@ function renderScorecardSubpage(match, subpage) {
             </span>
         </div>
     `;
+    
+    // Add match result for completed matches
+    if (match.status === 'completed') {
+        // Format result from result object
+        let resultText = '';
+        if (match.result && typeof match.result === 'object') {
+            if (match.result.winType === 'draw') {
+                resultText = 'Match drawn';
+            } else if (match.result.winner) {
+                const winner = match.result.winner;
+                const winType = match.result.winType;
+                const margin = match.result.margin;
+                
+                if (winType === 'innings') {
+                    resultText = `${winner} won by an innings and ${margin} runs`;
+                } else if (winType === 'runs') {
+                    resultText = `${winner} won by ${margin} runs`;
+                } else if (winType === 'wickets') {
+                    resultText = `${winner} won by ${margin} wickets`;
+                } else if (margin) {
+                    resultText = `${winner} won by ${margin}`;
+                } else {
+                    resultText = `${winner} won`;
+                }
+            }
+        }
+        
+        if (resultText) {
+            html += `
+                <div class="text-yellow" style="margin-bottom: 5px;">
+                    ${resultText}
+                </div>
+            `;
+        }
+    }
     
     html += `
         <div class="text-white" style="margin-bottom: 0px;">
@@ -1489,12 +1534,26 @@ async function renderFixtures(data) {
         const startTime = match.startTime || '00:00 GMT';
         const livePrefix = match.status === 'live' ? 'LIVE - ' : '';
         
+        // Determine if match should be clickable and which page
+        let clickableClass = '';
+        let onClickAttr = '';
+        if (match.status === 'live') {
+            // Live match goes to live score page (startPage + 0)
+            clickableClass = 'page-link';
+            onClickAttr = `onclick="navigatePage(${series.startPage})"`;
+        } else if (match.status !== 'upcoming') {
+            // Completed match goes to match scorecard page (startPage + 3 + match index)
+            const matchScorecardPage = series.startPage + 3 + index;
+            clickableClass = 'page-link';
+            onClickAttr = `onclick="navigatePage(${matchScorecardPage})"`;
+        }
+        
         html += `
             <div class="${textColor}">
-                ${livePrefix}${match.title}, ${match.venue || 'Venue TBC'}
+                <span class="${clickableClass}" ${onClickAttr}>${livePrefix}${match.title}, ${match.venue || 'Venue TBC'}</span>
             </div>
             <div class="${textColor}">
-                ${formattedDate} ${startTime}
+                <span class="${clickableClass}" ${onClickAttr}>${formattedDate} ${startTime}</span>
             </div>
         `;
         
@@ -1506,13 +1565,13 @@ async function renderFixtures(data) {
                 const inningsLabel = currentInnings.number === 1 ? '1st Inns' : 
                                    currentInnings.number === 2 ? '2nd Inns' :
                                    currentInnings.number === 3 ? '3rd Inns' : '4th Inns';
-                html += `<div class="${textColor}">${currentInnings.battingTeam}: ${currentInnings.runs}-${currentInnings.wickets} (${inningsLabel})</div>`;
+                html += `<div class="${textColor}"><span class="${clickableClass}" ${onClickAttr}>${currentInnings.battingTeam}: ${currentInnings.runs}-${currentInnings.wickets} (${inningsLabel})</span></div>`;
             }
         }
         
         // Show result for completed matches
         if (match.result) {
-            html += `<div class="${textColor}">${match.result}</div>`;
+            html += `<div class="${textColor}"><span class="${clickableClass}" ${onClickAttr}>${match.result}</span></div>`;
         }
         
         // Add line break between fixtures (but not after the last one)

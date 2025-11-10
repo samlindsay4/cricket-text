@@ -28,6 +28,19 @@
             border-radius: 4px;
         }
         
+        .homepage-section-item {
+            background: #0a0a0a;
+            border: 1px solid #00ffff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            cursor: move;
+        }
+        
+        .homepage-section-item:hover {
+            border-color: #ffff00;
+        }
+        
         .series-item h3 {
             color: #ffff00;
             margin: 0 0 10px 0;
@@ -111,6 +124,7 @@
             <p>Manage Series, Matches, and News</p>
             <div style="margin-top: 10px;">
                 <button class="btn btn-secondary btn-small" onclick="showTab('series')">Series</button>
+                <button class="btn btn-secondary btn-small" onclick="showTab('homepage')">Homepage</button>
                 <button class="btn btn-secondary btn-small" onclick="showTab('news')">News</button>
                 <button class="btn btn-danger btn-small" onclick="logout()" style="float: right;">Logout</button>
             </div>
@@ -124,6 +138,26 @@
                 
                 <div id="series-list" style="margin-top: 20px;">
                     <div class="loading">Loading series...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Homepage Builder Tab -->
+        <div id="homepage-tab" class="tab-content hidden">
+            <div class="section">
+                <h2>Homepage Builder</h2>
+                <p style="color: #888; margin-bottom: 20px;">Configure the homepage structure with drag-and-drop sections</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="addHomepageSection('header')">+ Header</button>
+                    <button class="btn btn-primary" onclick="addHomepageSection('links-grid')">+ Links Grid</button>
+                    <button class="btn btn-primary" onclick="addHomepageSection('single-link')">+ Single Link</button>
+                </div>
+                
+                <div id="homepage-sections-list" style="min-height: 200px;"></div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="saveHomepageConfig()">Save Homepage</button>
                 </div>
             </div>
         </div>
@@ -392,9 +426,20 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="start-page">Start Page Number</label>
-                    <input type="number" id="start-page" placeholder="e.g., 350" min="350" step="10">
-                    <div class="page-indicator">Series will use pages <span id="page-range"></span></div>
+                    <label for="priority">Series Priority</label>
+                    <select id="priority">
+                        <option value="1">Priority 1 (Pages 341-350)</option>
+                        <option value="2">Priority 2 (Pages 351-360)</option>
+                        <option value="3">Priority 3 (Pages 361-370)</option>
+                        <option value="4">Priority 4 (Pages 371-380)</option>
+                        <option value="5">Priority 5 (Pages 381-390)</option>
+                        <option value="6">Priority 6 (Pages 391-400)</option>
+                        <option value="7">Priority 7 (Pages 401-410)</option>
+                        <option value="8">Priority 8 (Pages 411-420)</option>
+                                                <option value="9">Priority 9 (Pages 421-430)</option>
+                        <option value="10">Priority 10 (Pages 431-440)</option>
+                    </select>
+                    <div class="page-indicator">Each series uses exactly 10 pages. Homepage is page 340.</div>
                 </div>
             </div>
             
@@ -405,20 +450,68 @@
         </div>
     </div>
 
+    <!-- Edit Priority Modal -->
+    <div id="edit-priority-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-priority-modal')">&times;</span>
+            <h2>Edit Series Priority</h2>
+            
+            <div class="form-group">
+                <label>Series Name</label>
+                <input type="text" id="edit-series-name" disabled>
+            </div>
+            
+            <div class="form-group">
+                <label>Current Pages</label>
+                <input type="text" id="edit-current-pages" disabled>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-priority">New Priority</label>
+                <select id="edit-priority">
+                    <option value="1">Priority 1 (Pages 341-350)</option>
+                    <option value="2">Priority 2 (Pages 351-360)</option>
+                    <option value="3">Priority 3 (Pages 361-370)</option>
+                    <option value="4">Priority 4 (Pages 371-380)</option>
+                    <option value="5">Priority 5 (Pages 381-390)</option>
+                    <option value="6">Priority 6 (Pages 391-400)</option>
+                    <option value="7">Priority 7 (Pages 401-410)</option>
+                    <option value="8">Priority 8 (Pages 411-420)</option>
+                    <option value="9">Priority 9 (Pages 421-430)</option>
+                    <option value="10">Priority 10 (Pages 431-440)</option>
+                </select>
+                <div class="page-indicator" style="color: #ff8800;">⚠️ Changing priority will move the series to different page numbers. Existing bookmarks will break.</div>
+            </div>
+            
+            <input type="hidden" id="edit-series-id">
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="updateSeriesPriority()">Update Priority</button>
+                <button class="btn btn-secondary" onclick="closeModal('edit-priority-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Create News Modal -->
     <div id="create-news-modal" class="modal">
+```
         <div class="modal-content">
             <span class="close" onclick="closeModal('create-news-modal')">&times;</span>
             <h2>Create News Story</h2>
             
             <div class="form-group">
-                <label for="news-page">Page Number (341-345)</label>
+                <label for="news-page">Page Number (361-370)</label>
                 <select id="news-page">
-                    <option value="341">341</option>
-                    <option value="342">342</option>
-                    <option value="343">343</option>
-                    <option value="344">344</option>
-                    <option value="345">345</option>
+                    <option value="361">361</option>
+                    <option value="362">362</option>
+                    <option value="363">363</option>
+                    <option value="364">364</option>
+                    <option value="365">365</option>
+                    <option value="366">366</option>
+                    <option value="367">367</option>
+                    <option value="368">368</option>
+                    <option value="369">369</option>
+                    <option value="370">370</option>
                 </select>
             </div>
             
@@ -447,6 +540,59 @@
             <div style="margin-top: 20px;">
                 <button class="btn btn-primary" onclick="createNews()">Create News</button>
                 <button class="btn btn-secondary" onclick="closeModal('create-news-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit News Modal -->
+    <div id="edit-news-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-news-modal')">&times;</span>
+            <h2>Edit News Story</h2>
+            
+            <input type="hidden" id="edit-news-id">
+            
+            <div class="form-group">
+                <label for="edit-news-page">Page Number (361-370)</label>
+                <select id="edit-news-page">
+                    <option value="361">361</option>
+                    <option value="362">362</option>
+                    <option value="363">363</option>
+                    <option value="364">364</option>
+                    <option value="365">365</option>
+                    <option value="366">366</option>
+                    <option value="367">367</option>
+                    <option value="368">368</option>
+                    <option value="369">369</option>
+                    <option value="370">370</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-news-title">Title</label>
+                <input type="text" id="edit-news-title" placeholder="News title">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-news-date">Date</label>
+                <input type="date" id="edit-news-date">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-news-content">Content</label>
+                <textarea id="edit-news-content" rows="6" placeholder="News story content..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="edit-news-published">
+                    Published
+                </label>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="updateNews()">Update News</button>
+                <button class="btn btn-secondary" onclick="closeModal('edit-news-modal')">Cancel</button>
             </div>
         </div>
     </div>

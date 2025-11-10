@@ -644,6 +644,29 @@ function saveNews(news) {
   }
 }
 
+// Homepage configuration functions
+const homepageFile = path.join(__dirname, 'data', 'homepage.json');
+
+function loadHomepage() {
+  try {
+    const data = fs.readFileSync(homepageFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading homepage:', error);
+    return { sections: [] };
+  }
+}
+
+function saveHomepage(config) {
+  try {
+    fs.writeFileSync(homepageFile, JSON.stringify(config, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving homepage:', error);
+    return false;
+  }
+}
+
 // Page registry functions
 function loadPageRegistry() {
   try {
@@ -2283,16 +2306,24 @@ app.post('/api/match/retire-batsman', requireAuth, (req, res) => {
 
 // Create new series
 app.post('/api/series/create', requireAuth, (req, res) => {
-  const { name, team1, team2, numMatches, startPage } = req.body;
+  const { name, team1, team2, numMatches, priority } = req.body;
   
   // Validate inputs
-  if (!name || !team1 || !team2 || !numMatches || !startPage) {
+  if (!name || !team1 || !team2 || !numMatches || !priority) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   
   if (numMatches < 1 || numMatches > 5) {
     return res.status(400).json({ error: 'Number of matches must be between 1 and 5' });
   }
+  
+  // Calculate start page based on priority
+  // Priority 1: pages 341-350 (10 pages)
+  // Priority 2: pages 351-360 (10 pages)
+  // Priority 3: pages 361-370 (10 pages)
+  // etc.
+  const startPage = 340 + (priority * 10);
+  const endPage = startPage + 9; // 10 pages per series
   
   // Create series ID from name
   const seriesId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -2306,12 +2337,12 @@ app.post('/api/series/create', requireAuth, (req, res) => {
   const registry = loadPageRegistry();
   const pagesToRegister = [];
   
-  // Each series gets 20 pages: overview, live, scorecard, fixtures, results, stats, etc.
-  for (let i = 0; i < 20; i++) {
-    const pageNum = (parseInt(startPage) + i).toString();
+  // Each series gets 10 pages
+  for (let i = 0; i <= 9; i++) {
+    const pageNum = (startPage + i).toString();
     if (registry[pageNum]) {
       return res.status(400).json({ 
-        error: `Page ${pageNum} is already assigned to: ${registry[pageNum].title}` 
+        error: `Page ${pageNum} is already assigned to: ${registry[pageNum].title}. Priority ${priority} is taken.` 
       });
     }
     pagesToRegister.push(pageNum);
@@ -2322,8 +2353,9 @@ app.post('/api/series/create', requireAuth, (req, res) => {
     name,
     team1,
     team2,
-    startPage: parseInt(startPage),
-    endPage: parseInt(startPage) + 19,
+    priority: parseInt(priority),
+    startPage,
+    endPage,
     seriesScore: {},
     matches: [],
     stats: {
@@ -2355,8 +2387,21 @@ app.post('/api/series/create', requireAuth, (req, res) => {
   }
   
   // Register pages
-  const pageNames = ['Overview', 'Live Score', 'Scorecard', 'Fixtures', 'Results', 'Leading Run Scorers', 'Leading Wicket Takers'];
-  pagesToRegister.slice(0, 7).forEach((pageNum, idx) => {
+  // Page structure: +0=Live Score, +1=Scorecard, +2=Fixtures, +3-7=Match Scorecards, +8=Batting Stats, +9=Bowling Stats
+  const pageNames = [
+    'Live Score',             // +0 (e.g., 341)
+    'Scorecard',              // +1 (e.g., 342)
+    'Fixtures',               // +2 (e.g., 343)
+    'Match 1 Scorecard',      // +3 (e.g., 344)
+    'Match 2 Scorecard',      // +4 (e.g., 345)
+    'Match 3 Scorecard',      // +5 (e.g., 346)
+    'Match 4 Scorecard',      // +6 (e.g., 347)
+    'Match 5 Scorecard',      // +7 (e.g., 348)
+    'Leading Run Scorers',    // +8 (e.g., 349)
+    'Leading Wicket Takers'   // +9 (e.g., 350)
+  ];
+  
+  pagesToRegister.forEach((pageNum, idx) => {
     registry[pageNum] = {
       title: `${name} - ${pageNames[idx]}`,
       type: 'series',
@@ -2387,6 +2432,96 @@ app.get('/api/series/:seriesId', checkRateLimit, (req, res) => {
   res.json(series);
 });
 
+// Update series priority
+app.put('/api/series/:seriesId/priority', requireAuth, checkRateLimit, (req, res) => {
+  const { seriesId } = req.params;
+  const { priority } = req.body;
+  
+  try {
+    // Validate inputs
+    if (!seriesId || typeof seriesId !== 'string' || !/^[a-zA-Z0-9\-_]+$/.test(seriesId)) {
+      return res.status(400).json({ error: 'Invalid series ID' });
+    }
+    
+    const priorityNum = parseInt(priority);
+    if (!priorityNum || priorityNum < 1 || priorityNum > 10) {
+      return res.status(400).json({ error: 'Priority must be between 1 and 10' });
+    }
+    
+    // Load series
+    const series = loadSeriesById(seriesId);
+    if (!series) {
+      return res.status(404).json({ error: 'Series not found' });
+    }
+    
+    const oldStartPage = series.startPage;
+    const newStartPage = 340 + (priorityNum * 10);
+    const newEndPage = newStartPage + 9;
+    
+    // Check if new page range is available (excluding current series)
+    const registry = loadPageRegistry();
+    for (let i = 0; i <= 9; i++) {
+      const pageNum = (newStartPage + i).toString();
+      if (registry[pageNum] && registry[pageNum].seriesId !== seriesId) {
+        return res.status(400).json({ 
+          error: `Priority ${priorityNum} is already taken by another series. Pages ${newStartPage}-${newEndPage} are in use.` 
+        });
+      }
+    }
+    
+    // Update series data
+    series.priority = priorityNum;
+    series.startPage = newStartPage;
+    series.endPage = newEndPage;
+    
+    const seriesFilePath = path.join(seriesDir, seriesId, 'series.json');
+    fs.writeFileSync(seriesFilePath, JSON.stringify(series, null, 2), 'utf8');
+    
+    // Update page registry - remove old pages
+    for (let i = 0; i <= 9; i++) {
+      const oldPageNum = (oldStartPage + i).toString();
+      if (registry[oldPageNum] && registry[oldPageNum].seriesId === seriesId) {
+        delete registry[oldPageNum];
+      }
+    }
+    
+    // Add new pages
+    const pageNames = [
+      'Live Score',
+      'Scorecard',
+      'Fixtures',
+      'Match 1 Scorecard',
+      'Match 2 Scorecard',
+      'Match 3 Scorecard',
+      'Match 4 Scorecard',
+      'Match 5 Scorecard',
+      'Leading Run Scorers',
+      'Leading Wicket Takers'
+    ];
+    
+    for (let i = 0; i <= 9; i++) {
+      const pageNum = (newStartPage + i).toString();
+      registry[pageNum] = {
+        title: `${series.name} - ${pageNames[i]}`,
+        type: 'series',
+        seriesId: seriesId
+      };
+    }
+    
+    savePageRegistry(registry);
+    
+    res.json({ 
+      success: true, 
+      message: 'Series priority updated',
+      startPage: newStartPage,
+      endPage: newEndPage
+    });
+  } catch (error) {
+    console.error('Error updating series priority:', error);
+    res.status(500).json({ error: 'Failed to update series priority' });
+  }
+});
+
 // Delete series
 app.delete('/api/series/:seriesId', requireAuth, checkRateLimit, (req, res) => {
   const { seriesId } = req.params;
@@ -2409,7 +2544,7 @@ app.delete('/api/series/:seriesId', requireAuth, checkRateLimit, (req, res) => {
     const series = loadSeriesById(seriesId);
     if (series && series.startPage) {
       const registry = loadPageRegistry();
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i <= 9; i++) { // 10 pages per series (0-9)
         const pageNum = (series.startPage + i).toString();
         if (registry[pageNum] && registry[pageNum].seriesId === seriesId) {
           delete registry[pageNum];
@@ -3452,9 +3587,9 @@ app.get('/api/news', checkRateLimit, (req, res) => {
 app.post('/api/news/create', requireAuth, (req, res) => {
   const { page, title, date, content, published } = req.body;
   
-  // Validate page number (341-345)
-  if (!page || page < 341 || page > 345) {
-    return res.status(400).json({ error: 'Page number must be between 341 and 345' });
+  // Validate page number (361-370)
+  if (!page || page < 361 || page > 370) {
+    return res.status(400).json({ error: 'Page number must be between 361 and 370' });
   }
   
   const news = loadNews();
@@ -3464,9 +3599,9 @@ app.post('/api/news/create', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Page number already in use' });
   }
   
-  // Check max 5 news stories
-  if (news.length >= 5) {
-    return res.status(400).json({ error: 'Maximum 5 news stories allowed' });
+  // Check max 10 news stories
+  if (news.length >= 10) {
+    return res.status(400).json({ error: 'Maximum 10 news stories allowed' });
   }
   
   const newsItem = {
@@ -3498,7 +3633,7 @@ app.post('/api/news/create', requireAuth, (req, res) => {
 
 app.put('/api/news/:id', requireAuth, (req, res) => {
   const { id } = req.params;
-  const { title, content, published } = req.body;
+  const { page, title, date, content, published } = req.body;
   
   const news = loadNews();
   const item = news.find(n => n.id === id);
@@ -3507,7 +3642,29 @@ app.put('/api/news/:id', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'News item not found' });
   }
   
+  // Validate page number if changing (361-370)
+  if (page && (page < 361 || page > 370)) {
+    return res.status(400).json({ error: 'Page number must be between 361 and 370' });
+  }
+  
+  // Check if new page is already used by another news item
+  if (page && page !== item.page && news.find(n => n.page === page && n.id !== id)) {
+    return res.status(400).json({ error: 'Page number already in use' });
+  }
+  
+  // Update page registry if page changed
+  if (page && page !== item.page) {
+    const registry = loadPageRegistry();
+    // Remove old page registration
+    delete registry[item.page];
+    // Add new page registration
+    registry[page] = { type: 'news', id: item.id };
+    savePageRegistry(registry);
+  }
+  
+  if (page) item.page = page;
   if (title) item.title = title;
+  if (date) item.date = date;
   if (content) item.content = content;
   if (published !== undefined) item.published = published;
   
@@ -3543,6 +3700,28 @@ app.delete('/api/news/:id', requireAuth, (req, res) => {
   }
   
   res.json({ success: true });
+});
+
+// Homepage configuration endpoints
+app.get('/api/homepage', checkRateLimit, (req, res) => {
+  const config = loadHomepage();
+  res.json(config);
+});
+
+app.put('/api/homepage', requireAuth, (req, res) => {
+  const { sections } = req.body;
+  
+  if (!sections || !Array.isArray(sections)) {
+    return res.status(400).json({ error: 'Invalid homepage configuration' });
+  }
+  
+  const config = { sections };
+  
+  if (!saveHomepage(config)) {
+    return res.status(500).json({ error: 'Failed to save homepage configuration' });
+  }
+  
+  res.json({ success: true, config });
 });
 
 // Page registry endpoint
@@ -3597,8 +3776,16 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // News pages (341-345)
-  if (pageNum >= 341 && pageNum <= 345) {
+  // Check page registry for all other pages (news, series, etc.)
+  const registry = loadPageRegistry();
+  const pageInfo = registry[pageNum.toString()];
+  
+  if (!pageInfo) {
+    return res.status(404).json({ error: 'Page not found' });
+  }
+  
+  // Handle news pages
+  if (pageInfo.type === 'news') {
     const news = loadNews();
     const newsItem = news.find(n => n.page === pageNum);
     
@@ -3613,12 +3800,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // Series pages (350+)
-  // Find which series this page belongs to
-  const registry = loadPageRegistry();
-  const pageInfo = registry[pageNum.toString()];
-  
-  if (!pageInfo || pageInfo.type !== 'series') {
+  // Handle series pages
+  if (pageInfo.type !== 'series') {
     return res.status(404).json({ error: 'Page not found' });
   }
   
@@ -3628,25 +3811,11 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
   }
   
   // Calculate page offset from series start
-  // Page structure: +0=Overview, +1=Live, +2=Scorecard, +3=Fixtures, +4=Results, +5=Batting Stats, +6=Bowling Stats
+  // New page structure: +0=Live Score, +1=Scorecard, +2=Fixtures, +3-7=Match Scorecards, +8=Batting Stats, +9=Bowling Stats
   const pageOffset = pageNum - series.startPage;
   
-  // Page +0: Series Overview
+  // Page +0: Live Score (replaces Series Overview)
   if (pageOffset === 0) {
-    const currentMatch = series.matches.find(m => m.status === 'live');
-    const nextMatch = series.matches.find(m => m.status === 'upcoming');
-    
-    return res.json({
-      type: 'series-overview',
-      page: pageNum,
-      series,
-      currentMatch,
-      nextMatch
-    });
-  }
-  
-  // Page +1: Live Score
-  if (pageOffset === 1) {
     // Show live matches first, or most recent completed match, or first upcoming match
     let currentMatch = series.matches.find(m => m.status === 'live');
     if (!currentMatch) {
@@ -3679,8 +3848,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // Page +2: Full Scorecard
-  if (pageOffset === 2) {
+  // Page +1: Full Scorecard (current match)
+  if (pageOffset === 1) {
     // Show live, completed, or upcoming matches
     let currentMatch = series.matches.find(m => m.status === 'live');
     if (!currentMatch) {
@@ -3711,8 +3880,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // Page +3: Fixtures
-  if (pageOffset === 3) {
+  // Page +2: Fixtures
+  if (pageOffset === 2) {
     return res.json({
       type: 'fixtures',
       page: pageNum,
@@ -3720,19 +3889,34 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // Page +4: Results
-  if (pageOffset === 4) {
-    const completedMatches = series.matches.filter(m => m.status === 'completed');
+  // Pages +3 to +7: Individual Match Scorecards (Match 1-5)
+  if (pageOffset >= 3 && pageOffset <= 7) {
+    const matchNumber = pageOffset - 2; // +3 = Match 1, +4 = Match 2, etc.
+    const matchIndex = matchNumber - 1; // 0-indexed
+    
+    if (matchIndex >= series.matches.length) {
+      return res.status(404).json({ error: 'Match does not exist' });
+    }
+    
+    const matchInfo = series.matches[matchIndex];
+    
+    // Return 404 if match hasn't started yet (upcoming matches with no venue set)
+    if (matchInfo.status === 'upcoming' && !matchInfo.venue) {
+      return res.status(404).json({ error: 'Match not available yet' });
+    }
+    
+    const match = loadSeriesMatch(series.id || pageInfo.seriesId, matchInfo.id);
+    
     return res.json({
-      type: 'results',
+      type: 'scorecard',
       page: pageNum,
       series,
-      completedMatches
+      match
     });
   }
   
-  // Page +5: Leading Run Scorers
-  if (pageOffset === 5) {
+  // Page +8: Leading Run Scorers
+  if (pageOffset === 8) {
     return res.json({
       type: 'batting-stats',
       page: pageNum,
@@ -3741,8 +3925,8 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
     });
   }
   
-  // Page +6: Leading Wicket Takers
-  if (pageOffset === 6) {
+  // Page +9: Leading Wicket Takers
+  if (pageOffset === 9) {
     return res.json({
       type: 'bowling-stats',
       page: pageNum,
