@@ -170,6 +170,7 @@ async function viewSeries(seriesId) {
                             <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, '${series.team1}', '${series.team2}')">Setup Match</button>
                         ` : `
                             <button class="btn btn-primary btn-small" onclick="manageMatch('${seriesId}', '${match.id}')">Manage Match</button>
+                            <button class="btn btn-secondary btn-small" onclick="showEditSquadsModal('${seriesId}', '${match.id}', '${series.team1}', '${series.team2}')">Edit Squads</button>
                         `}
                         ${match.status !== 'upcoming' || match.venue ? `
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage + 1}', '_blank')">View Live Score</button>
@@ -438,34 +439,10 @@ function showCreateMatchModal(seriesId, matchNumber, team1, team2) {
     matchNumberSelect.innerHTML = `<option value="${matchNumber}">${matchNumber}</option>`;
     matchNumberSelect.value = matchNumber;
     
-    // Update squad titles
-    document.getElementById('team1-squad-title').textContent = `${team1} Squad (11 Players)`;
-    document.getElementById('team2-squad-title').textContent = `${team2} Squad (11 Players)`;
-    
-    // Create squad input fields
-    const team1Container = document.getElementById('team1-squad-container');
-    const team2Container = document.getElementById('team2-squad-container');
-    
-    team1Container.innerHTML = '';
-    team2Container.innerHTML = '';
-    
-    for (let i = 1; i <= 11; i++) {
-        team1Container.innerHTML += `
-            <div class="form-group">
-                <input type="text" id="team1-player-${i}" placeholder="Player ${i}">
-            </div>
-        `;
-        
-        team2Container.innerHTML += `
-            <div class="form-group">
-                <input type="text" id="team2-player-${i}" placeholder="Player ${i}">
-            </div>
-        `;
-    }
-    
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('match-date').value = today;
+    document.getElementById('match-time').value = '';
 }
 
 /**
@@ -475,48 +452,41 @@ async function createMatch() {
     const matchNumber = parseInt(document.getElementById('match-number').value);
     const venue = document.getElementById('match-venue').value;
     const date = document.getElementById('match-date').value;
+    const startTime = document.getElementById('match-time').value;
     
     if (!venue || !date) {
         alert('Please fill in venue and date');
         return;
     }
     
-    // Get squad1
-    const squad1 = [];
-    for (let i = 1; i <= 11; i++) {
-        const player = document.getElementById(`team1-player-${i}`).value.trim();
-        if (!player) {
-            alert('Please fill in all squad members');
-            return;
-        }
-        squad1.push(player);
-    }
-    
-    // Get squad2
-    const squad2 = [];
-    for (let i = 1; i <= 11; i++) {
-        const player = document.getElementById(`team2-player-${i}`).value.trim();
-        if (!player) {
-            alert('Please fill in all squad members');
-            return;
-        }
-        squad2.push(player);
-    }
-    
     try {
+        const body = { 
+            matchNumber, 
+            venue, 
+            date
+        };
+        
+        // Add start time if provided
+        if (startTime && startTime.trim()) {
+            body.startTime = startTime;
+        }
+        
+        console.log('Sending match create request with body:', body);
+        
         const response = await fetch(`/api/series/${currentSeriesId}/match/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Session-Id': sessionId
             },
-            body: JSON.stringify({ matchNumber, venue, date, squad1, squad2 })
+            body: JSON.stringify(body)
         });
         
         const data = await response.json();
+        console.log('Server response:', data);
         
         if (data.success) {
-            alert('Match created successfully!');
+            alert('Match created successfully! Use "Edit Squads" to add teams before starting the match.');
             closeModal('create-match-modal');
             viewSeries(currentSeriesId);
         } else {
@@ -525,6 +495,113 @@ async function createMatch() {
     } catch (error) {
         console.error('Error creating match:', error);
         alert('Failed to create match');
+    }
+}
+
+/**
+ * Show edit squads modal
+ */
+let editSquadsSeriesId = null;
+let editSquadsMatchId = null;
+
+async function showEditSquadsModal(seriesId, matchId, team1, team2) {
+    editSquadsSeriesId = seriesId;
+    editSquadsMatchId = matchId;
+    
+    // Load current match data
+    try {
+        const response = await fetch(`/api/series/${seriesId}/match/${matchId}`);
+        if (!response.ok) {
+            alert('Failed to load match data');
+            return;
+        }
+        
+        const match = await response.json();
+        
+        document.getElementById('edit-squads-modal').style.display = 'block';
+        document.getElementById('edit-squads-title').textContent = `Edit Squads - ${match.title}`;
+        
+        // Update squad titles
+        document.getElementById('edit-team1-squad-title').textContent = `${team1} Squad (11 Players)`;
+        document.getElementById('edit-team2-squad-title').textContent = `${team2} Squad (11 Players)`;
+        
+        // Create squad input fields
+        const team1Container = document.getElementById('edit-team1-squad-container');
+        const team2Container = document.getElementById('edit-team2-squad-container');
+        
+        team1Container.innerHTML = '';
+        team2Container.innerHTML = '';
+        
+        const squad1 = match.squads ? (match.squads[team1] || []) : [];
+        const squad2 = match.squads ? (match.squads[team2] || []) : [];
+        
+        for (let i = 1; i <= 11; i++) {
+            team1Container.innerHTML += `
+                <div class="form-group">
+                    <input type="text" id="edit-team1-player-${i}" placeholder="Player ${i}" value="${squad1[i-1] || ''}">
+                </div>
+            `;
+            
+            team2Container.innerHTML += `
+                <div class="form-group">
+                    <input type="text" id="edit-team2-player-${i}" placeholder="Player ${i}" value="${squad2[i-1] || ''}">
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading match:', error);
+        alert('Failed to load match data');
+    }
+}
+
+/**
+ * Update squads
+ */
+async function updateSquads() {
+    // Get squad1
+    const squad1 = [];
+    for (let i = 1; i <= 11; i++) {
+        const player = document.getElementById(`edit-team1-player-${i}`).value.trim();
+        if (!player) {
+            alert('Please fill in all squad members for Team 1');
+            return;
+        }
+        squad1.push(player);
+    }
+    
+    // Get squad2
+    const squad2 = [];
+    for (let i = 1; i <= 11; i++) {
+        const player = document.getElementById(`edit-team2-player-${i}`).value.trim();
+        if (!player) {
+            alert('Please fill in all squad members for Team 2');
+            return;
+        }
+        squad2.push(player);
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${editSquadsSeriesId}/match/${editSquadsMatchId}/squads`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ squad1, squad2 })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Squads updated successfully!');
+            closeModal('edit-squads-modal');
+            viewSeries(editSquadsSeriesId);
+        } else {
+            alert('Failed to update squads: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating squads:', error);
+        alert('Failed to update squads');
     }
 }
 
@@ -820,6 +897,37 @@ function setupScoringInterface() {
         `;
     }
     
+    // Populate fielder dropdown with bowling team players
+    const fielderSelect = document.getElementById('scoring-fielder');
+    if (fielderSelect && currentScoringMatch && currentScoringMatch.squads) {
+        const bowlingTeam = currentInnings.bowlingTeam;
+        const bowlingSquad = currentScoringMatch.squads[bowlingTeam];
+        
+        fielderSelect.innerHTML = '<option value="">None</option>';
+        fielderSelect.innerHTML += '<option value="sub">sub</option>';
+        
+        if (bowlingSquad && Array.isArray(bowlingSquad)) {
+            bowlingSquad.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player;
+                option.textContent = player;
+                fielderSelect.appendChild(option);
+            });
+        }
+    }
+    
+    // Update match day selector
+    const daySelect = document.getElementById('match-day');
+    if (daySelect && currentScoringMatch.day) {
+        daySelect.value = currentScoringMatch.day;
+    }
+    
+    // Update match message field
+    const messageInput = document.getElementById('match-message');
+    if (messageInput) {
+        messageInput.value = currentScoringMatch.message || '';
+    }
+    
     // Update ball history
     updateBallHistory();
 }
@@ -1093,8 +1201,9 @@ async function recordBallFromDashboard() {
     const wicket = document.getElementById('scoring-wicket').checked;
     const wicketType = wicket ? document.getElementById('scoring-wicket-type').value : null;
     const dismissedBatsman = wicket ? document.getElementById('scoring-dismissed-batsman').value : null;
+    const fielder = wicket ? document.getElementById('scoring-fielder').value : null;
     
-    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman });
+    console.log('Ball data:', { bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman, fielder });
     
     if (!bowler) {
         alert('Please select a bowler');
@@ -1112,7 +1221,7 @@ async function recordBallFromDashboard() {
                 'X-Session-Id': sessionId
             },
             body: JSON.stringify({
-                bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman
+                bowler, runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman, fielder
             })
         });
         
@@ -1536,17 +1645,10 @@ function showNewBowlerModalFromDashboard() {
     
     select.innerHTML = '<option value="">-- Select bowler --</option>';
     
-    // BUG FIX #4: Find bowler who last bowled from the current end (2 overs ago)
+    // Find the bowler who last bowled from the current end
     let suggestedBowler = null;
-    if (currentInnings.bowlingEnds && currentInnings.currentEnd) {
-        // Find the bowler who last bowled from this end
-        for (const [bowlerName, end] of Object.entries(currentInnings.bowlingEnds)) {
-            if (end === currentInnings.currentEnd && bowlerName !== currentInnings.lastCompletedOver?.bowler) {
-                // This bowler last bowled from this end and is not the bowler who just finished
-                suggestedBowler = bowlerName;
-                break;
-            }
-        }
+    if (currentInnings.lastBowlerAtEnd && currentInnings.currentEnd) {
+        suggestedBowler = currentInnings.lastBowlerAtEnd[currentInnings.currentEnd];
     }
     
     bowlingSquad.forEach(name => {
@@ -1748,6 +1850,7 @@ async function confirmEditBallFromDashboard() {
     const wicket = document.getElementById('edit-ball-wicket').checked;
     const wicketType = wicket ? document.getElementById('edit-ball-wicket-type').value : null;
     const dismissedBatsman = wicket ? document.getElementById('edit-ball-dismissed-batsman').value : null;
+    const fielder = wicket ? document.getElementById('edit-ball-fielder').value : null;
     
     if (!bowler || !batsman) {
         alert('Please fill in bowler and batsman');
@@ -1762,7 +1865,7 @@ async function confirmEditBallFromDashboard() {
                 'X-Session-Id': sessionId
             },
             body: JSON.stringify({
-                ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman
+                ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, fielder
             })
         });
         
@@ -1777,5 +1880,183 @@ async function confirmEditBallFromDashboard() {
     } catch (error) {
         console.error('Error editing ball:', error);
         alert('Failed to edit ball');
+    }
+}
+
+/**
+ * Update match day number
+ */
+async function updateMatchDay() {
+    const dayNum = parseInt(document.getElementById('match-day').value);
+    
+    console.log('updateMatchDay called:', {
+        dayNum,
+        currentScoringSeriesId,
+        matchId: currentScoringMatch?.id,
+        sessionId
+    });
+    
+    try {
+        const endpoint = currentScoringSeriesId 
+            ? `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/update-day`
+            : '/api/match/update-day';
+        
+        console.log('Calling endpoint:', endpoint);
+            
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': sessionId
+            },
+            body: JSON.stringify({ day: dayNum })
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            console.log('Day updated successfully');
+        } else {
+            const error = await response.json();
+            console.error('Server error:', error);
+            alert('Failed to update day: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating day:', error);
+        alert('Failed to update day');
+    }
+}
+
+/**
+ * Update match message
+ */
+async function updateMatchMessage() {
+    const message = document.getElementById('match-message').value.trim();
+    
+    try {
+        const endpoint = currentScoringSeriesId 
+            ? `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/update-message`
+            : '/api/match/update-message';
+            
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': sessionId
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            alert('Message updated successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to update message: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating message:', error);
+        alert('Failed to update message');
+    }
+}
+
+/**
+ * Clear match message
+ */
+async function clearMatchMessage() {
+    document.getElementById('match-message').value = '';
+    await updateMatchMessage();
+}
+
+/**
+ * Show change batsmen modal
+ */
+function showChangeBatsmenModalFromDashboard() {
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No active innings');
+        return;
+    }
+    
+    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const battingOrder = currentInnings.battingOrder || [];
+    
+    // Populate both dropdowns with batting order
+    const strikerSelect = document.getElementById('change-striker');
+    const nonStrikerSelect = document.getElementById('change-non-striker');
+    
+    strikerSelect.innerHTML = '<option value="">Select batsman...</option>';
+    nonStrikerSelect.innerHTML = '<option value="">Select batsman...</option>';
+    
+    battingOrder.forEach(name => {
+        const strikerOption = document.createElement('option');
+        strikerOption.value = name;
+        strikerOption.textContent = name;
+        strikerSelect.appendChild(strikerOption);
+        
+        const nonStrikerOption = document.createElement('option');
+        nonStrikerOption.value = name;
+        nonStrikerOption.textContent = name;
+        nonStrikerSelect.appendChild(nonStrikerOption);
+    });
+    
+    // Set current values
+    strikerSelect.value = currentInnings.striker || '';
+    nonStrikerSelect.value = currentInnings.nonStriker || '';
+    
+    document.getElementById('change-batsmen-modal').style.display = 'block';
+}
+
+/**
+ * Hide change batsmen modal
+ */
+function hideChangeBatsmenModalFromDashboard() {
+    document.getElementById('change-batsmen-modal').style.display = 'none';
+}
+
+/**
+ * Confirm change batsmen
+ */
+async function confirmChangeBatsmenFromDashboard() {
+    const striker = document.getElementById('change-striker').value;
+    const nonStriker = document.getElementById('change-non-striker').value;
+    
+    if (!striker || !nonStriker) {
+        alert('Please select both batsmen');
+        return;
+    }
+    
+    if (striker === nonStriker) {
+        alert('Striker and non-striker must be different');
+        return;
+    }
+    
+    try {
+        const endpoint = currentScoringSeriesId 
+            ? `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/change-batsmen`
+            : '/api/match/change-batsmen';
+            
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': sessionId
+            },
+            body: JSON.stringify({ striker, nonStriker })
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            setupScoringInterface();
+            hideChangeBatsmenModalFromDashboard();
+        } else {
+            const error = await response.json();
+            alert('Failed to change batsmen: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error changing batsmen:', error);
+        alert('Failed to change batsmen');
     }
 }

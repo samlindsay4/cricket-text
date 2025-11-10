@@ -152,6 +152,27 @@
                 <div id="scoring-match-status" class="hidden">
                     <h3>Match Details</h3>
                     <div id="match-details-display"></div>
+                    
+                    <!-- Match Settings (Day & Messages) - Always visible when match is selected -->
+                    <div id="match-settings-section" style="margin-top: 20px; padding: 15px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px;">
+                        <h4>Match Settings</h4>
+                        <div class="form-group">
+                            <label for="match-day">Day Number</label>
+                            <select id="match-day" onchange="updateMatchDay()">
+                                <option value="1">Day 1</option>
+                                <option value="2">Day 2</option>
+                                <option value="3">Day 3</option>
+                                <option value="4">Day 4</option>
+                                <option value="5">Day 5</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="match-message">Match Message</label>
+                            <input type="text" id="match-message" placeholder="e.g., Toss: England won and elected to bat, Stumps - Day 1, Lunch break">
+                            <button class="btn btn-primary" onclick="updateMatchMessage()" style="margin-top: 10px;">Update Message</button>
+                            <button class="btn btn-secondary" onclick="clearMatchMessage()" style="margin-top: 10px;">Clear Message</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Start Innings Section -->
@@ -297,6 +318,12 @@
                                 <option value="caught and bowled">Caught & Bowled</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="scoring-fielder">Fielder (if applicable)</label>
+                            <select id="scoring-fielder">
+                                <option value="">None</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <button class="btn btn-primary" onclick="recordBallFromDashboard()" style="margin-top: 15px; font-size: 16px; padding: 12px 24px;">
@@ -309,6 +336,7 @@
                         <div class="btn-group" style="flex-wrap: wrap;">
                             <button class="btn btn-secondary btn-small" onclick="undoLastBallFromDashboard()">↶ Undo</button>
                             <button class="btn btn-secondary btn-small" onclick="swapStrikeFromDashboard()">⇄ Swap Strike</button>
+                            <button class="btn btn-secondary btn-small" onclick="showChangeBatsmenModalFromDashboard()">🔄 Change Batters</button>
                             <button class="btn btn-secondary btn-small" onclick="showRetireBatsmanModalFromDashboard()">🏥 Retire</button>
                             <button class="btn btn-secondary btn-small" onclick="declareInningsFromDashboard()">🏁 Declare</button>
                             <button class="btn btn-secondary btn-small" onclick="endInningsFromDashboard()">⏹ End Innings</button>
@@ -444,15 +472,37 @@
                 <input type="date" id="match-date">
             </div>
             
-            <h3 id="team1-squad-title">Team 1 Squad (11 Players)</h3>
-            <div id="team1-squad-container"></div>
+            <div class="form-group">
+                <label for="match-time">Start Time (e.g., 10:00 GMT)</label>
+                <input type="text" id="match-time" placeholder="e.g., 10:00 GMT">
+            </div>
             
-            <h3 id="team2-squad-title">Team 2 Squad (11 Players)</h3>
-            <div id="team2-squad-container"></div>
+            <p style="color: #888; font-size: 14px; margin-top: 15px;">
+                Note: Squads can be added later using the "Edit Squads" button before starting the match.
+            </p>
             
             <div style="margin-top: 20px;">
                 <button class="btn btn-primary" onclick="createMatch()">Create Match</button>
                 <button class="btn btn-secondary" onclick="closeModal('create-match-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Squads Modal -->
+    <div id="edit-squads-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-squads-modal')">&times;</span>
+            <h2 id="edit-squads-title">Edit Match Squads</h2>
+            
+            <h3 id="edit-team1-squad-title">Team 1 Squad (11 Players)</h3>
+            <div id="edit-team1-squad-container"></div>
+            
+            <h3 id="edit-team2-squad-title">Team 2 Squad (11 Players)</h3>
+            <div id="edit-team2-squad-container"></div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="updateSquads()">Update Squads</button>
+                <button class="btn btn-secondary" onclick="closeModal('edit-squads-modal')">Cancel</button>
             </div>
         </div>
     </div>
@@ -607,6 +657,10 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="edit-ball-fielder">Fielder (if applicable)</label>
+                    <input type="text" id="edit-ball-fielder">
+                </div>
+                <div class="form-group">
                     <label for="edit-ball-dismissed-batsman">Dismissed Batsman</label>
                     <input type="text" id="edit-ball-dismissed-batsman">
                 </div>
@@ -615,6 +669,33 @@
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button class="btn btn-primary" onclick="confirmEditBallFromDashboard()">Save Changes</button>
                 <button class="btn btn-secondary" onclick="hideEditBallModalFromDashboard()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Batsmen Modal -->
+    <div id="change-batsmen-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideChangeBatsmenModalFromDashboard()">&times;</span>
+            <h2>Change Batters</h2>
+            
+            <div class="form-group">
+                <label for="change-striker">Striker</label>
+                <select id="change-striker">
+                    <option value="">Select batsman...</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="change-non-striker">Non-Striker</label>
+                <select id="change-non-striker">
+                    <option value="">Select batsman...</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="confirmChangeBatsmenFromDashboard()">Change Batsmen</button>
+                <button class="btn btn-secondary" onclick="hideChangeBatsmenModalFromDashboard()">Cancel</button>
             </div>
         </div>
     </div>

@@ -4,9 +4,21 @@ let currentSubpage = 1;
 let totalSubpages = 1;
 let subpageInterval = null;
 let refreshInterval = null;
+let isSubpagePaused = false;
+let isInitialScorecardLoad = true; // Track if this is the first load of a scorecard
+
+// Batting stats cycling variables
+let battingStatsCurrentTeam = 0;
+let battingStatsCycleInterval = null;
+let battingStatsPaused = false;
+
+// Bowling stats cycling variables
+let bowlingStatsCurrentTeam = 0;
+let bowlingStatsCycleInterval = null;
+let bowlingStatsPaused = false;
 
 // Constants
-const LIVE_REFRESH_INTERVAL = 2000; // 2 seconds
+const LIVE_REFRESH_INTERVAL = 5000; // 5 seconds
 const SUBPAGE_CYCLE_INTERVAL = 5000; // 5 seconds
 const SUBPAGES_PER_INNINGS = 2; // Batting and Bowling
 
@@ -33,9 +45,9 @@ function updateURL(page) {
  */
 function updateHeaderDateTime() {
     const now = new Date();
-    // Format: SAT 08 NOV
-    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    // Format: Sat 08 Nov
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const dayName = days[now.getDay()];
     const day = String(now.getDate()).padStart(2, '0');
     const month = months[now.getMonth()];
@@ -57,17 +69,61 @@ function updateHeaderDateTime() {
 /**
  * Navigate to a specific page
  */
-function navigatePage(target) {
+async function navigatePage(target) {
     if (target === 'prev') {
-        currentPage = Math.max(340, currentPage - 1);
+        // Try to find previous page with content
+        let prevPage = currentPage - 1;
+        while (prevPage >= 340) {
+            const exists = await checkPageExists(prevPage);
+            if (exists) {
+                currentPage = prevPage;
+                break;
+            }
+            prevPage--;
+        }
+        if (prevPage < 340) {
+            currentPage = 340; // Go to homepage if nothing found
+        }
     } else if (target === 'next') {
-        currentPage = currentPage + 1;
+        // Try to find next page with content
+        let nextPage = currentPage + 1;
+        let found = false;
+        // Try up to 100 pages ahead
+        for (let i = 0; i < 100; i++) {
+            const exists = await checkPageExists(nextPage);
+            if (exists) {
+                currentPage = nextPage;
+                found = true;
+                break;
+            }
+            nextPage++;
+        }
+        if (!found) {
+            return; // Stay on current page if no next page found
+        }
+    } else if (target === 'donate') {
+        // TODO: Navigate to donation page when created
+        currentPage = 340; // Temporarily go to homepage
     } else {
         currentPage = parseInt(target);
     }
     
     updateURL(currentPage);
     loadPage(currentPage);
+}
+
+/**
+ * Check if a page exists
+ */
+async function checkPageExists(pageNum) {
+    try {
+        const response = await fetch(`/api/page-data?page=${pageNum}&_t=${Date.now()}`, {
+            cache: 'no-store'
+        });
+        return response.ok;
+    } catch (error) {
+        return false;
+    }
 }
 
 /**
@@ -84,9 +140,23 @@ function navigateToInputPage() {
 }
 
 /**
+ * Generate footer navigation HTML
+ */
+function getFooterNavigation() {
+    return `
+        <div class="live-footer-nav">
+            <span class="page-link text-red" onclick="navigatePage('prev')">Previous</span>
+            <span class="page-link text-green" onclick="navigatePage('next')">Next</span>
+            <span class="page-link text-yellow" onclick="navigatePage(340)">Cricket</span>
+            <span class="page-link text-cyan" onclick="navigatePage('donate')">Donate</span>
+        </div>
+    `;
+}
+
+/**
  * Load and display page content
  */
-async function loadPage(pageNum) {
+async function loadPage(pageNum, preserveSubpage = false) {
     try {
         // Clear any existing intervals
         if (subpageInterval) {
@@ -97,9 +167,20 @@ async function loadPage(pageNum) {
             clearInterval(refreshInterval);
             refreshInterval = null;
         }
+        if (battingStatsCycleInterval) {
+            clearInterval(battingStatsCycleInterval);
+            battingStatsCycleInterval = null;
+        }
+        if (bowlingStatsCycleInterval) {
+            clearInterval(bowlingStatsCycleInterval);
+            bowlingStatsCycleInterval = null;
+        }
         
         currentPage = pageNum;
-        currentSubpage = 1;
+        if (!preserveSubpage) {
+            currentSubpage = 1;
+            isInitialScorecardLoad = true; // Reset flag when navigating to a new page
+        }
         
         // Update page number display
         document.getElementById('page-number-display').textContent = pageNum;
@@ -109,10 +190,15 @@ async function loadPage(pageNum) {
         });
         const data = await response.json();
         
+        console.log('Page load response:', { pageNum, status: response.status, ok: response.ok, data });
+        
         if (!response.ok) {
             showErrorPage(data.error || 'Page not found');
             return;
         }
+        
+        // Store data globally for keyboard handlers
+        window.currentPageData = data;
         
         // Render page based on type
         switch (data.type) {
@@ -132,24 +218,17 @@ async function loadPage(pageNum) {
                 break;
             case 'scorecard':
                 renderScorecard(data);
-                // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
+                // Auto-refresh every 5 seconds, preserving current subpage
+                refreshInterval = setInterval(() => loadPage(currentPage, true), LIVE_REFRESH_INTERVAL);
                 break;
             case 'fixtures':
                 renderFixtures(data);
                 break;
-            case 'results':
-                renderResults(data);
-                break;
             case 'batting-stats':
                 renderBattingStats(data);
-                // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             case 'bowling-stats':
                 renderBowlingStats(data);
-                // Auto-refresh every 2 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
                 break;
             default:
                 showErrorPage('Unknown page type');
@@ -166,10 +245,10 @@ async function loadPage(pageNum) {
 function showErrorPage(message) {
     const content = document.getElementById('page-content');
     content.innerHTML = `
-        <div class="error-page">
-            <div class="error-page-title">PAGE NOT FOUND</div>
-            <div class="error-page-message">${message}</div>
-            <div class="error-page-link-container">
+        <div style="text-align: center; padding: 40px;">
+            <div class="text-red" style="font-size: 32px; margin-bottom: 20px;">PAGE NOT FOUND</div>
+            <div class="text-yellow" style="margin-bottom: 30px;">${message}</div>
+            <div>
                 <span class="page-link" onclick="navigatePage(340)">Return to Homepage (p340)</span>
             </div>
         </div>
@@ -180,24 +259,24 @@ function showErrorPage(message) {
  * Render Homepage (Page 340)
  */
 function renderHomepage(data) {
-    let html = '<div class="headline homepage-headline">CEEFAX CRICKET</div>';
+    let html = '';
     
     // Live Matches
     if (data.liveMatches && data.liveMatches.length > 0) {
-        html += '<div class="section-header section-header-yellow">LIVE MATCHES</div>';
+        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">LIVE MATCHES</div>';
         
         data.liveMatches.forEach(match => {
             const currentInnings = match.innings[match.innings.length - 1];
             html += `
                 <div class="mini-score">
-                    <div class="mini-score-series-link">
+                    <div class="text-cyan">
                         → ${match.seriesName.toUpperCase()}
                         <span class="page-link" onclick="navigatePage(${match.seriesPage})">p${match.seriesPage}</span>
                     </div>
-                    <div class="mini-score-current">
+                    <div class="text-white">
                         ${currentInnings.battingTeam} ${currentInnings.runs}/${currentInnings.wickets} (${currentInnings.overs}.${currentInnings.balls} overs)
                     </div>
-                    ${match.matchSituation && match.matchSituation.leadBy ? `<div class="mini-score-situation">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
+                    ${match.matchSituation && match.matchSituation.leadBy ? `<div class="text-yellow">Trail by ${match.matchSituation.leadBy} runs</div>` : ''}
                 </div>
             `;
         });
@@ -205,13 +284,13 @@ function renderHomepage(data) {
     
     // News
     if (data.news && data.news.length > 0) {
-        html += '<div class="section-header section-header-yellow">NEWS</div>';
+        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">NEWS</div>';
         
         data.news.forEach(newsItem => {
             html += `
                 <div class="item-container">
                     <span class="page-link" onclick="navigatePage(${newsItem.page})">${newsItem.title}</span>
-                    <span class="page-link page-link-right">p${newsItem.page}</span>
+                    <span class="page-link" style="float: right;">p${newsItem.page}</span>
                 </div>
             `;
         });
@@ -219,7 +298,7 @@ function renderHomepage(data) {
     
     // Series
     if (data.series && data.series.length > 0) {
-        html += '<div class="section-header section-header-yellow">SERIES</div>';
+        html += '<div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">SERIES</div>';
         
         data.series.forEach(series => {
             const seriesScore = Object.entries(series.seriesScore)
@@ -229,12 +308,14 @@ function renderHomepage(data) {
             html += `
                 <div class="item-container">
                     <span class="page-link" onclick="navigatePage(${series.startPage})">${series.name}</span>
-                    <span class="page-link page-link-right">p${series.startPage}</span>
-                    <div class="item-subscore">${seriesScore}</div>
+                    <span class="page-link" style="float: right;">p${series.startPage}</span>
+                    <div class="text-cyan">${seriesScore}</div>
                 </div>
             `;
         });
     }
+    
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -245,15 +326,13 @@ function renderHomepage(data) {
  */
 function renderNewsPage(data) {
     const news = data.newsItem;
-    const html = `
-        <div class="headline news-headline">${news.title.toUpperCase()}</div>
-        <div class="news-date">${news.date}</div>
-        <div class="news-content">${news.content}</div>
-        <div class="news-footer">
-            <span class="page-link" onclick="navigatePage(340)">Homepage</span>
-            <span class="page-link page-link-right">p340</span>
-        </div>
+    let html = `
+        <div class="text-yellow" style="font-size: 32px; margin-bottom: 10px;">${news.title.toUpperCase()}</div>
+        <div class="text-cyan" style="margin-bottom: 20px;">${news.date}</div>
+        <div class="text-white" style="margin-bottom: 30px; line-height: 1.6;">${news.content}</div>
     `;
+    
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -269,19 +348,22 @@ function renderSeriesOverview(data) {
         .join(' - ');
     
     let html = `
-        <div class="headline series-overview-headline">${series.name.toUpperCase()}</div>
-        <div class="series-teams">${series.team1} vs ${series.team2}</div>
-        <div class="series-score-line">SERIES: ${seriesScoreText}</div>
+        <div class="live-match-header">
+            <span class="text-cyan" style="font-size: 32px;">${series.name.toUpperCase()}</span>
+            <span class="text-white">1/1</span>
+        </div>
+        <div class="text-white" style="margin-bottom: 5px;">${series.team1} vs ${series.team2}</div>
+        <div class="text-yellow" style="margin-bottom: 20px;">SERIES: ${seriesScoreText}</div>
     `;
     
     // Current Match
     if (data.currentMatch) {
         const match = data.currentMatch;
         html += `
-            <div class="section-header section-header-cyan">
-                CURRENT MATCH <span class="live-indicator">LIVE</span>
+            <div class="text-cyan" style="margin-top: 20px; margin-bottom: 10px;">
+                CURRENT MATCH <span class="text-red">LIVE</span>
             </div>
-            <div class="match-info-text">
+            <div class="text-white">
                 ${match.title} - ${match.venue}
             </div>
         `;
@@ -291,10 +373,10 @@ function renderSeriesOverview(data) {
     if (data.nextMatch) {
         const match = data.nextMatch;
         html += `
-            <div class="section-header section-header-yellow">NEXT MATCH</div>
-            <div class="match-info-text">
+            <div class="text-yellow" style="margin-top: 20px; margin-bottom: 10px;">NEXT MATCH</div>
+            <div class="text-white">
                 ${match.title} - ${match.venue || 'TBC'}
-                <div class="match-date">${match.date || 'Date TBC'}</div>
+                <div class="text-cyan" style="margin-top: 5px;">${match.date || 'Date TBC'}</div>
             </div>
         `;
     }
@@ -304,30 +386,32 @@ function renderSeriesOverview(data) {
         <div class="nav-links-container">
             <div class="nav-link-item">
                 <span>Live Score</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 1})">p${series.startPage + 1}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 1})">p${series.startPage + 1}</span>
             </div>
             <div class="nav-link-item">
                 <span>Full Scorecard</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 2})">p${series.startPage + 2}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 2})">p${series.startPage + 2}</span>
             </div>
             <div class="nav-link-item">
                 <span>Fixtures</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 3})">p${series.startPage + 3}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 3})">p${series.startPage + 3}</span>
             </div>
             <div class="nav-link-item">
                 <span>Results</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 4})">p${series.startPage + 4}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 4})">p${series.startPage + 4}</span>
             </div>
             <div class="nav-link-item">
                 <span>Leading Run Scorers</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 5})">p${series.startPage + 5}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 5})">p${series.startPage + 5}</span>
             </div>
             <div class="nav-link-item">
                 <span>Leading Wicket Takers</span>
-                <span class="page-link page-link-right" onclick="navigatePage(${series.startPage + 6})">p${series.startPage + 6}</span>
+                <span class="page-link" style="float: right;" onclick="navigatePage(${series.startPage + 6})">p${series.startPage + 6}</span>
             </div>
         </div>
     `;
+    
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -339,24 +423,23 @@ function renderSeriesOverview(data) {
 function renderLiveScore(data) {
     const match = data.match;
     
-    if (!match || !match.innings || match.innings.length === 0) {
+    if (!match) {
         document.getElementById('page-content').innerHTML = `
-            <div class="no-match-center">
+            <span class="text-white">
                 NO LIVE MATCH
-            </div>
+            </span>
         `;
         return;
     }
     
-    const currentInnings = match.innings[match.innings.length - 1];
-    
-    // Calculate match situation
-    let matchSituation = '';
-    
-    // Determine day of test match (rough estimation based on overs)
-    let totalOvers = 0;
-    match.innings.forEach(inn => totalOvers += (inn.overs || 0));
-    let dayNum = Math.min(5, Math.ceil(totalOvers / 90) || 1);
+    // Get day number from match data, or calculate as fallback
+    let dayNum = match.day || 1;
+    if (!match.day && match.innings && match.innings.length > 0) {
+        // Fallback: estimate based on overs
+        let totalOvers = 0;
+        match.innings.forEach(inn => totalOvers += (inn.overs || 0));
+        dayNum = Math.min(5, Math.ceil(totalOvers / 90) || 1);
+    }
     
     // Helper function to capitalize first letter of each word
     const capitalizeWords = (str) => {
@@ -369,9 +452,53 @@ function renderLiveScore(data) {
     let html = `
         <div class="live-match-header">
             <span>${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')} (Day ${dayNum})</span>
-            <span class="live-subpage-indicator">1/1</span>
+            <span class="text-white">1/1</span>
         </div>
     `;
+    
+    // Show match message if it exists
+    if (match.message && match.message.trim()) {
+        html += `
+            <div class="text-green">
+                ${match.message}
+            </div>
+        `;
+    }
+    
+    // If no innings yet (upcoming match), show empty tables and stop
+    if (!match.innings || match.innings.length === 0) {
+        html += `
+            <div class="text-white">
+                Match yet to begin
+            </div>
+            <table class="live-batting-table">
+                <tr class="live-batting-table-header">
+                    <th>Batters</th>
+                    <th>R</th>
+                    <th>B</th>
+                    <th>4</th>
+                    <th>6</th>
+                </tr>
+            </table>
+            <table class="live-bowling-table">
+                <tr class="live-bowling-table-header">
+                    <th>Bowlers</th>
+                    <th>O</th>
+                    <th>M</th>
+                    <th>R</th>
+                    <th>W</th>
+                </tr>
+            </table>
+        `;
+        document.getElementById('page-content').innerHTML = html;
+        document.getElementById('subpage-indicator').textContent = '';
+        return;
+    }
+    
+    const currentInnings = match.innings[match.innings.length - 1];
+    
+    // Calculate match situation
+    let matchSituation = '';
     
     // Group innings by team and calculate cumulative scores
     // Get team names from match.team1/team2 OR derive from innings data
@@ -391,6 +518,11 @@ function renderLiveScore(data) {
     const team1Innings = match.innings.filter(i => i.battingTeam === team1);
     const team2Innings = match.innings.filter(i => i.battingTeam === team2);
     
+    // Check for follow-on: innings 2 and 3 have the same batting team
+    const isFollowOn = match.innings.length >= 3 && 
+                       match.innings[1].battingTeam === match.innings[2].battingTeam;
+    const followOnTeam = isFollowOn ? match.innings[2].battingTeam : null;
+    
     // ALWAYS display team scores (even if 0-0)
     // Team 1 score
     if (team1) {
@@ -399,25 +531,26 @@ function renderLiveScore(data) {
         if (team1Innings.length > 0) {
             const firstInns = team1Innings[0];
             const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
-            const decText = firstInns.declared ? ' d' : '';
+            const decText = firstInns.declared ? 'd' : '';
             const isCurrentFirst = firstInns === currentInnings;
-            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText}${decText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
             
             if (team1Innings.length > 1) {
                 const secondInns = team1Innings[1];
-                const decText = secondInns.declared ? ' dec' : '';
+                const decText = secondInns.declared ? 'd' : '';
                 const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
                 // Only show overs for ongoing innings (current innings)
                 const isCurrentInnings = secondInns === currentInnings;
+                const foText = (isFollowOn && followOnTeam === team1) ? ' fo' : '';
                 const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
-                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
+                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${foText}${oversText}`;
             }
         }
         
         html += `
-            <div class="live-team-score">
+            <span class="text-yellow">
                 ${capitalizeWords(team1)}: ${scoreText}
-            </div>
+            </span>
         `;
     }
     
@@ -428,23 +561,24 @@ function renderLiveScore(data) {
         if (team2Innings.length > 0) {
             const firstInns = team2Innings[0];
             const wicketsText = firstInns.wickets >= 10 ? '' : `-${firstInns.wickets}`;
-            const decText = firstInns.declared ? ' d' : '';
+            const decText = firstInns.declared ? 'd' : '';
             const isCurrentFirst = firstInns === currentInnings;
-            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
+            scoreText = isCurrentFirst ? `${firstInns.runs}${wicketsText}${decText} (${firstInns.overs}.${firstInns.balls} ov)` : `${firstInns.runs}${wicketsText}${decText}`;
             
             if (team2Innings.length > 1) {
                 const secondInns = team2Innings[1];
-                const decText = secondInns.declared ? ' dec' : '';
+                const decText = secondInns.declared ? 'd' : '';
                 const wicketsText2 = secondInns.wickets >= 10 ? '' : `-${secondInns.wickets}`;
                 // Only show overs for ongoing innings (current innings)
                 const isCurrentInnings = secondInns === currentInnings;
+                const foText = (isFollowOn && followOnTeam === team2) ? ' fo' : '';
                 const oversText = isCurrentInnings ? ` (${secondInns.overs}.${secondInns.balls} ov)` : '';
-                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${oversText}`;
+                scoreText += ` & ${secondInns.runs}${wicketsText2}${decText}${foText}${oversText}`;
             }
         }
         
         html += `
-            <div class="live-team-score">
+            <div class="text-yellow">
                 ${capitalizeWords(team2)}: ${scoreText}
             </div>
         `;
@@ -457,7 +591,18 @@ function renderLiveScore(data) {
     // Check if match is completed and show result
     if (match.status === 'completed' && match.result) {
         // Show the match result
-        matchSituation = match.result;
+        const result = match.result;
+        const winnerName = capitalizeWords(result.winner);
+        
+        if (result.winType === 'innings') {
+            matchSituation = `${winnerName} won by an innings and ${result.margin} runs`;
+        } else if (result.winType === 'runs') {
+            matchSituation = `${winnerName} won by ${result.margin} runs`;
+        } else if (result.winType === 'wickets') {
+            matchSituation = `${winnerName} won by ${result.margin} wickets`;
+        } else if (result.winType === 'tie') {
+            matchSituation = 'Match tied';
+        }
     } else if (match.innings.length === 2) {
         // First innings of each team complete
         const lead = team1Total - team2Total;
@@ -476,20 +621,36 @@ function renderLiveScore(data) {
             matchSituation = `${capitalizeWords(team1)} require ${Math.abs(target)} to win`;
         }
     } else if (match.innings.length === 3) {
-        // Third innings - show lead
-        const lead = team1Total - team2Total;
-        if (lead > 0 && currentInnings.battingTeam === team1) {
-            matchSituation = `${capitalizeWords(team1)} lead by ${lead} runs`;
-        } else if (lead < 0 && currentInnings.battingTeam === team2) {
-            matchSituation = `${capitalizeWords(team2)} lead by ${Math.abs(lead)} runs`;
+        // Third innings
+        if (isFollowOn) {
+            // Follow-on: Team batting second innings is still trailing
+            // Need to compare their combined score vs opponent's first innings
+            const followOnTeamTotal = followOnTeam === team1 ? team1Total : team2Total;
+            const opponentTeam = followOnTeam === team1 ? team2 : team1;
+            const opponentTotal = followOnTeam === team1 ? team2Total : team1Total;
+            
+            const deficit = opponentTotal - followOnTeamTotal;
+            if (deficit > 0) {
+                matchSituation = `${capitalizeWords(followOnTeam)} trail by ${deficit} runs`;
+            } else if (deficit < 0) {
+                matchSituation = `${capitalizeWords(followOnTeam)} lead by ${Math.abs(deficit)} runs`;
+            }
+        } else {
+            // Normal third innings - show lead
+            const lead = team1Total - team2Total;
+            if (lead > 0 && currentInnings.battingTeam === team1) {
+                matchSituation = `${capitalizeWords(team1)} lead by ${lead} runs`;
+            } else if (lead < 0 && currentInnings.battingTeam === team2) {
+                matchSituation = `${capitalizeWords(team2)} lead by ${Math.abs(lead)} runs`;
+            }
         }
     }
     
     if (matchSituation) {
         html += `
-            <div class="live-match-situation">
+            <span class="text-yellow">
                 ${matchSituation}
-            </div>
+            </span>
         `;
     }
     
@@ -499,7 +660,7 @@ function renderLiveScore(data) {
     
     // Section header for current innings
     html += `
-        <div class="live-innings-header">
+        <div class="text-white">
             ${currentInnings.battingTeam.toUpperCase()}, ${teamInningsOrdinal} Inns:
         </div>
     `;
@@ -511,19 +672,21 @@ function renderLiveScore(data) {
                 <th>Batters</th>
                 <th>R</th>
                 <th>B</th>
-                <th>4s</th>
-                <th>6s</th>
+                <th>4</th>
+                <th>6</th>
             </tr>
     `;
     
     // Show batsmen - for completed matches show last 2, for live show striker and non-striker
     if (currentInnings.allBatsmen) {
-        if (match.status === 'completed' || !currentInnings.striker || !currentInnings.nonStriker) {
-            // For completed matches or when striker info is missing, show last 2 batsmen who batted
-            const batsmenArray = Object.values(currentInnings.allBatsmen)
-                .filter(b => b.balls > 0)
+        if (match.status === 'completed' || !currentInnings.striker || !currentInnings.nonStriker || currentInnings.wickets >= 10) {
+            // For completed matches, all out, or when striker info is missing, show only batsmen who are genuinely not out
+            // Exclude anyone who has a "howOut" field (dismissed) or status is explicitly "out"
+            const batsmenArray = Object.entries(currentInnings.allBatsmen)
+                .map(([name, stats]) => ({ name, ...stats }))
+                .filter(b => (b.status === 'not out' || b.status === 'batting') && !b.howOut)
                 .sort((a, b) => {
-                    // Sort by batting order or balls faced
+                    // Sort by balls faced (descending)
                     return (b.balls || 0) - (a.balls || 0);
                 })
                 .slice(0, 2);
@@ -592,67 +755,149 @@ function renderLiveScore(data) {
             </tr>
     `;
     
-    // Show bowlers - for completed matches show last 2, for live show current and previous (only if there are 2+)
+    // Show bowlers - organized by bowling end (End A vs End B)
     if (currentInnings.allBowlers) {
-        if (match.status === 'completed' || !currentInnings.currentBowler) {
-            // For completed matches or when current bowler info is missing, show last 2 bowlers
-            const bowlersArray = Object.values(currentInnings.allBowlers)
-                .filter(b => b.balls > 0)
-                .sort((a, b) => b.balls - a.balls)
-                .slice(0, 2);
+        console.log('All bowlers:', currentInnings.allBowlers);
+        console.log('Current bowler:', currentInnings.currentBowler);
+        console.log('Last completed over:', currentInnings.lastCompletedOver);
+        console.log('Current over number:', currentInnings.overs);
+        console.log('Balls in current over:', currentInnings.balls);
+        
+        // Track bowlers by END (A or B)
+        let endA = null;
+        let endB = null;
+        
+        const balls = currentInnings.balls || 0;
+        
+        // First, populate from lastBowlerAtEnd if available
+        if (currentInnings.lastBowlerAtEnd) {
+            if (currentInnings.lastBowlerAtEnd['End A']) {
+                const bowlerName = currentInnings.lastBowlerAtEnd['End A'];
+                const stats = currentInnings.allBowlers[bowlerName];
+                if (stats) {
+                    endA = {
+                        name: bowlerName,
+                        balls: stats.balls || 0,
+                        runs: stats.runs || 0,
+                        wickets: stats.wickets || 0,
+                        maidens: stats.maidens || 0
+                    };
+                }
+            }
             
-            bowlersArray.forEach(bowler => {
-                const oversStr = Math.floor(bowler.balls / 6) + '.' + (bowler.balls % 6);
-                html += `
-                    <tr>
-                        <td>${bowler.name || 'Unknown'}</td>
-                        <td>${oversStr}</td>
-                        <td>${bowler.maidens || 0}</td>
-                        <td>${bowler.runs}</td>
-                        <td>${bowler.wickets}</td>
-                    </tr>
-                `;
-            });
-        } else {
-            // For live matches, show current bowler with proper null checking
-            if (currentInnings.currentBowler && currentInnings.currentBowler.name) {
-                const bowlerName = currentInnings.currentBowler.name;
-                const currentBowler = currentInnings.allBowlers[bowlerName];
+            if (currentInnings.lastBowlerAtEnd['End B']) {
+                const bowlerName = currentInnings.lastBowlerAtEnd['End B'];
+                const stats = currentInnings.allBowlers[bowlerName];
+                if (stats) {
+                    endB = {
+                        name: bowlerName,
+                        balls: stats.balls || 0,
+                        runs: stats.runs || 0,
+                        wickets: stats.wickets || 0,
+                        maidens: stats.maidens || 0
+                    };
+                }
+            }
+        }
+        
+        // If currently bowling (balls > 0), update the current end with current bowler
+        if (balls > 0 && currentInnings.currentBowler && currentInnings.currentBowler.name && currentInnings.currentEnd) {
+            const currentBowlerName = currentInnings.currentBowler.name;
+            const stats = currentInnings.allBowlers[currentBowlerName];
+            
+            if (stats) {
+                const bowlerData = {
+                    name: currentBowlerName,
+                    balls: stats.balls || 0,
+                    runs: stats.runs || 0,
+                    wickets: stats.wickets || 0,
+                    maidens: stats.maidens || 0
+                };
                 
-                if (currentBowler) {
-                    const oversStr = Math.floor(currentBowler.balls / 6) + '.' + (currentBowler.balls % 6);
-                    html += `
-                        <tr>
-                            <td>${bowlerName}</td>
-                            <td>${oversStr}</td>
-                            <td>${currentBowler.maidens || 0}</td>
-                            <td>${currentBowler.runs}</td>
-                            <td>${currentBowler.wickets}</td>
-                        </tr>
-                    `;
+                if (currentInnings.currentEnd === 'End A') {
+                    endA = bowlerData;
+                } else {
+                    endB = bowlerData;
+                }
+            }
+        }
+        
+        // Fallback if we don't have lastBowlerAtEnd yet (backward compatibility)
+        if (!currentInnings.lastBowlerAtEnd) {
+            if (currentInnings.lastCompletedOver && currentInnings.lastCompletedOver.bowler) {
+                const lastBowlerName = currentInnings.lastCompletedOver.bowler;
+                const lastEnd = currentInnings.lastCompletedOver.end;
+                const stats = currentInnings.allBowlers[lastBowlerName];
+                
+                if (stats) {
+                    const bowlerData = {
+                        name: lastBowlerName,
+                        balls: stats.balls || 0,
+                        runs: stats.runs || 0,
+                        wickets: stats.wickets || 0,
+                        maidens: stats.maidens || 0
+                    };
                     
-                    // Find previous bowler (not current bowler, sorted by most recent) - only show if there are other bowlers
-                    const otherBowlers = Object.values(currentInnings.allBowlers)
-                        .filter(b => b.balls > 0 && b.name !== bowlerName)
-                        .sort((a, b) => b.balls - a.balls);
-                    
-                    // Only show previous bowler if there is one (i.e., not in first over)
-                    if (otherBowlers.length > 0) {
-                        const prevBowler = otherBowlers[0];
-                        const oversStr = Math.floor(prevBowler.balls / 6) + '.' + (prevBowler.balls % 6);
-                        html += `
-                            <tr>
-                                <td>${prevBowler.name}</td>
-                                <td>${oversStr}</td>
-                                <td>${prevBowler.maidens || 0}</td>
-                                <td>${prevBowler.runs}</td>
-                                <td>${prevBowler.wickets}</td>
-                            </tr>
-                        `;
+                    if (lastEnd === 'End A') {
+                        endA = bowlerData;
+                    } else if (lastEnd === 'End B') {
+                        endB = bowlerData;
+                    }
+                }
+            }
+            
+            // Find the other active bowler
+            if ((!endA || !endB) && Object.keys(currentInnings.allBowlers).length >= 2) {
+                const knownBowler = endA?.name || endB?.name;
+                
+                // Find bowler with most balls (likely the other active bowler)
+                let bestCandidate = null;
+                let maxBalls = 0;
+                
+                for (const [name, stats] of Object.entries(currentInnings.allBowlers)) {
+                    if (name !== knownBowler && stats.balls > maxBalls) {
+                        bestCandidate = {
+                            name: name,
+                            balls: stats.balls || 0,
+                            runs: stats.runs || 0,
+                            wickets: stats.wickets || 0,
+                            maidens: stats.maidens || 0
+                        };
+                        maxBalls = stats.balls;
+                    }
+                }
+                
+                if (bestCandidate) {
+                    if (!endA) {
+                        endA = bestCandidate;
+                    } else if (!endB) {
+                        endB = bestCandidate;
                     }
                 }
             }
         }
+        
+        console.log('End A bowler:', endA);
+        console.log('End B bowler:', endB);
+        
+        // Display bowlers (End A first, then End B)
+        [endA, endB].forEach(bowler => {
+            if (bowler) {
+                const balls = bowler.balls % 6;
+                const oversStr = Math.floor(bowler.balls / 6) + (balls > 0 ? '.' + balls : '');
+                html += `
+                    <tr>
+                        <td>${bowler.name}</td>
+                        <td>${oversStr}</td>
+                        <td>${bowler.maidens}</td>
+                        <td>${bowler.runs}</td>
+                        <td>${bowler.wickets}</td>
+                    </tr>
+                `;
+            }
+        });
+    } else {
+        console.log('No allBowlers found in currentInnings');
     }
     
     html += '</table>';
@@ -674,8 +919,8 @@ function renderLiveScore(data) {
     }
     
     if (overToDisplay) {
-        html += `<div class="live-over-label">${overLabel}</div>`;
-        html += '<div class="live-over-balls">';
+        html += `<div class="text-cyan">${overLabel}</div>`;
+        html += '<div class="text-cyan">';
         
         // Reverse the order so most recent ball is first
         const ballsReversed = [...overToDisplay].reverse();
@@ -734,11 +979,11 @@ function renderLiveScore(data) {
             }
             
             // Color coding with CSS classes
-            let colorClass = 'ball-normal-color';
+            let colorClass = 'text-white';
             if (ball.wicket) {
-                colorClass = 'ball-wicket-color';
+                colorClass = 'text-red';
             } else if (ball.runs === 4 || ball.runs === 6) {
-                colorClass = 'ball-boundary-color';
+                colorClass = 'text-green';
             }
             
             html += `<span class="${colorClass}">${ballDisplay}</span>`;
@@ -750,19 +995,11 @@ function renderLiveScore(data) {
     // Footer with promotion message
     html += `
         <div class="live-promo-bar">
-            Buy the latest Tailenders merch.<br>Go Well!
+            Buy the latest Tailenders merch. Go Well!
         </div>
     `;
     
-    // Navigation links at bottom
-    html += `
-        <div class="live-footer-nav">
-            <span class="page-link footer-link-red" onclick="navigatePage(340)">Cricket</span>
-            <span class="page-link footer-link-green" onclick="navigatePage(${data.series.startPage + 1})">Live</span>
-            <span class="page-link footer-link-yellow" onclick="navigatePage(${data.series.startPage + 3})">Fixtures</span>
-            <span class="page-link footer-link-cyan" onclick="navigatePage(${data.series.startPage})">Donate</span>
-        </div>
-    `;
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -776,7 +1013,7 @@ function renderScorecard(data) {
     
     if (!match || !match.innings || match.innings.length === 0) {
         document.getElementById('page-content').innerHTML = `
-            <div class="no-match-center">
+            <div class="text-white" style="text-align: center; padding: 40px;">
                 NO MATCH DATA
             </div>
         `;
@@ -786,20 +1023,116 @@ function renderScorecard(data) {
     // Calculate total subpages (2 per innings: batting and bowling)
     totalSubpages = match.innings.length * SUBPAGES_PER_INNINGS;
     
+    // If this is the initial load, jump to the most recent innings
+    // Most recent innings is the last one, so calculate its batting subpage
+    if (isInitialScorecardLoad && currentSubpage === 1) {
+        // Last innings index (0-based)
+        const lastInningsIndex = match.innings.length - 1;
+        // Batting subpage for this innings: (inningsIndex * 2) + 1
+        currentSubpage = (lastInningsIndex * SUBPAGES_PER_INNINGS) + 1;
+        isInitialScorecardLoad = false; // Mark that we've done the initial jump
+    }
+    
     // Render current subpage
     renderScorecardSubpage(match, currentSubpage);
     
-    // Auto-cycle subpages every 5 seconds
+    // Start auto-cycling subpages (unless paused)
+    startSubpageCycling();
+}
+
+/**
+ * Toggle pause/play for subpage cycling
+ */
+function toggleSubpagePause() {
+    isSubpagePaused = !isSubpagePaused;
+    const btn = document.getElementById('pauseBtn');
+    if (btn) {
+        if (isSubpagePaused) {
+            btn.classList.remove('text-magenta');
+            btn.classList.add('text-green');
+        } else {
+            btn.classList.remove('text-green');
+            btn.classList.add('text-magenta');
+        }
+    }
+    
+    if (isSubpagePaused) {
+        // Clear the interval when paused
+        if (subpageInterval) {
+            clearInterval(subpageInterval);
+            subpageInterval = null;
+        }
+    } else {
+        // Resume cycling when unpaused
+        startSubpageCycling();
+    }
+}
+
+/**
+ * Navigate to next subpage
+ */
+function nextSubpage() {
+    currentSubpage++;
+    if (currentSubpage > totalSubpages) {
+        currentSubpage = 1;
+    }
+    
+    // Fetch current match data and re-render
+    fetch(`/api/page-data?page=${currentPage}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.type === 'scorecard' && data.match) {
+                renderScorecardSubpage(data.match, currentSubpage);
+            }
+        })
+        .catch(error => console.error('Error fetching page data:', error));
+}
+
+/**
+ * Navigate to previous subpage
+ */
+function previousSubpage() {
+    currentSubpage--;
+    if (currentSubpage < 1) {
+        currentSubpage = totalSubpages;
+    }
+    
+    // Fetch current match data and re-render
+    fetch(`/api/page-data?page=${currentPage}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.type === 'scorecard' && data.match) {
+                renderScorecardSubpage(data.match, currentSubpage);
+            }
+        })
+        .catch(error => console.error('Error fetching page data:', error));
+}
+
+/**
+ * Start subpage cycling interval
+ */
+function startSubpageCycling() {
     if (subpageInterval) {
         clearInterval(subpageInterval);
     }
     
     subpageInterval = setInterval(() => {
-        currentSubpage++;
-        if (currentSubpage > totalSubpages) {
-            currentSubpage = 1;
+        if (!isSubpagePaused) {
+            currentSubpage++;
+            if (currentSubpage > totalSubpages) {
+                currentSubpage = 1;
+            }
+            
+            // Fetch current match data and re-render
+            fetch(`/api/page-data?page=${currentPage}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.type === 'scorecard' && data.match) {
+                        renderScorecardSubpage(data.match, currentSubpage);
+                    }
+                })
+                .catch(error => console.error('Error fetching page data:', error));
         }
-        renderScorecardSubpage(match, currentSubpage);
     }, SUBPAGE_CYCLE_INTERVAL);
 }
 
@@ -819,57 +1152,229 @@ function renderScorecardSubpage(match, subpage) {
     
     const innings = match.innings[inningsIndex];
     
-    let html = `
-        <div class="headline scorecard-headline">${match.title.toUpperCase()}</div>
-        <div class="scorecard-venue">${match.venue}</div>
+    // Helper function to capitalize first letter of each word
+    const capitalizeWords = (str) => {
+        return str.split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    };
+    
+    // Helper function to abbreviate long names (Teletext style)
+    // Only abbreviate on mobile (screen width < 768px)
+    const abbreviateName = (name) => {
+        if (!name || name.length < 8) return name;
+        if (window.innerWidth >= 768) return name; // Don't abbreviate on desktop
         
-        <div class="section-header scorecard-innings-header">
-            ${innings.battingTeam.toUpperCase()} ${isBatting ? 'BATTING' : 'BOWLING'} - INNINGS ${innings.number}
+        // Split by spaces to handle multi-part names
+        const parts = name.split(' ');
+        
+        if (parts.length > 1) {
+            // Multi-part name: abbreviate each part if needed
+            return parts.map(part => {
+                if (part.length < 8) return part; // Keep short parts
+                // Long part: use first letter + apostrophe + last 4 chars
+                return `${part[0]}'${part.slice(-4)}`;
+            }).join(' ');
+        } else {
+            // Single name ≥8 chars: first letter + apostrophe + last 4 chars
+            return `${name[0]}'${name.slice(-4)}`;
+        }
+    };
+    
+    // Calculate innings ordinal (1st or 2nd)
+    const teamInningsCount = match.innings.filter(i => i.battingTeam === innings.battingTeam).length;
+    const inningsOrdinal = teamInningsCount === 1 ? '1st' : '2nd';
+    
+    // Check if this is a follow-on innings
+    const isFollowOn = match.innings.length >= 3 && 
+                       match.innings[1].battingTeam === match.innings[2].battingTeam;
+    const followOnTeam = isFollowOn ? match.innings[2].battingTeam : null;
+    const showFollowOn = isFollowOn && followOnTeam === innings.battingTeam && teamInningsCount === 2;
+    
+    // Header with match title, venue, and subpage indicator
+    let html = `
+        <div class="live-match-header">
+            <span class="text-green">${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')}</span>
+            <span style="display: inline-flex; align-items: center; gap: 10px;">
+                <span onclick="previousSubpage()" class="text-magenta" style="cursor: pointer;">◄</span>
+                <span onclick="toggleSubpagePause()" id="pauseBtn" class="${isSubpagePaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="nextSubpage()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
+                <span class="text-white">${subpage}/${totalSubpages}</span>
+            </span>
+        </div>
+    `;
+    
+    html += `
+        <div class="text-white" style="margin-bottom: 0px;">
+            ${innings.battingTeam.toUpperCase()}, ${inningsOrdinal} Inns${showFollowOn ? ' (fo)' : ''}:
         </div>
     `;
     
     if (isBatting) {
-        // Show batting card
-        html += '<table class="stats-table"><tr><th>BATSMAN</th><th>R</th><th>B</th><th>4s</th><th>6s</th></tr>';
+        // Show batting card as a table
+        html += '<table class="stats-table" style="width: 100%;">';
         
         if (innings.allBatsmen) {
-            Object.values(innings.allBatsmen).forEach(batsman => {
-                if (batsman.balls > 0 || batsman.status !== 'not batted') {
-                    html += `
-                        <tr>
-                            <td>${batsman.name || 'Unknown'} ${batsman.status === 'batting' ? '*' : ''}</td>
-                            <td>${batsman.runs}</td>
-                            <td>${batsman.balls}</td>
-                            <td>${batsman.fours}</td>
-                            <td>${batsman.sixes}</td>
-                        </tr>
-                    `;
+            // Get all batsmen who have batted (balls > 0 or status !== 'not batted')
+            const batsmenArray = Object.entries(innings.allBatsmen)
+                .map(([name, stats]) => ({ name, ...stats }))
+                .filter(b => b.balls > 0 || b.status !== 'not batted');
+            
+            batsmenArray.forEach(batsman => {
+                // Check if batsman returned after being retired hurt
+                // If howOut is 'retired hurt' but status is not 'out', they've returned to batting
+                const returnedFromRetiredHurt = batsman.howOut === 'retired hurt' && batsman.status !== 'out';
+                const isNotOut = (batsman.status === 'not out' || batsman.status === 'batting') && (!batsman.howOut || returnedFromRetiredHurt);
+                const rowClass = isNotOut ? 'text-white' : 'text-cyan';
+                
+                // Format dismissal info - combine type and fielder in one column
+                let dismissalInfo = '';
+                
+                if (batsman.howOut && !returnedFromRetiredHurt) {
+                    const howOut = batsman.howOut;
+                    
+                    // Get fielder from the dismissal ball
+                    let fielder = '';
+                    if (innings.allBalls) {
+                        const dismissalBall = innings.allBalls.find(b => 
+                            b.wicket && b.dismissedBatsman === batsman.name
+                        );
+                        if (dismissalBall && dismissalBall.fielder) {
+                            fielder = dismissalBall.fielder;
+                        }
+                    }
+                    
+                    if (howOut === 'bowled') {
+                        dismissalInfo = '';
+                    } else if (howOut === 'caught') {
+                        dismissalInfo = fielder ? `c ${abbreviateName(fielder)}` : 'c';
+                    } else if (howOut === 'lbw') {
+                        dismissalInfo = 'lbw';
+                    } else if (howOut === 'stumped') {
+                        dismissalInfo = fielder ? `st ${abbreviateName(fielder)}` : 'st';
+                    } else if (howOut === 'run out') {
+                        dismissalInfo = 'run out';
+                    } else if (howOut === 'caught and bowled') {
+                        dismissalInfo = 'c & ';
+                    } else if (howOut === 'hit wicket') {
+                        dismissalInfo = 'hit wkt';
+                    } else if (howOut === 'retired hurt') {
+                        dismissalInfo = window.innerWidth < 768 ? 'r hurt' : 'retired hurt';
+                    } else {
+                        dismissalInfo = howOut;
+                    }
+                } else if (isNotOut) {
+                    dismissalInfo = 'not out';
                 }
+                
+                // Get bowler name from the dismissal ball
+                let bowlerName = '';
+                if (batsman.howOut && innings.allBalls) {
+                    const dismissalBall = innings.allBalls.find(b => 
+                        b.wicket && b.dismissedBatsman === batsman.name
+                    );
+                    if (batsman.howOut === 'run out') {
+                        // For run out, show fielder in bowler column
+                        if (dismissalBall && dismissalBall.fielder) {
+                            bowlerName = `(${abbreviateName(dismissalBall.fielder)})`;
+                        }
+                    } else {
+                        if (dismissalBall && dismissalBall.bowler) {
+                            bowlerName = `b ${abbreviateName(dismissalBall.bowler)}`;
+                        }
+                    }
+                }
+                
+                html += `
+                    <tr class="${rowClass}">
+                        <td style="width: 27%;">${abbreviateName(batsman.name)}</td>
+                        <td style="width: 27%; text-align: left;">${dismissalInfo}</td>
+                        <td style="width: 26%; text-align: left;">${bowlerName}</td>
+                        <td style="width: 20%; text-align: right;">${batsman.runs}(${batsman.balls})</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        // Calculate extras from all balls
+        let extras = 0;
+        if (innings.allBalls) {
+            innings.allBalls.forEach(ball => {
+                extras += (ball.extras || 0) + (ball.secondExtras || 0);
             });
         }
         
         html += `
-            <tr class="stats-table-total-row">
-                <td><strong>TOTAL</strong></td>
-                <td><strong>${innings.runs}/${innings.wickets}</strong></td>
-                <td colspan="3"><strong>(${innings.overs}.${innings.balls} overs)</strong></td>
+            <tr class="text-cyan">
+                <td colspan="2"></td>
+                <td style="text-align: left;">Extras</td>
+                <td style="text-align: right;">${extras}</td>
             </tr>
-        </table>`;
+        `;
+        
+        // Total row
+        const totalOversStr = innings.overs + (innings.balls > 0 ? '.' + innings.balls : '');
+        const decSuffix = innings.declared ? ' dec' : '';
+        const isMobile = window.innerWidth < 768;
+        let wicketsStr;
+        if (innings.wickets >= 10) {
+            wicketsStr = 'all out';
+        } else if (isMobile) {
+            // Mobile: "for 3 dec" instead of "for 3 wkts dec"
+            wicketsStr = `for ${innings.wickets}${decSuffix}`;
+        } else {
+            // Desktop: "for 3 wkts dec"
+            wicketsStr = `for ${innings.wickets} wkt${innings.wickets === 1 ? '' : 's'}${decSuffix}`;
+        }
+        const oversLabel = isMobile ? 'ov' : 'ovs';
+        html += `
+            <tr class="text-white">
+                <td colspan="3">TOTAL (${wicketsStr}, ${totalOversStr} ${oversLabel})</td>
+                <td style="text-align: right;">${innings.runs}</td>
+            </tr>
+        `;
+        
+        html += '</table>';
+        
+        // Fall of wickets
+        if (innings.fallOfWickets && innings.fallOfWickets.length > 0) {
+            const fowText = innings.fallOfWickets
+                .map((fow, idx) => `${idx + 1}-${fow.runs}`)
+                .join(' ');
+            html += `
+                <div class="text-white" style="margin-top: 10px;">
+                    Fall: ${fowText}
+                </div>
+            `;
+        }
+        
     } else {
         // Show bowling card
-        html += '<table class="stats-table"><tr><th>BOWLER</th><th>O</th><th>M</th><th>R</th><th>W</th></tr>';
+        html += '<table class="stats-table" style="width: 100%;">';
+        
+        // Header row
+        html += `
+            <tr class="text-white">
+                <th style="width: 40%; text-align: left; font-weight: normal;">BOWLER</th>
+                <th style="width: 15%; text-align: right; font-weight: normal;">O</th>
+                <th style="width: 15%; text-align: right; font-weight: normal;">M</th>
+                <th style="width: 15%; text-align: right; font-weight: normal;">R</th>
+                <th style="width: 15%; text-align: right; font-weight: normal;">W</th>
+            </tr>
+        `;
         
         if (innings.allBowlers) {
             Object.values(innings.allBowlers).forEach(bowler => {
                 if (bowler.balls > 0) {
-                    const oversStr = bowler.overs + '.' + (bowler.balls % 6);
+                    const balls = bowler.balls % 6;
+                    const oversStr = bowler.overs + (balls > 0 ? '.' + balls : '');
                     html += `
-                        <tr>
-                            <td>${bowler.name || 'Unknown'}</td>
-                            <td>${oversStr}</td>
-                            <td>${bowler.maidens}</td>
-                            <td>${bowler.runs}</td>
-                            <td>${bowler.wickets}</td>
+                        <tr class="text-cyan">
+                            <td style="width: 40%;">${bowler.name || 'Unknown'}</td>
+                            <td style="width: 15%; text-align: right;">${oversStr}</td>
+                            <td style="width: 15%; text-align: right;">${bowler.maidens}</td>
+                            <td style="width: 15%; text-align: right;">${bowler.runs}</td>
+                            <td style="width: 15%; text-align: right;">${bowler.wickets}</td>
                         </tr>
                     `;
                 }
@@ -877,101 +1382,273 @@ function renderScorecardSubpage(match, subpage) {
         }
         
         html += '</table>';
+        
+        // Total row
+        const totalOversStr = innings.overs + (innings.balls > 0 ? '.' + innings.balls : '');
+        const decSuffix = innings.declared ? ' dec' : '';
+        const isMobile = window.innerWidth < 768;
+        let wicketsStr;
+        if (innings.wickets >= 10) {
+            wicketsStr = 'all out';
+        } else if (isMobile) {
+            // Mobile: "for 3 dec" instead of "for 3 wkts dec"
+            wicketsStr = `for ${innings.wickets}${decSuffix}`;
+        } else {
+            // Desktop: "for 3 wkts dec"
+            wicketsStr = `for ${innings.wickets} wkt${innings.wickets === 1 ? '' : 's'}${decSuffix}`;
+        }
+        const oversLabel = isMobile ? 'ov' : 'ovs';
+        html += `
+            <div class="text-white" style="margin-top: 10px; display: flex; justify-content: space-between;">
+                <span>TOTAL (${wicketsStr}, ${totalOversStr} ${oversLabel})</span>
+                <span>${innings.runs}</span>
+            </div>
+        `;
+        
+        // Fall of wickets
+        if (innings.fallOfWickets && innings.fallOfWickets.length > 0) {
+            const fowText = innings.fallOfWickets
+                .map((fow, idx) => `${idx + 1}-${fow.runs}`)
+                .join(' ');
+            html += `
+                <div class="text-white" style="margin-top: 10px;">
+                    Fall: ${fowText}
+                </div>
+            `;
+        }
     }
     
+    html += getFooterNavigation();
+    
     document.getElementById('page-content').innerHTML = html;
-    document.getElementById('subpage-indicator').textContent = `Page ${currentPage}/${subpage}`;
+    document.getElementById('subpage-indicator').textContent = '';
 }
 
 /**
  * Render Fixtures page
  */
-function renderFixtures(data) {
+async function renderFixtures(data) {
     const series = data.series;
     
-    let html = `
-        <div class="headline fixtures-headline">${series.name.toUpperCase()} - FIXTURES</div>
-    `;
-    
-    series.matches.forEach(match => {
-        const statusIcon = match.status === 'completed' ? '✓' : match.status === 'live' ? '→' : '';
-        let statusClass = 'fixture-status-upcoming';
-        if (match.status === 'completed') statusClass = 'fixture-status-completed';
-        else if (match.status === 'live') statusClass = 'fixture-status-live';
-        
-        html += `
-            <div class="fixture-item">
-                <div class="${statusClass}">
-                    ${statusIcon} ${match.title.toUpperCase()}
-                </div>
-                <div class="fixture-venue">
-                    ${match.venue || 'Venue TBC'}
-                </div>
-                <div class="fixture-date">
-                    ${match.date || 'Date TBC'}
-                </div>
-                ${match.result ? `<div class="fixture-result">${match.result}</div>` : ''}
-            </div>
-        `;
-    });
-    
-    document.getElementById('page-content').innerHTML = html;
-    document.getElementById('subpage-indicator').textContent = '';
-}
-
-/**
- * Render Results page
- */
-function renderResults(data) {
-    const series = data.series;
-    
-    let html = `
-        <div class="headline fixtures-headline">${series.name.toUpperCase()} - RESULTS</div>
-    `;
-    
-    if (data.completedMatches && data.completedMatches.length > 0) {
-        data.completedMatches.forEach(match => {
-            html += `
-                <div class="fixture-item">
-                    <div class="fixture-status-completed">
-                        ✓ ${match.title.toUpperCase()}
-                    </div>
-                    <div class="fixture-venue">
-                        ${match.venue}
-                    </div>
-                    ${match.result ? `<div class="fixture-result">${match.result}</div>` : ''}
-                </div>
-            `;
-        });
-    } else {
-        html += `<div class="no-stats-message">NO COMPLETED MATCHES</div>`;
+    // Helper function to format date as "Mon 10 Nov"
+    function formatMatchDate(dateStr) {
+        if (!dateStr) return 'Date TBC';
+        const date = new Date(dateStr);
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
     }
     
+    // Helper function to determine text color based on result
+    function getMatchColor(match, series) {
+        if (match.status !== 'completed' || !match.result) {
+            return 'text-white'; // Upcoming or live
+        }
+        
+        // Check if it's a draw
+        if (match.result.toLowerCase().includes('drawn')) {
+            return 'text-white';
+        }
+        
+        // Check who won
+        if (match.result.toLowerCase().includes(series.team1.toLowerCase())) {
+            return 'text-cyan'; // Team 1 (England) wins
+        } else if (match.result.toLowerCase().includes(series.team2.toLowerCase())) {
+            return 'text-yellow'; // Team 2 (Australia) wins
+        }
+        
+        return 'text-white'; // Default
+    }
+    
+    let html = `
+        <div class="live-match-header">
+            <span class="text-green">${series.name} - Fixtures</span>
+            <span class="text-white">1/1</span>
+        </div>
+        <div style="margin-top: 10px;"></div>
+    `;
+    
+    // Fetch live match data if needed
+    const liveMatches = series.matches.filter(m => m.status === 'live');
+    const liveMatchData = {};
+    
+    for (const match of liveMatches) {
+        try {
+            const response = await fetch(`/api/series/${series.id || data.series.matches[0].id.split('-match-')[0]}/match/${match.id}`);
+            if (response.ok) {
+                liveMatchData[match.id] = await response.json();
+            }
+        } catch (error) {
+            console.error('Error fetching live match data:', error);
+        }
+    }
+    
+    series.matches.forEach((match, index) => {
+        const textColor = getMatchColor(match, series);
+        const formattedDate = formatMatchDate(match.date);
+        const startTime = match.startTime || '00:00 GMT';
+        const livePrefix = match.status === 'live' ? 'LIVE - ' : '';
+        
+        html += `
+            <div class="${textColor}">
+                ${livePrefix}${match.title}, ${match.venue || 'Venue TBC'}
+            </div>
+            <div class="${textColor}">
+                ${formattedDate} ${startTime}
+            </div>
+        `;
+        
+        // Show live score for live matches
+        if (match.status === 'live' && liveMatchData[match.id]) {
+            const liveMatch = liveMatchData[match.id];
+            if (liveMatch.innings && liveMatch.innings.length > 0) {
+                const currentInnings = liveMatch.innings[liveMatch.innings.length - 1];
+                const inningsLabel = currentInnings.number === 1 ? '1st Inns' : 
+                                   currentInnings.number === 2 ? '2nd Inns' :
+                                   currentInnings.number === 3 ? '3rd Inns' : '4th Inns';
+                html += `<div class="${textColor}">${currentInnings.battingTeam}: ${currentInnings.runs}-${currentInnings.wickets} (${inningsLabel})</div>`;
+            }
+        }
+        
+        // Show result for completed matches
+        if (match.result) {
+            html += `<div class="${textColor}">${match.result}</div>`;
+        }
+        
+        // Add line break between fixtures (but not after the last one)
+        if (index < series.matches.length - 1) {
+            html += `<div style="margin-top: 15px;"></div>`;
+        }
+    });
+    
+    html += getFooterNavigation();
+    
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
 }
 
 /**
- * Render Batting Stats page
+ * Render Batting Stats page with team cycling
  */
 function renderBattingStats(data) {
     const series = data.series;
+    window.currentPageData = data;
+    
+    // Reset to team 0 when loading the page
+    battingStatsCurrentTeam = 0;
+    battingStatsPaused = false;
+    
+    // Clear any existing intervals
+    if (battingStatsCycleInterval) {
+        clearInterval(battingStatsCycleInterval);
+        battingStatsCycleInterval = null;
+    }
+    
+    // Render first team
+    renderBattingStatsTeam(data, battingStatsCurrentTeam);
+    
+    // Start auto-cycling
+    battingStatsCycleInterval = setInterval(() => {
+        if (window.currentPageData && window.currentPageData.type === 'batting-stats') {
+            const teams = [window.currentPageData.series.team1, window.currentPageData.series.team2];
+            if (!battingStatsPaused) {
+                battingStatsCurrentTeam = (battingStatsCurrentTeam + 1) % teams.length;
+                renderBattingStatsTeam(window.currentPageData, battingStatsCurrentTeam);
+            }
+        }
+    }, 5000);
+    
+    // Add keyboard event listener
+    document.removeEventListener('keydown', handleBattingStatsKeyPress);
+    document.addEventListener('keydown', handleBattingStatsKeyPress);
+}
+
+function handleBattingStatsKeyPress(e) {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    
+    if (e.key === ' ') {
+        e.preventDefault();
+        battingStatsPaused = !battingStatsPaused;
+        renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        battingStatsPaused = true;
+        battingStatsCurrentTeam = (battingStatsCurrentTeam + 1) % teams.length;
+        renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        battingStatsPaused = true;
+        battingStatsCurrentTeam = (battingStatsCurrentTeam - 1 + teams.length) % teams.length;
+        renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+    }
+}
+
+function toggleBattingStatsPause() {
+    battingStatsPaused = !battingStatsPaused;
+    const currentData = window.currentPageData;
+    if (currentData) {
+        renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+    }
+}
+
+function skipBattingStatsForward() {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    battingStatsPaused = true;
+    battingStatsCurrentTeam = (battingStatsCurrentTeam + 1) % teams.length;
+    renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+}
+
+function skipBattingStatsBackward() {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    battingStatsPaused = true;
+    battingStatsCurrentTeam = (battingStatsCurrentTeam - 1 + teams.length) % teams.length;
+    renderBattingStatsTeam(currentData, battingStatsCurrentTeam);
+}
+
+function renderBattingStatsTeam(data, teamIndex) {
+    const series = data.series;
     const batsmen = data.batsmen || [];
+    const teams = [series.team1, series.team2];
+    const currentTeam = teams[teamIndex];
+    
+    // Filter batsmen for current team
+    const teamBatsmen = batsmen.filter(b => b.team === currentTeam);
     
     let html = `
-        <div class="headline stats-headline">${series.name.toUpperCase()} - LEADING RUN SCORERS</div>
+        <div class="live-match-header">
+            <span class="text-green">Runs - ${currentTeam}</span>
+            <span class="text-white">
+                <span onclick="skipBattingStatsBackward()" class="text-magenta" style="cursor: pointer;">◄</span>
+                <span onclick="toggleBattingStatsPause()" id="batting-pause-btn" class="${battingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="skipBattingStatsForward()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
+                ${teamIndex + 1}/${teams.length}
+            </span>
+        </div>
+        <div style="margin-top: 10px;"></div>
     `;
     
-    if (batsmen.length > 0) {
-        html += '<table class="stats-table"><tr><th>PLAYER</th><th>RUNS</th><th>AVG</th><th>HS</th><th>100s</th><th>50s</th></tr>';
+    if (teamBatsmen.length > 0) {
+        html += '<table class="stats-table batting-stats">';
+        html += '<tr class="text-cyan"><th>Player</th><th>R</th><th>Avg</th><th>HS</th><th>100</th><th>50</th></tr>';
         
-        batsmen.slice(0, 20).forEach(b => {
+        teamBatsmen.slice(0, 20).forEach((b, index) => {
+            const rowColor = index % 2 === 0 ? 'text-white' : 'text-cyan';
+            const highScoreDisplay = b.highScoreNotOut ? `${b.highScore}*` : b.highScore;
             html += `
-                <tr>
-                    <td>${b.name} (${b.team})</td>
+                <tr class="${rowColor}">
+                    <td>${b.name}</td>
                     <td>${b.runs}</td>
                     <td>${b.average}</td>
-                    <td>${b.highScore}</td>
+                    <td>${highScoreDisplay}</td>
                     <td>${b.hundreds}</td>
                     <td>${b.fifties}</td>
                 </tr>
@@ -980,8 +1657,10 @@ function renderBattingStats(data) {
         
         html += '</table>';
     } else {
-        html += `<div class="no-stats-message">NO STATS AVAILABLE YET</div>`;
+        html += `<div class="text-yellow" style="text-align: center; padding: 40px;">NO STATS AVAILABLE YET</div>`;
     }
+    
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -992,20 +1671,120 @@ function renderBattingStats(data) {
  */
 function renderBowlingStats(data) {
     const series = data.series;
+    window.currentPageData = data;
+    
+    // Reset to team 0 when loading the page
+    bowlingStatsCurrentTeam = 0;
+    bowlingStatsPaused = false;
+    
+    // Clear any existing intervals
+    if (bowlingStatsCycleInterval) {
+        clearInterval(bowlingStatsCycleInterval);
+        bowlingStatsCycleInterval = null;
+    }
+    
+    // Render first team
+    renderBowlingStatsTeam(data, bowlingStatsCurrentTeam);
+    
+    // Start auto-cycling
+    bowlingStatsCycleInterval = setInterval(() => {
+        if (window.currentPageData && window.currentPageData.type === 'bowling-stats') {
+            const teams = [window.currentPageData.series.team1, window.currentPageData.series.team2];
+            if (!bowlingStatsPaused) {
+                bowlingStatsCurrentTeam = (bowlingStatsCurrentTeam + 1) % teams.length;
+                renderBowlingStatsTeam(window.currentPageData, bowlingStatsCurrentTeam);
+            }
+        }
+    }, 5000);
+    
+    // Add keyboard event listener
+    document.removeEventListener('keydown', handleBowlingStatsKeyPress);
+    document.addEventListener('keydown', handleBowlingStatsKeyPress);
+}
+
+function handleBowlingStatsKeyPress(e) {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    
+    if (e.key === ' ') {
+        e.preventDefault();
+        bowlingStatsPaused = !bowlingStatsPaused;
+        renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        bowlingStatsPaused = true;
+        bowlingStatsCurrentTeam = (bowlingStatsCurrentTeam + 1) % teams.length;
+        renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        bowlingStatsPaused = true;
+        bowlingStatsCurrentTeam = (bowlingStatsCurrentTeam - 1 + teams.length) % teams.length;
+        renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+    }
+}
+
+function toggleBowlingStatsPause() {
+    bowlingStatsPaused = !bowlingStatsPaused;
+    const currentData = window.currentPageData;
+    if (currentData) {
+        renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+    }
+}
+
+function skipBowlingStatsForward() {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    bowlingStatsPaused = true;
+    bowlingStatsCurrentTeam = (bowlingStatsCurrentTeam + 1) % teams.length;
+    renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+}
+
+function skipBowlingStatsBackward() {
+    const currentData = window.currentPageData;
+    if (!currentData) return;
+    
+    const teams = [currentData.series.team1, currentData.series.team2];
+    bowlingStatsPaused = true;
+    bowlingStatsCurrentTeam = (bowlingStatsCurrentTeam - 1 + teams.length) % teams.length;
+    renderBowlingStatsTeam(currentData, bowlingStatsCurrentTeam);
+}
+
+function renderBowlingStatsTeam(data, teamIndex) {
+    const series = data.series;
     const bowlers = data.bowlers || [];
+    const teams = [series.team1, series.team2];
+    const currentTeam = teams[teamIndex];
+    
+    // Filter bowlers for current team
+    const teamBowlers = bowlers.filter(b => b.team === currentTeam);
     
     let html = `
-        <div class="headline stats-headline">${series.name.toUpperCase()} - LEADING WICKET TAKERS</div>
+        <div class="live-match-header">
+            <span class="text-green">Wickets - ${currentTeam}</span>
+            <span class="text-white">
+                <span onclick="skipBowlingStatsBackward()" class="text-magenta" style="cursor: pointer;">◄</span>
+                <span onclick="toggleBowlingStatsPause()" id="bowling-pause-btn" class="${bowlingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="skipBowlingStatsForward()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
+                ${teamIndex + 1}/${teams.length}
+            </span>
+        </div>
+        <div style="margin-top: 10px;"></div>
     `;
     
-    if (bowlers.length > 0) {
-        html += '<table class="stats-table"><tr><th>PLAYER</th><th>WKTS</th><th>AVG</th><th>BEST</th><th>5W</th></tr>';
+    if (teamBowlers.length > 0) {
+        html += '<table class="stats-table bowling-stats">';
+        html += '<tr class="text-cyan"><th>Player</th><th>W</th><th>Avg</th><th>Best</th><th>5W</th></tr>';
         
-        bowlers.slice(0, 20).forEach(b => {
+        teamBowlers.slice(0, 20).forEach((b, index) => {
+            const rowColor = index % 2 === 0 ? 'text-white' : 'text-cyan';
             const bestFigures = `${b.bestFigures.wickets}/${b.bestFigures.runs}`;
             html += `
-                <tr>
-                    <td>${b.name} (${b.team})</td>
+                <tr class="${rowColor}">
+                    <td>${b.name}</td>
                     <td>${b.wickets}</td>
                     <td>${b.average}</td>
                     <td>${bestFigures}</td>
@@ -1016,8 +1795,10 @@ function renderBowlingStats(data) {
         
         html += '</table>';
     } else {
-        html += `<div class="no-stats-message">NO STATS AVAILABLE YET</div>`;
+        html += `<div class="text-yellow" style="text-align: center; padding: 40px;">NO STATS AVAILABLE YET</div>`;
     }
+    
+    html += getFooterNavigation();
     
     document.getElementById('page-content').innerHTML = html;
     document.getElementById('subpage-indicator').textContent = '';
@@ -1034,11 +1815,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPage(page);
     
     // Handle Enter key in page input
-    document.getElementById('page-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            navigateToInputPage();
-        }
-    });
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) {
+        pageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                navigateToInputPage();
+            }
+        });
+    }
     
     // Handle browser back/forward
     window.addEventListener('popstate', () => {

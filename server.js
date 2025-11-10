@@ -517,14 +517,18 @@ function calculateSeriesStats(seriesId) {
         
         // Aggregate batsmen stats
         Object.entries(innings.allBatsmen).forEach(([name, stats]) => {
-          if (!batsmen[name]) {
-            batsmen[name] = {
+          // Use name+team as key to handle players with same name on different teams
+          const key = `${name}|${innings.battingTeam}`;
+          
+          if (!batsmen[key]) {
+            batsmen[key] = {
               name,
               team: innings.battingTeam,
               runs: 0,
               innings: 0,
               notOuts: 0,
               highScore: 0,
+              highScoreNotOut: false,
               hundreds: 0,
               fifties: 0,
               balls: 0,
@@ -533,32 +537,36 @@ function calculateSeriesStats(seriesId) {
             };
           }
           
-          batsmen[name].runs += stats.runs || 0;
-          batsmen[name].balls += stats.balls || 0;
-          batsmen[name].fours += stats.fours || 0;
-          batsmen[name].sixes += stats.sixes || 0;
-          batsmen[name].innings++;
+          batsmen[key].runs += stats.runs || 0;
+          batsmen[key].balls += stats.balls || 0;
+          batsmen[key].fours += stats.fours || 0;
+          batsmen[key].sixes += stats.sixes || 0;
+          batsmen[key].innings++;
           
           if (stats.status === 'not out' || stats.status === 'batting') {
-            batsmen[name].notOuts++;
+            batsmen[key].notOuts++;
           }
           
           const runsInInnings = stats.runs || 0;
-          if (runsInInnings > batsmen[name].highScore) {
-            batsmen[name].highScore = runsInInnings;
+          if (runsInInnings > batsmen[key].highScore) {
+            batsmen[key].highScore = runsInInnings;
+            batsmen[key].highScoreNotOut = (stats.status === 'not out' || stats.status === 'batting');
           }
           
           if (runsInInnings >= 100) {
-            batsmen[name].hundreds++;
+            batsmen[key].hundreds++;
           } else if (runsInInnings >= 50) {
-            batsmen[name].fifties++;
+            batsmen[key].fifties++;
           }
         });
         
         // Aggregate bowler stats
         Object.entries(innings.allBowlers).forEach(([name, stats]) => {
-          if (!bowlers[name]) {
-            bowlers[name] = {
+          // Use name+team as key to handle players with same name on different teams
+          const key = `${name}|${innings.bowlingTeam}`;
+          
+          if (!bowlers[key]) {
+            bowlers[key] = {
               name,
               team: innings.bowlingTeam,
               wickets: 0,
@@ -575,19 +583,19 @@ function calculateSeriesStats(seriesId) {
           const wicketsInInnings = stats.wickets || 0;
           const runsInInnings = stats.runs || 0;
           
-          bowlers[name].wickets += wicketsInInnings;
-          bowlers[name].runs += runsInInnings;
-          bowlers[name].balls += stats.balls || 0;
-          bowlers[name].overs += stats.overs || 0;
-          bowlers[name].maidens += stats.maidens || 0;
+          bowlers[key].wickets += wicketsInInnings;
+          bowlers[key].runs += runsInInnings;
+          bowlers[key].balls += stats.balls || 0;
+          bowlers[key].overs += stats.overs || 0;
+          bowlers[key].maidens += stats.maidens || 0;
           
           // Track best figures using helper function
-          if (isBetterBowlingFigures(wicketsInInnings, runsInInnings, bowlers[name].bestFigures)) {
-            bowlers[name].bestFigures = { wickets: wicketsInInnings, runs: runsInInnings };
+          if (isBetterBowlingFigures(wicketsInInnings, runsInInnings, bowlers[key].bestFigures)) {
+            bowlers[key].bestFigures = { wickets: wicketsInInnings, runs: runsInInnings };
           }
           
           if (wicketsInInnings >= 5) {
-            bowlers[name].fiveWickets++;
+            bowlers[key].fiveWickets++;
           }
         });
       }
@@ -596,7 +604,7 @@ function calculateSeriesStats(seriesId) {
     // Calculate averages
     Object.values(batsmen).forEach(b => {
       const dismissals = b.innings - b.notOuts;
-      b.average = dismissals > 0 ? (b.runs / dismissals).toFixed(2) : b.runs.toFixed(2);
+      b.average = dismissals > 0 ? (b.runs / dismissals).toFixed(2) : '-';
     });
     
     Object.values(bowlers).forEach(b => {
@@ -846,6 +854,35 @@ function processBall(innings, ball, ballIndex) {
       const bowlerBalls = innings.allBowlers[ball.bowler].balls;
       innings.allBowlers[ball.bowler].overs = Math.floor(bowlerBalls / 6);
       
+      // Calculate runs conceded in this over to determine if it's a maiden
+      let runsInOver = 0;
+      for (const b of innings.currentOver) {
+        if (b.extraType === 'Wd' || b.extraType === 'Nb') {
+          runsInOver += (b.runs + b.overthrows + b.extras);
+        } else if (b.extraType === 'Bye' || b.extraType === 'B' || b.extraType === 'LB') {
+          runsInOver += (b.runs + b.overthrows);
+        } else {
+          runsInOver += (b.runs + b.overthrows);
+        }
+      }
+      
+      console.log(`Over complete - Bowler: ${ball.bowler}, Runs in over: ${runsInOver}`);
+      
+      // If 0 runs conceded, it's a maiden
+      if (runsInOver === 0) {
+        if (!innings.allBowlers[ball.bowler].maidens) {
+          innings.allBowlers[ball.bowler].maidens = 0;
+        }
+        innings.allBowlers[ball.bowler].maidens++;
+        console.log(`MAIDEN! ${ball.bowler} now has ${innings.allBowlers[ball.bowler].maidens} maiden(s)`);
+      }
+      
+      // Track last bowler at each end
+      if (!innings.lastBowlerAtEnd) {
+        innings.lastBowlerAtEnd = {};
+      }
+      innings.lastBowlerAtEnd[innings.currentEnd] = ball.bowler;
+      
       // Store last completed over with full ball details
       const overRuns = innings.currentOver.reduce((sum, b) => sum + b.runs + (b.overthrows || 0) + b.extras, 0);
       innings.lastCompletedOver = {
@@ -1062,16 +1099,34 @@ function calculateMatchResult(match) {
   
   const innings = match.innings;
   
-  // BUG FIX #5: Innings victory after 3rd innings (follow-on scenario)
-  if (innings.length === 3 && match.followOn && match.followOn.enforced && innings[2].status === 'completed' && innings[2].wickets >= 10) {
-    const team1Total = innings[0].runs;
-    const team2Total = innings[1].runs + innings[2].runs;
-    if (team1Total > team2Total) {
-      match.result.status = 'completed';
-      match.result.winner = innings[0].battingTeam;
-      match.result.winType = 'innings';
-      match.result.margin = team1Total - team2Total;
-      match.status = 'completed';
+  // BUG FIX #5: Innings victory after 3rd innings (follow-on or normal scenario)
+  if (innings.length === 3 && innings[2].status === 'completed' && innings[2].wickets >= 10) {
+    // Check if one team batted once and the other batted twice
+    const team1 = innings[0].battingTeam;
+    const team2 = innings[1].battingTeam;
+    
+    // Determine which team batted twice in innings 1&2 vs 2&3
+    const innings2Team = innings[1].battingTeam;
+    const innings3Team = innings[2].battingTeam;
+    
+    if (innings2Team === innings3Team) {
+      // Same team batted in innings 2 and 3 (follow-on or consecutive)
+      const battedTwiceTeam = innings2Team;
+      const battedOnceTeam = team1 === battedTwiceTeam ? team2 : team1;
+      
+      // Get totals
+      const battedOnceTotalIdx = team1 === battedOnceTeam ? 0 : 1;
+      const battedOnceTotal = innings[battedOnceTotalIdx].runs;
+      const battedTwiceTotal = innings[1].runs + innings[2].runs;
+      
+      // Check for innings victory
+      if (battedOnceTotal > battedTwiceTotal) {
+        match.result.status = 'completed';
+        match.result.winner = battedOnceTeam;
+        match.result.winType = 'innings';
+        match.result.margin = battedOnceTotal - battedTwiceTotal;
+        match.status = 'completed';
+      }
     }
   }
   
@@ -1478,7 +1533,7 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     currentInnings.currentBowler = { name: bowler };
     if (!currentInnings.allBowlers[bowler]) {
       currentInnings.allBowlers[bowler] = { 
-        balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
+        name: bowler, balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
       };
     }
   }
@@ -1532,7 +1587,7 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   // 5. Update bowler stats
   if (!currentInnings.allBowlers[currentBowlerName]) {
     currentInnings.allBowlers[currentBowlerName] = { 
-      balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
+      name: currentBowlerName, balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0 
     };
   }
   // Only add certain extras to bowler's runs
@@ -1608,6 +1663,31 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       // Update bowler's over count
       const bowlerBalls = currentInnings.allBowlers[currentBowlerName].balls;
       currentInnings.allBowlers[currentBowlerName].overs = Math.floor(bowlerBalls / 6);
+      
+      // Calculate runs conceded in this over to determine if it's a maiden
+      // A maiden is an over where the bowler conceded 0 runs (no runs off bat, no wides, no no-balls)
+      // Byes and leg-byes don't count against the bowler
+      let runsInOver = 0;
+      for (const b of currentInnings.currentOver) {
+        if (b.extraType === 'Wd' || b.extraType === 'Nb') {
+          // Wide or no-ball: count runs, overthrows, and extras against bowler
+          runsInOver += (b.runs + b.overthrows + b.extras);
+        } else if (b.extraType === 'Bye' || b.extraType === 'B' || b.extraType === 'LB') {
+          // Byes/leg-byes: only overthrows go against bowler
+          runsInOver += (b.runs + b.overthrows);
+        } else {
+          // Normal delivery: runs off bat plus overthrows
+          runsInOver += (b.runs + b.overthrows);
+        }
+      }
+      
+      // If 0 runs conceded, it's a maiden
+      if (runsInOver === 0) {
+        if (!currentInnings.allBowlers[currentBowlerName].maidens) {
+          currentInnings.allBowlers[currentBowlerName].maidens = 0;
+        }
+        currentInnings.allBowlers[currentBowlerName].maidens++;
+      }
       
       // Store last completed over with full ball details
       currentInnings.lastCompletedOver = {
@@ -1924,6 +2004,7 @@ app.post('/api/match/end-innings', requireAuth, (req, res) => {
   // Calculate match situation after innings ends
   if (match.format === 'test') {
     calculateMatchSituation(match);
+    calculateMatchResult(match);
   }
   
   // If 4 innings complete, mark match as completed
@@ -1935,6 +2016,85 @@ app.post('/api/match/end-innings', requireAuth, (req, res) => {
     res.json({ match });
   } else {
     res.status(500).json({ error: 'Failed to end innings' });
+  }
+});
+
+// Update match day
+app.post('/api/match/update-day', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  const { day } = req.body;
+  if (!day || day < 1 || day > 5) {
+    return res.status(400).json({ error: 'Invalid day number' });
+  }
+  
+  match.day = day;
+  
+  if (saveCurrentMatch(match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to update day' });
+  }
+});
+
+// Update match message
+app.post('/api/match/update-message', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  const { message } = req.body;
+  match.message = message || '';
+  
+  if (saveCurrentMatch(match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to update message' });
+  }
+});
+
+// Change batsmen
+app.post('/api/match/change-batsmen', requireAuth, (req, res) => {
+  const match = loadMatch();
+  if (!match || !match.id) {
+    return res.status(404).json({ error: 'No match found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { striker, nonStriker } = req.body;
+  
+  if (!striker || !nonStriker) {
+    return res.status(400).json({ error: 'Both striker and non-striker required' });
+  }
+  
+  if (striker === nonStriker) {
+    return res.status(400).json({ error: 'Striker and non-striker must be different' });
+  }
+  
+  // Update batsmen
+  currentInnings.striker = striker;
+  currentInnings.nonStriker = nonStriker;
+  
+  // Initialize batsmen in allBatsmen if they don't exist
+  if (!currentInnings.allBatsmen[striker]) {
+    currentInnings.allBatsmen[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  }
+  if (!currentInnings.allBatsmen[nonStriker]) {
+    currentInnings.allBatsmen[nonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  }
+  
+  if (saveCurrentMatch(match)) {
+    res.json(match);
+  } else {
+    res.status(500).json({ error: 'Failed to change batsmen' });
   }
 });
 
@@ -2181,7 +2341,7 @@ app.post('/api/series/create', requireAuth, (req, res) => {
     series.matches.push({
       id: `${seriesId}-match-${i}`,
       number: i,
-      title: `${i}${getOrdinalSuffix(i)} ${name.includes('Test') ? 'Test' : 'Match'}`,
+      title: `${i}${getOrdinalSuffix(i)} Test`,
       venue: null,
       date: null,
       status: 'upcoming',
@@ -2273,7 +2433,16 @@ app.delete('/api/series/:seriesId', requireAuth, checkRateLimit, (req, res) => {
 // Create match in series
 app.post('/api/series/:seriesId/match/create', requireAuth, (req, res) => {
   const { seriesId } = req.params;
-  const { matchNumber, venue, date, squad1, squad2 } = req.body;
+  const { matchNumber, venue, date, startTime, squad1, squad2 } = req.body;
+  
+  console.log('Match create request received:', {
+    matchNumber,
+    venue,
+    date,
+    startTime,
+    squad1: squad1 ? `array of ${squad1.length}` : 'undefined',
+    squad2: squad2 ? `array of ${squad2.length}` : 'undefined'
+  });
   
   const series = loadSeriesById(seriesId);
   if (!series) {
@@ -2286,12 +2455,16 @@ app.post('/api/series/:seriesId/match/create', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'Match not found in series' });
   }
   
-  // Validate squads
-  if (!squad1 || !Array.isArray(squad1) || squad1.length !== 11) {
-    return res.status(400).json({ error: `${series.team1} squad must contain exactly 11 players` });
-  }
-  if (!squad2 || !Array.isArray(squad2) || squad2.length !== 11) {
-    return res.status(400).json({ error: `${series.team2} squad must contain exactly 11 players` });
+  // Validate squads only if provided
+  const hasSquads = squad1 && Array.isArray(squad1) && squad1.length > 0 && 
+                    squad2 && Array.isArray(squad2) && squad2.length > 0;
+  if (hasSquads) {
+    if (squad1.length !== 11) {
+      return res.status(400).json({ error: `${series.team1} squad must contain exactly 11 players` });
+    }
+    if (squad2.length !== 11) {
+      return res.status(400).json({ error: `${series.team2} squad must contain exactly 11 players` });
+    }
   }
   
   // Create match object
@@ -2326,8 +2499,16 @@ app.post('/api/series/:seriesId/match/create', requireAuth, (req, res) => {
     }
   };
   
-  match.squads[series.team1] = squad1;
-  match.squads[series.team2] = squad2;
+  // Add start time if provided
+  if (startTime) {
+    match.startTime = startTime;
+  }
+  
+  // Add squads only if provided
+  if (hasSquads) {
+    match.squads[series.team1] = squad1;
+    match.squads[series.team2] = squad2;
+  }
   
   // Save match
   if (!saveSeriesMatch(seriesId, matchInfo.id, match)) {
@@ -2337,6 +2518,9 @@ app.post('/api/series/:seriesId/match/create', requireAuth, (req, res) => {
   // Update series match info
   matchInfo.venue = venue;
   matchInfo.date = date;
+  if (startTime) {
+    matchInfo.startTime = startTime;
+  }
   matchInfo.status = 'upcoming';
   saveSeriesById(seriesId, series);
   
@@ -2356,6 +2540,46 @@ app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
   }
   
   res.json(match);
+});
+
+// Update match squads
+app.put('/api/series/:seriesId/match/:matchId/squads', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { squad1, squad2 } = req.body;
+  
+  // Load match
+  const match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Load series to get team names
+  const series = loadSeriesById(seriesId);
+  if (!series) {
+    return res.status(404).json({ error: 'Series not found' });
+  }
+  
+  // Validate squads
+  if (!squad1 || !Array.isArray(squad1) || squad1.length !== 11) {
+    return res.status(400).json({ error: `${series.team1} squad must contain exactly 11 players` });
+  }
+  if (!squad2 || !Array.isArray(squad2) || squad2.length !== 11) {
+    return res.status(400).json({ error: `${series.team2} squad must contain exactly 11 players` });
+  }
+  
+  // Update squads
+  if (!match.squads) {
+    match.squads = {};
+  }
+  match.squads[series.team1] = squad1;
+  match.squads[series.team2] = squad2;
+  
+  // Save match
+  if (!saveSeriesMatch(seriesId, matchId, match)) {
+    return res.status(500).json({ error: 'Failed to update squads' });
+  }
+  
+  res.json({ success: true, match });
 });
 
 // Record ball in series match (with stats update)
@@ -2380,7 +2604,7 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   
   const currentInnings = match.innings[match.innings.length - 1];
   const { 
-    runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman, bowler
+    runs, overthrows, extras, extraType, secondExtras, secondExtraType, wicket, wicketType, dismissedBatsman, bowler, fielder
   } = ballData;
   
   // Prevent prototype pollution in input names
@@ -2390,6 +2614,9 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   }
   if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
     return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  if (fielder && dangerousNames.includes(fielder)) {
+    return res.status(400).json({ error: 'Invalid fielder name' });
   }
   
   // Record ball using existing logic (simplified version)
@@ -2411,6 +2638,7 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     wicket: wicket || false,
     wicketType: wicketType || null,
     dismissedBatsman: dismissedBatsman || null,
+    fielder: fielder || null,
     timestamp: new Date().toISOString()
   };
   
@@ -2486,6 +2714,9 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     if (currentInnings.allBatsmen[dismissedName]) {
       currentInnings.allBatsmen[dismissedName].status = 'out';
       currentInnings.allBatsmen[dismissedName].howOut = wicketType;
+      if (fielder) {
+        currentInnings.allBatsmen[dismissedName].fielder = fielder;
+      }
     }
     // Only increment bowler wickets for non-run-out dismissals
     if (wicketType !== 'run out') {
@@ -2527,6 +2758,35 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
       currentInnings.overs++;
       currentInnings.balls = 0;
       currentInnings.allBowlers[bowlerName].overs = Math.floor(currentInnings.allBowlers[bowlerName].balls / 6);
+      
+      // Calculate runs conceded in this over to determine if it's a maiden
+      let runsInOver = 0;
+      for (const b of currentInnings.currentOver) {
+        if (b.extraType === 'Wd' || b.extraType === 'Nb') {
+          runsInOver += (b.runs + b.overthrows + b.extras);
+        } else if (b.extraType === 'Bye' || b.extraType === 'B' || b.extraType === 'LB') {
+          runsInOver += (b.runs + b.overthrows);
+        } else {
+          runsInOver += (b.runs + b.overthrows);
+        }
+      }
+      
+      console.log(`Over complete - Bowler: ${bowlerName}, Runs in over: ${runsInOver}, Current over balls:`, currentInnings.currentOver);
+      
+      // If 0 runs conceded, it's a maiden
+      if (runsInOver === 0) {
+        if (!currentInnings.allBowlers[bowlerName].maidens) {
+          currentInnings.allBowlers[bowlerName].maidens = 0;
+        }
+        currentInnings.allBowlers[bowlerName].maidens++;
+        console.log(`MAIDEN! ${bowlerName} now has ${currentInnings.allBowlers[bowlerName].maidens} maiden(s)`);
+      }
+      
+      // Track last bowler at each end
+      if (!currentInnings.lastBowlerAtEnd) {
+        currentInnings.lastBowlerAtEnd = {};
+      }
+      currentInnings.lastBowlerAtEnd[currentInnings.currentEnd] = bowlerName;
       
       // BUG FIX #5: Store completed over information including bowler and end
       const overRuns = currentInnings.currentOver.reduce((sum, b) => sum + (b.runs || 0) + (b.overthrows || 0) + (b.extras || 0), 0);
@@ -2991,6 +3251,88 @@ app.post('/api/series/:seriesId/match/:matchId/end-innings', requireAuth, (req, 
   res.json(match);
 });
 
+// Update match day for series match
+app.post('/api/series/:seriesId/match/:matchId/update-day', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  const { day } = req.body;
+  if (!day || day < 1 || day > 5) {
+    return res.status(400).json({ error: 'Invalid day number' });
+  }
+  
+  match.day = day;
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  
+  res.json(match);
+});
+
+// Update match message for series match
+app.post('/api/series/:seriesId/match/:matchId/update-message', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  const { message } = req.body;
+  match.message = message || '';
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  
+  res.json(match);
+});
+
+// Change batsmen for series match
+app.post('/api/series/:seriesId/match/:matchId/change-batsmen', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No active innings' });
+  }
+  
+  const currentInnings = match.innings[match.innings.length - 1];
+  const { striker, nonStriker } = req.body;
+  
+  if (!striker || !nonStriker) {
+    return res.status(400).json({ error: 'Both striker and non-striker required' });
+  }
+  
+  if (striker === nonStriker) {
+    return res.status(400).json({ error: 'Striker and non-striker must be different' });
+  }
+  
+  // Update batsmen
+  currentInnings.striker = striker;
+  currentInnings.nonStriker = nonStriker;
+  
+  // Initialize batsmen in allBatsmen if they don't exist
+  if (!currentInnings.allBatsmen[striker]) {
+    currentInnings.allBatsmen[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  }
+  if (!currentInnings.allBatsmen[nonStriker]) {
+    currentInnings.allBatsmen[nonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+  }
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  
+  res.json(match);
+});
+
 // Edit ball for series match
 app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, res) => {
   const { seriesId, matchId } = req.params;
@@ -3005,7 +3347,7 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   }
   
   const currentInnings = match.innings[match.innings.length - 1];
-  const { ballIndex, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler, batsman } = req.body;
+  const { ballIndex, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler, batsman, fielder } = req.body;
   
   if (ballIndex < 0 || ballIndex >= currentInnings.allBalls.length) {
     return res.status(400).json({ error: 'Invalid ball index' });
@@ -3021,6 +3363,9 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   }
   if (batsman && dangerousNames.includes(batsman)) {
     return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  if (fielder && dangerousNames.includes(fielder)) {
+    return res.status(400).json({ error: 'Invalid fielder name' });
   }
   if (extraType && dangerousNames.includes(extraType)) {
     return res.status(400).json({ error: 'Invalid extra type' });
@@ -3043,7 +3388,8 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
     extraType: extraType || null,
     wicket: wicket || false,
     wicketType: wicketType || null,
-    dismissedBatsman: dismissedBatsman || null
+    dismissedBatsman: dismissedBatsman || null,
+    fielder: fielder || null
   };
   
   // Update ball properties safely using direct assignment (validated above)
@@ -3054,6 +3400,7 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   ball.wicket = safeProps.wicket;
   ball.wicketType = safeProps.wicketType;
   ball.dismissedBatsman = safeProps.dismissedBatsman;
+  ball.fielder = safeProps.fielder;
   
   // Update bowler and batsman if provided (already validated as not dangerous)
   if (bowler && bowler.trim()) {
@@ -3300,7 +3647,7 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
   
   // Page +1: Live Score
   if (pageOffset === 1) {
-    // Show live matches first, or most recent completed match if no live match
+    // Show live matches first, or most recent completed match, or first upcoming match
     let currentMatch = series.matches.find(m => m.status === 'live');
     if (!currentMatch) {
       // Find the most recently completed match
@@ -3308,6 +3655,10 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
       if (completedMatches.length > 0) {
         currentMatch = completedMatches[completedMatches.length - 1];
       }
+    }
+    if (!currentMatch) {
+      // Find the first upcoming match
+      currentMatch = series.matches.find(m => m.status === 'upcoming');
     }
     
     if (!currentMatch) {
@@ -3330,7 +3681,18 @@ app.get('/api/page-data', checkRateLimit, (req, res) => {
   
   // Page +2: Full Scorecard
   if (pageOffset === 2) {
-    const currentMatch = series.matches.find(m => m.status === 'live' || m.status === 'completed');
+    // Show live, completed, or upcoming matches
+    let currentMatch = series.matches.find(m => m.status === 'live');
+    if (!currentMatch) {
+      const completedMatches = series.matches.filter(m => m.status === 'completed');
+      if (completedMatches.length > 0) {
+        currentMatch = completedMatches[completedMatches.length - 1];
+      }
+    }
+    if (!currentMatch) {
+      currentMatch = series.matches.find(m => m.status === 'upcoming');
+    }
+    
     if (!currentMatch) {
       return res.json({
         type: 'scorecard',

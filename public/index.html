@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">BBC CEEFAX - Cricket</title>
+    <title id="page-title">TELETEST</title>
     <link rel="stylesheet" href="/css/ceefax.css">
 </head>
 <body>
@@ -15,14 +15,14 @@
                 <span id="page-number-display" class="page-header-page-number">340</span>
             </div>
             <div class="page-header-right">
-                <span class="ceefax-date" id="ceefax-date"></span>
-                <span class="ceefax-time page-header-time" id="ceefax-time"></span>
+                <span class="text-white" id="ceefax-date"></span>
+                <span class="text-yellow" id="ceefax-time"></span>
             </div>
         </header>
 
         <!-- CRICKET Header Bar - TELETEST Style -->
         <div class="main-title-bar">
-            CRICKET
+            <img src="/images/teletest-banner.png" alt="CRICKET" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;">
         </div>
 
         <!-- Content Area -->
@@ -32,23 +32,8 @@
             </div>
         </div>
 
-        <!-- Page Navigation -->
-        <div class="page-navigation">
-            <button class="nav-btn" onclick="navigatePage('prev')">◄ PREV</button>
-            <button class="nav-btn" onclick="navigatePage(340)">▲ INDEX</button>
-            <input type="number" class="page-number-input" id="page-input" placeholder="Page">
-            <button class="nav-btn" onclick="navigateToInputPage()">GO</button>
-            <button class="nav-btn" onclick="navigatePage('next')">NEXT ►</button>
-        </div>
-
         <!-- Subpage indicator (for cycling pages) -->
         <div class="subpage-indicator" id="subpage-indicator"></div>
-
-        <!-- Footer -->
-        <footer class="ceefax-footer">
-            BBC CEEFAX Cricket Service © 2025
-        </footer>
-    </div>
 
     <script src="/js/page-viewer.js"></script>
 </body>
