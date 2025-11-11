@@ -29,6 +29,16 @@
 /* Import VT323 Font from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
+/* Hide Scrollbar */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: none;
+}
+
 /* Teletext color palette */
 :root {
   --teletext-black: #000000;
