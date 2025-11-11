@@ -1,4 +1,4 @@
-/* Ceefax/Teletext Styling */
+/* TELETEST/Teletext Styling */
 
 /* 
  * =================================================================
@@ -6,7 +6,7 @@
  * =================================================================
  * 
  * This stylesheet defines all styles for the cricket text application
- * using authentic Ceefax/Teletext aesthetics.
+ * using authentic TELETEST/Teletext aesthetics.
  * 
  * USAGE GUIDE:
  * - All styles use CSS custom properties (variables) for colors
@@ -397,16 +397,6 @@ body {
   flex-shrink: 0;
 }
 
-/* Footer */
-.ceefax-footer {
-  background-color: var(--teletext-blue);
-  color: var(--teletext-white);
-  padding: 0.5rem 1rem;
-  text-align: center;
-  margin-top: 1rem;
-  border-top: 2px solid var(--teletext-cyan);
-}
-
 /* ========================================
    RESPONSIVE STYLES
    ======================================== */
@@ -420,6 +410,10 @@ body {
 
 /* Mobile: Keep compact */
 @media (max-width: 600px) {
+  .container {
+    padding-bottom: 25px; /* Add space for keypad toggle */
+  }
+  
   .page-header {
     flex-wrap: wrap;
     gap: 5px !important;
@@ -443,5 +437,160 @@ body {
     object-fit: cover;
     object-position: center;
     transform: scale(1.0); /* Lighter zoom to keep spacing above/below */
+  }
+}
+
+/* ========================================
+   MOBILE KEYPAD
+   ======================================== */
+
+.mobile-keypad {
+  display: none; /* Hidden on desktop */
+}
+
+@media (max-width: 600px) {
+  .mobile-keypad {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+    border: 3px solid #444;
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.1),
+      0 -5px 20px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    transition: transform 0.3s ease;
+  }
+
+  .mobile-keypad.collapsed {
+    transform: translateX(-50%) translateY(calc(100% - 30px));
+  }
+
+  .keypad-toggle {
+    width: 100%;
+    height: 30px;
+    background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
+    cursor: pointer;
+    user-select: none;
+    border-radius: 20px 20px 0 0;
+    border-bottom: 2px solid #1a1a1a;
+  }
+
+  .keypad-toggle span {
+    color: #ff6b35;
+    font-size: 20px;
+    line-height: 1;
+    text-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
+    transition: transform 0.3s ease;
+  }
+
+  .keypad-content {
+    padding: 10px 10px 15px 10px;
+    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  }
+
+  .keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+
+  .keypad-btn {
+    background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+    color: #ffffff;
+    border: 2px solid #2a2a2a;
+    border-bottom: 3px solid #1a1a1a;
+    border-radius: 6px;
+    font-size: 18px;
+    font-family: 'VT323', monospace;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 
+      0 3px 0 #1a1a1a,
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .keypad-btn:active {
+    transform: translateY(2px);
+    box-shadow: 
+      0 1px 0 #1a1a1a,
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border-bottom: 2px solid #1a1a1a;
+  }
+
+  .keypad-clear {
+    background: linear-gradient(145deg, #8a3a3a, #6a2a2a);
+    border-bottom: 3px solid #4a1a1a;
+  }
+
+  .keypad-clear:active {
+    background: linear-gradient(145deg, #7a2a2a, #5a1a1a);
+  }
+
+  .keypad-back {
+    background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+    border-bottom: 3px solid #2a2a2a;
+  }
+
+  .keypad-back:active {
+    background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  }
+
+  .keypad-color-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+  }
+
+  .keypad-color-btn {
+    height: 28px;
+    border: 2px solid #2a2a2a;
+    border-bottom: 3px solid #1a1a1a;
+    border-radius: 6px;
+    font-size: 0;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 
+      0 2px 0 #1a1a1a,
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .keypad-color-btn:active {
+    transform: translateY(2px);
+    box-shadow: 
+      0 0px 0 #1a1a1a,
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .keypad-red {
+    background: linear-gradient(145deg, #d63447, #a82835);
+  }
+
+  .keypad-green {
+    background: linear-gradient(145deg, #3a8a3a, #2a6a2a);
+  }
+
+  .keypad-yellow {
+    background: linear-gradient(145deg, #e8b923, #c99a1f);
+  }
+
+  .keypad-blue {
+    background: linear-gradient(145deg, #4a7ba7, #356089);
   }
 }

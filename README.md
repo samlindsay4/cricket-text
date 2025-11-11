@@ -1,8 +1,8 @@
-# Cricket Text - Ceefax Cricket Scoring System
+# Cricket Text - TELETEST Cricket Scoring System
 
-A complete Ceefax-style cricket scoring application with flexible series management, page-based navigation, and authentic teletext styling.
+A complete TELETEST-style cricket scoring application with flexible series management, page-based navigation, and authentic teletext styling.
 
-![Ceefax Cricket](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
+![TELETEST Cricket](https://github.com/user-attachments/assets/232ca3c7-8f11-458d-957b-75caa18bb6a7)
 
 ## 🎯 Features
 
@@ -13,14 +13,14 @@ A complete Ceefax-style cricket scoring application with flexible series managem
 - Automatic series score tracking
 - Delete series when finished
 
-### 📺 Authentic Ceefax Styling
+### 📺 Authentic TELETEST Styling
 - **Classic teletext appearance** with proper color palette
 - **Green "CRICKET" header** on blue background with shadow
 - **Color-coded elements**: Yellow headlines, cyan sections, magenta page links
 - **Blinking LIVE indicators** in red
 - **CRT scanline effect** for authentic feel
 - **Monospace font** (Press Start 2P with Courier fallback)
-- No modern UI elements - pure Ceefax aesthetic
+- No modern UI elements - pure TELETEST aesthetic
 
 ### 📄 Page-Based Navigation System
 - **Page 340**: Cricket Homepage (live matches, news, series)
@@ -161,7 +161,7 @@ cricket-text/
 │   ├── admin.html             # Legacy admin (deprecated - use admin-dashboard.html)
 │   ├── admin-dashboard.html   # Unified admin dashboard
 │   ├── css/
-│   │   ├── ceefax.css        # Authentic Ceefax styling
+│   │   ├── teletest.css        # Authentic TELETEST styling
 │   │   └── admin.css         # Admin interface styling
 │   └── js/
 │       ├── page-viewer.js    # Page navigation & rendering
@@ -182,9 +182,9 @@ cricket-text/
 └── GUIDE.md                   # Comprehensive guide
 ```
 
-## 🎨 Ceefax Styling
+## 🎨 TELETEST Styling
 
-The system uses authentic BBC Ceefax colors and styling:
+The system uses authentic BBC TELETEST colors and styling:
 
 ### Color Palette
 - **Black (#000000)**: Background
@@ -274,7 +274,7 @@ See [GUIDE.md](GUIDE.md) for comprehensive documentation including:
 - **Storage**: JSON file-based (no database required)
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **Authentication**: Session-based with bcrypt
-- **Styling**: Custom Ceefax/Teletext CSS
+- **Styling**: Custom TELETEST/Teletext CSS
 
 ## 🐛 Known Issues
 
@@ -296,4 +296,4 @@ ISC
 
 ## 🏏 Ready for The Ashes 2025!
 
-This application is ready to use for The Ashes starting November 21, 2025. Create your series, set up matches, start scoring, and enjoy the authentic Ceefax experience!
+This application is ready to use for The Ashes starting November 21, 2025. Create your series, set up matches, start scoring, and enjoy the authentic TELETEST experience!

@@ -5,7 +5,7 @@ let currentSeries = null;
 const BALLS_PER_OVER = 6; // Standard cricket over
 
 /**
- * Updates the Ceefax header with current date and time
+ * Updates the TELETEST header with current date and time
  * Displays date in GB format (e.g., "6 Nov 2025") and time in 24-hour format (e.g., "12:43")
  */
 function updateHeaderDateTime() {
@@ -14,8 +14,8 @@ function updateHeaderDateTime() {
   const dateStr = now.toLocaleDateString('en-GB', dateOptions);
   const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   
-  const dateElement = document.getElementById('ceefax-date');
-  const timeElement = document.getElementById('ceefax-time');
+  const dateElement = document.getElementById('teletest-date');
+  const timeElement = document.getElementById('teletest-time');
   
   if (dateElement) dateElement.textContent = dateStr;
   if (timeElement) timeElement.textContent = timeStr;
@@ -34,7 +34,7 @@ async function loadMatch() {
     const pageParam = urlParams.get('page');
     
     if (pageParam) {
-      // Load from page-data API (series match with Ceefax style)
+      // Load from page-data API (series match with TELETEST style)
       await loadPageData(pageParam);
     } else {
       // Load legacy match data
@@ -51,7 +51,7 @@ async function loadMatch() {
   }
 }
 
-// Load page data for series matches (Ceefax style)
+// Load page data for series matches (TELETEST style)
 async function loadPageData(pageNumber) {
   try {
     // Update page number display
@@ -61,7 +61,7 @@ async function loadPageData(pageNumber) {
       pageNumberDisplay.textContent = `P${pageNumber}`;
     }
     if (pageTitleTag) {
-      pageTitleTag.textContent = `BBC CEEFAX - Cricket Page ${pageNumber}`;
+      pageTitleTag.textContent = `TELETEST - Cricket Page ${pageNumber}`;
     }
     
     const response = await fetch(`/api/page-data?page=${pageNumber}`);
@@ -185,7 +185,7 @@ async function switchPublicMatch() {
   }
 }
 
-// Display match data in Ceefax style
+// Display match data in TELETEST style
 function displayMatch(match) {
   const content = document.getElementById('content');
   

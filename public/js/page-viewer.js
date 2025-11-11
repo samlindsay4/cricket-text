@@ -17,10 +17,32 @@ let bowlingStatsCurrentTeam = 0;
 let bowlingStatsCycleInterval = null;
 let bowlingStatsPaused = false;
 
+// Page registry cache
+let activePages = null;
+
 // Constants
 const LIVE_REFRESH_INTERVAL = 10000; // 10 seconds
 const SUBPAGE_CYCLE_INTERVAL = 5000; // 5 seconds
 const SUBPAGES_PER_INNINGS = 2; // Batting and Bowling
+
+/**
+ * Fetch and cache the list of active pages
+ */
+async function getActivePages() {
+    if (activePages) return activePages;
+    
+    try {
+        const response = await fetch('/api/accessible-pages');
+        if (response.ok) {
+            activePages = await response.json();
+            return activePages;
+        }
+    } catch (error) {
+        console.error('Error fetching accessible pages:', error);
+    }
+    
+    return [];
+}
 
 /**
  * Get page number from URL
@@ -59,8 +81,8 @@ function updateHeaderDateTime() {
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const timeStr = `${hours}:${minutes}/${seconds}`;
     
-    const dateElement = document.getElementById('ceefax-date');
-    const timeElement = document.getElementById('ceefax-time');
+    const dateElement = document.getElementById('teletest-date');
+    const timeElement = document.getElementById('teletest-time');
     
     if (dateElement) dateElement.textContent = dateStr;
     if (timeElement) timeElement.textContent = timeStr;
@@ -70,37 +92,23 @@ function updateHeaderDateTime() {
  * Navigate to a specific page
  */
 async function navigatePage(target) {
+    const pages = await getActivePages();
+    
     if (target === 'prev') {
-        // Try to find previous page with content
-        let prevPage = currentPage - 1;
-        while (prevPage >= 340) {
-            const exists = await checkPageExists(prevPage);
-            if (exists) {
-                currentPage = prevPage;
-                break;
-            }
-            prevPage--;
-        }
-        if (prevPage < 340) {
-            currentPage = 340; // Go to homepage if nothing found
+        const currentIndex = pages.indexOf(currentPage);
+        if (currentIndex > 0) {
+            currentPage = pages[currentIndex - 1];
+        } else {
+            // Loop to last page
+            currentPage = pages[pages.length - 1];
         }
     } else if (target === 'next') {
-        // Try to find next page with content
-        let nextPage = currentPage + 1;
-        let found = false;
-        // Try up to 20 pages ahead (reduced from 100 to avoid rate limiting)
-        for (let i = 0; i < 20; i++) {
-            const exists = await checkPageExists(nextPage);
-            if (exists) {
-                currentPage = nextPage;
-                found = true;
-                break;
-            }
-            nextPage++;
-        }
-        // If no next page found, do nothing (stay on current page)
-        if (!found) {
-            return;
+        const currentIndex = pages.indexOf(currentPage);
+        if (currentIndex < pages.length - 1) {
+            currentPage = pages[currentIndex + 1];
+        } else {
+            // Loop back to first page
+            currentPage = pages[0];
         }
     } else if (target === 'donate') {
         // TODO: Navigate to donation page when created
@@ -111,20 +119,6 @@ async function navigatePage(target) {
     
     updateURL(currentPage);
     loadPage(currentPage);
-}
-
-/**
- * Check if a page exists
- */
-async function checkPageExists(pageNum) {
-    try {
-        const response = await fetch(`/api/page-data?page=${pageNum}&_t=${Date.now()}`, {
-            cache: 'no-store'
-        });
-        return response.ok;
-    } catch (error) {
-        return false;
-    }
 }
 
 /**
@@ -155,10 +149,55 @@ function getFooterNavigation() {
 }
 
 /**
+ * Cycle through page numbers with animation
+ */
+async function cyclePageNumbers(targetPage) {
+    const pageDisplay = document.getElementById('page-number-display');
+    const brandElement = document.querySelector('.page-header-brand');
+    const dateElement = document.getElementById('teletest-date');
+    const timeElement = document.getElementById('teletest-time');
+    const banner = document.getElementById('main-title-bar');
+    
+    // Turn header green during cycling
+    brandElement.style.color = '#00ff00';
+    pageDisplay.style.color = '#00ff00';
+    dateElement.style.color = '#00ff00';
+    
+    let currentNum = 300; // Always start from 300
+    
+    return new Promise((resolve) => {
+        const interval = setInterval(() => {
+            currentNum++;
+            if (currentNum > 400) {
+                currentNum = 300;
+            }
+            pageDisplay.textContent = currentNum;
+            
+            if (currentNum === targetPage) {
+                clearInterval(interval);
+                // Restore original colors
+                brandElement.style.color = '';
+                pageDisplay.style.color = '';
+                dateElement.style.color = '';
+                timeElement.style.color = '';
+                // Show the banner
+                banner.style.visibility = 'visible';
+                resolve();
+            }
+        }, 30); // 30ms per number for smooth but fast cycling
+    });
+}
+
+/**
  * Load and display page content
  */
-async function loadPage(pageNum, preserveSubpage = false) {
+async function loadPage(pageNum, preserveSubpage = false, skipAnimation = false) {
     try {
+        // Cycle through page numbers first (unless it's an auto-refresh)
+        if (!skipAnimation) {
+            await cyclePageNumbers(pageNum);
+        }
+        
         // Clear any existing intervals
         if (subpageInterval) {
             clearInterval(subpageInterval);
@@ -216,13 +255,13 @@ async function loadPage(pageNum, preserveSubpage = false) {
                 break;
             case 'series-live':
                 renderLiveScore(data);
-                // Auto-refresh every 5 seconds
-                refreshInterval = setInterval(() => loadPage(currentPage), LIVE_REFRESH_INTERVAL);
+                // Auto-refresh every 10 seconds
+                refreshInterval = setInterval(() => loadPage(currentPage, false, true), LIVE_REFRESH_INTERVAL);
                 break;
             case 'scorecard':
                 renderScorecard(data);
-                // Auto-refresh every 5 seconds, preserving current subpage
-                refreshInterval = setInterval(() => loadPage(currentPage, true), LIVE_REFRESH_INTERVAL);
+                // Auto-refresh every 10 seconds, preserving current subpage
+                refreshInterval = setInterval(() => loadPage(currentPage, true, true), LIVE_REFRESH_INTERVAL);
                 break;
             case 'fixtures':
                 renderFixtures(data);
@@ -998,13 +1037,6 @@ function renderLiveScore(data) {
         
         html += '</div>';
     }
-    
-    // Footer with promotion message
-    html += `
-        <div class="live-promo-bar">
-            Buy the latest Tailenders merch. Go Well!
-        </div>
-    `;
     
     html += getFooterNavigation();
     
@@ -1889,4 +1921,84 @@ document.addEventListener('DOMContentLoaded', () => {
         const page = getPageFromURL();
         loadPage(page);
     });
+    
+    // Initialize keypad as collapsed on mobile
+    const keypad = document.getElementById('mobile-keypad');
+    if (keypad) {
+        keypad.classList.add('collapsed');
+    }
 });
+
+// Mobile Keypad Functions
+let keypadValue = '';
+let originalPageNumber = '';
+
+function toggleKeypad() {
+    const keypad = document.getElementById('mobile-keypad');
+    keypad.classList.toggle('collapsed');
+    
+    // Change state
+    if (keypad.classList.contains('collapsed')) {
+        // Restore original page number if user didn't navigate
+        if (keypadValue && keypadValue.length < 3) {
+            document.getElementById('page-number-display').textContent = originalPageNumber;
+            keypadValue = '';
+        }
+    } else {
+        // Store the current page number
+        originalPageNumber = currentPage;
+        keypadValue = '';
+    }
+}
+
+function keypadInput(digit) {
+    if (keypadValue.length < 3) {
+        keypadValue += digit;
+        // Update the header page number display
+        const displayValue = keypadValue.padEnd(3, '_');
+        document.getElementById('page-number-display').textContent = displayValue;
+        
+        // Auto-navigate when 3 digits entered, but only if first digit is 3
+        if (keypadValue.length === 3) {
+            if (keypadValue[0] === '3') {
+                setTimeout(() => {
+                    keypadGo();
+                }, 300);
+            } else {
+                // Invalid page number, clear after a moment
+                setTimeout(() => {
+                    keypadClear();
+                }, 800);
+            }
+        }
+    }
+}
+
+function keypadClear() {
+    keypadValue = '';
+    document.getElementById('page-number-display').textContent = originalPageNumber;
+}
+
+function keypadBackspace() {
+    if (keypadValue.length > 0) {
+        keypadValue = keypadValue.slice(0, -1);
+        const display = keypadValue.padEnd(3, '_');
+        document.getElementById('page-number-display').textContent = display;
+    }
+    if (keypadValue.length === 0) {
+        document.getElementById('page-number-display').textContent = originalPageNumber;
+    }
+}
+
+function keypadGo() {
+    if (keypadValue.length === 3) {
+        const pageNum = parseInt(keypadValue);
+        keypadValue = '';
+        navigatePage(pageNum);
+        // Collapse keypad after navigation
+        const keypad = document.getElementById('mobile-keypad');
+        keypad.classList.add('collapsed');
+        const arrow = document.getElementById('keypad-arrow');
+        arrow.textContent = '▴';
+    }
+}

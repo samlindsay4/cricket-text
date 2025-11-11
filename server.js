@@ -3730,6 +3730,55 @@ app.get('/api/page-registry', checkRateLimit, (req, res) => {
   res.json(registry);
 });
 
+// Get list of accessible page numbers (filters out upcoming match scorecards)
+app.get('/api/accessible-pages', checkRateLimit, (req, res) => {
+  const registry = loadPageRegistry();
+  const accessiblePages = [];
+  
+  for (const [pageNum, pageInfo] of Object.entries(registry)) {
+    // Include all non-series pages
+    if (pageInfo.type !== 'series') {
+      accessiblePages.push(parseInt(pageNum));
+      continue;
+    }
+    
+    // For series pages, check if it's a match scorecard
+    const isMatchScorecard = pageInfo.title && pageInfo.title.includes('Match') && pageInfo.title.includes('Scorecard');
+    
+    if (!isMatchScorecard) {
+      // Include non-match pages (live score, fixtures, stats, etc.)
+      accessiblePages.push(parseInt(pageNum));
+      continue;
+    }
+    
+    // For match scorecards, check if the match has started
+    try {
+      const series = loadSeriesById(pageInfo.seriesId);
+      if (!series) {
+        continue;
+      }
+      
+      // Extract match number from title (e.g., "Match 1 Scorecard" -> 1)
+      const matchNumMatch = pageInfo.title.match(/Match (\d+)/);
+      if (matchNumMatch) {
+        const matchNum = parseInt(matchNumMatch[1]);
+        const match = series.matches.find(m => m.number === matchNum);
+        
+        // Include if match has started (not upcoming, or upcoming with venue set)
+        if (match && (match.status !== 'upcoming' || match.venue)) {
+          accessiblePages.push(parseInt(pageNum));
+        }
+      }
+    } catch (error) {
+      // Skip pages that cause errors
+      continue;
+    }
+  }
+  
+  accessiblePages.sort((a, b) => a - b);
+  res.json(accessiblePages);
+});
+
 // Page data endpoint - serves content for specific page numbers
 app.get('/api/page-data', checkRateLimit, (req, res) => {
   const { page } = req.query;

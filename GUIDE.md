@@ -1,8 +1,8 @@
-# Ceefax Cricket - Complete Guide
+# TELETEST Cricket - Complete Guide
 
 ## Overview
 
-This is a complete Ceefax-style cricket scoring system with flexible series management, page-based navigation, and authentic teletext styling. The system supports multiple Test series, news management, and live statistics aggregation.
+This is a complete TELETEST-style cricket scoring system with flexible series management, page-based navigation, and authentic teletext styling. The system supports multiple Test series, news management, and live statistics aggregation.
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ ADMIN_PASSWORD=your_secure_password
 
 ### Page Numbering System
 
-The system uses Ceefax-style page numbers:
+The system uses TELETEST-style page numbers:
 
 - **Page 340**: Homepage (live matches, news, series)
 - **Pages 341-345**: News stories (max 5)
@@ -155,7 +155,7 @@ Shows:
 ### News Pages (341-345)
 
 - Display individual news stories
-- Auto-formatted in Ceefax style
+- Auto-formatted in TELETEST style
 - Link back to homepage
 
 ### Series Pages (350+)
@@ -206,9 +206,9 @@ Every page includes:
 - **Page input + GO**: Jump to specific page
 - **NEXT ►**: Next page
 
-## Authentic Ceefax Styling
+## Authentic TELETEST Styling
 
-The system implements authentic BBC Ceefax/Teletext styling:
+The system implements authentic BBC TELETEST/Teletext styling:
 
 ### Color Palette
 - **Black (#000000)**: Background

@@ -4,36 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">TELETEST</title>
-    <link rel="stylesheet" href="/css/ceefax.css">
+    <link rel="stylesheet" href="/css/teletest.css">
 </head>
 <body>
     <div class="container">
-        <!-- Ceefax Header with Page Number -->
+        <!-- TELETEST Header with Page Number -->
         <header class="page-header">
             <div class="page-header-left">
                 <span class="page-header-brand">TELETEST</span>
                 <span id="page-number-display" class="page-header-page-number">340</span>
             </div>
             <div class="page-header-right">
-                <span class="text-white" id="ceefax-date"></span>
-                <span class="text-yellow" id="ceefax-time"></span>
+                <span class="text-white" id="teletest-date"></span>
+                <span class="text-yellow" id="teletest-time"></span>
             </div>
         </header>
 
         <!-- CRICKET Header Bar - TELETEST Style -->
-        <div class="main-title-bar">
+        <div class="main-title-bar" id="main-title-bar" style="visibility: hidden;">
             <img src="/images/teletest-banner.png" alt="CRICKET" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;">
         </div>
 
         <!-- Content Area -->
         <div class="content" id="page-content">
-            <div class="loading-message">
-                LOADING...
-            </div>
         </div>
 
         <!-- Subpage indicator (for cycling pages) -->
         <div class="subpage-indicator" id="subpage-indicator"></div>
+
+        <!-- Mobile Keypad -->
+        <div class="mobile-keypad collapsed" id="mobile-keypad">
+            <div class="keypad-toggle" id="keypad-toggle" onclick="toggleKeypad()">
+            </div>
+            <div class="keypad-content" id="keypad-content">
+                <div class="keypad-grid">
+                    <button class="keypad-btn" onclick="keypadInput('1')">1</button>
+                    <button class="keypad-btn" onclick="keypadInput('2')">2</button>
+                    <button class="keypad-btn" onclick="keypadInput('3')">3</button>
+                    <button class="keypad-btn" onclick="keypadInput('4')">4</button>
+                    <button class="keypad-btn" onclick="keypadInput('5')">5</button>
+                    <button class="keypad-btn" onclick="keypadInput('6')">6</button>
+                    <button class="keypad-btn" onclick="keypadInput('7')">7</button>
+                    <button class="keypad-btn" onclick="keypadInput('8')">8</button>
+                    <button class="keypad-btn" onclick="keypadInput('9')">9</button>
+                    <button class="keypad-btn keypad-back" onclick="keypadBackspace()">BACK</button>
+                    <button class="keypad-btn" onclick="keypadInput('0')">0</button>
+                    <button class="keypad-btn keypad-clear" onclick="keypadClear()">CLR</button>
+                </div>
+                <div class="keypad-color-row">
+                    <button class="keypad-color-btn keypad-red" onclick="navigatePage('prev')">RED</button>
+                    <button class="keypad-color-btn keypad-green" onclick="navigatePage('next')">GREEN</button>
+                    <button class="keypad-color-btn keypad-yellow" onclick="navigatePage(340)">YELLOW</button>
+                    <button class="keypad-color-btn keypad-blue" onclick="window.open('https://www.buymeacoffee.com/samlindsay', '_blank')">BLUE</button>
+                </div>
+            </div>
+        </div>
 
     <script src="/js/page-viewer.js"></script>
 </body>
