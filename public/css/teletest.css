@@ -58,6 +58,22 @@
   box-sizing: border-box;
 }
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Re-enable selection for input fields if needed */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ========================================
    UTILITY CLASSES - Text Colors
    ======================================== */
@@ -615,16 +631,4 @@ body {
   .keypad-blue {
     background: linear-gradient(145deg, #4a7ba7, #356089);
   }
-  * {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  }
-
-/* Re-enable selection for input fields if needed */
-input, textarea {
-  -webkit-user-select: text;
-  user-select: text;
-}
 }
