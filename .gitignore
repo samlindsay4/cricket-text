@@ -3,3 +3,8 @@ data/*.log
 *.log
 .DS_Store
 .env
+
+# Ignore match data files (edited via Railway admin during matches)
+data/series/**/*.json
+data/*match*.json
+data/match.json
