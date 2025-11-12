@@ -482,10 +482,10 @@ body {
     padding-bottom: 80px;
   }
 
-  /* Less padding for installed PWA (browser chrome is gone) */
+  /* Much less padding for installed PWA (browser chrome is gone) */
   @media (display-mode: standalone) {
     .container {
-      padding-bottom: 40px;
+      padding-bottom: 10px;
     }
   }
 

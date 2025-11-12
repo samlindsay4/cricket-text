@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teletest-cricket-v5';
+const CACHE_NAME = 'teletest-cricket-v6';
 const urlsToCache = [
   '/',
   '/css/teletest.css',
