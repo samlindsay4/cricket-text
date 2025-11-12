@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teletest-cricket-v4';
+const CACHE_NAME = 'teletest-cricket-v5';
 const urlsToCache = [
   '/',
   '/css/teletest.css',
@@ -23,6 +23,11 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   // Don't cache non-GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+  
+  // Don't cache non-http(s) requests (chrome-extension, etc)
+  if (!event.request.url.startsWith('http')) {
     return;
   }
   
