@@ -1,0 +1,45 @@
+{
+  "name": "The Ashes 2025",
+  "matches": [
+    {
+      "id": "ashes-test-1",
+      "title": "1st Test",
+      "venue": "The Gabba, Brisbane",
+      "date": "2025-11-21",
+      "status": "upcoming"
+    },
+    {
+      "id": "ashes-test-2",
+      "title": "2nd Test",
+      "venue": "Adelaide Oval",
+      "date": "2025-12-06",
+      "status": "upcoming"
+    },
+    {
+      "id": "ashes-test-3",
+      "title": "3rd Test",
+      "venue": "The WACA, Perth",
+      "date": "2025-12-14",
+      "status": "upcoming"
+    },
+    {
+      "id": "ashes-test-4",
+      "title": "4th Test",
+      "venue": "MCG, Melbourne",
+      "date": "2025-12-26",
+      "status": "upcoming"
+    },
+    {
+      "id": "ashes-test-5",
+      "title": "5th Test",
+      "venue": "SCG, Sydney",
+      "date": "2026-01-03",
+      "status": "upcoming"
+    }
+  ],
+  "currentMatch": null,
+  "seriesScore": {
+    "England": 0,
+    "Australia": 0
+  }
+}

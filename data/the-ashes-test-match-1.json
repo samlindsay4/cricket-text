@@ -1,0 +1,59 @@
+{
+  "id": "the-ashes-test-match-1",
+  "seriesId": "the-ashes-test",
+  "title": "1st Match",
+  "venue": "Brisbane",
+  "date": "2025-11-09",
+  "status": "upcoming",
+  "format": "test",
+  "maxInnings": 4,
+  "currentInnings": 0,
+  "innings": [],
+  "squads": {
+    "England": [
+      "Crawley",
+      "Duckett",
+      "Pope",
+      "Root",
+      "Brook",
+      "Stokes",
+      "Smith",
+      "Atkinson",
+      "Archer",
+      "Wood",
+      "Bashir"
+    ],
+    "Australia": [
+      "Khawaja",
+      "Weatherald",
+      "Labuschagne",
+      "Smith",
+      "Head",
+      "Green",
+      "Carey",
+      "Starc",
+      "Hazlewood",
+      "Lyon",
+      "Boland"
+    ]
+  },
+  "matchSituation": {
+    "lead": null,
+    "leadBy": 0,
+    "target": null,
+    "toWin": null
+  },
+  "followOn": {
+    "available": false,
+    "deficit": 200,
+    "enforced": false
+  },
+  "result": {
+    "status": "in-progress",
+    "winner": null,
+    "winType": null,
+    "margin": null
+  },
+  "message": "",
+  "day": 1
+}

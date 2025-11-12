@@ -2047,7 +2047,5 @@ function keypadGo() {
         // Collapse keypad after navigation
         const keypad = document.getElementById('mobile-keypad');
         keypad.classList.add('collapsed');
-        const arrow = document.getElementById('keypad-arrow');
-        arrow.textContent = '▴';
     }
 }

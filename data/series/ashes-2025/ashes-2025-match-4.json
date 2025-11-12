@@ -1,0 +1,893 @@
+{
+  "id": "ashes-2025-match-4",
+  "seriesId": "ashes-2025",
+  "title": "4th Test",
+  "venue": "Sydney",
+  "date": "2025-11-09",
+  "status": "completed",
+  "format": "test",
+  "maxInnings": 4,
+  "currentInnings": 0,
+  "innings": [
+    {
+      "number": 1,
+      "battingTeam": "England",
+      "bowlingTeam": "Australia",
+      "runs": 6,
+      "wickets": 0,
+      "overs": 0,
+      "balls": 1,
+      "status": "completed",
+      "battingOrder": [
+        "Crawley",
+        "Duckett",
+        "Pope",
+        "Root",
+        "Brook",
+        "Stokes",
+        "Smith",
+        "Atkinson",
+        "Archer",
+        "Wood",
+        "Bashir"
+      ],
+      "nextBatsmanIndex": 2,
+      "striker": "Crawley",
+      "nonStriker": "Duckett",
+      "currentBowler": {
+        "name": "Starc"
+      },
+      "currentEnd": "End A",
+      "allBatsmen": {
+        "Crawley": {
+          "runs": 6,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 1,
+          "status": "not out"
+        },
+        "Duckett": {
+          "runs": 0,
+          "balls": 0,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out"
+        }
+      },
+      "allBowlers": {
+        "Starc": {
+          "overs": 0,
+          "balls": 1,
+          "maidens": 0,
+          "runs": 6,
+          "wickets": 0,
+          "name": "Starc"
+        }
+      },
+      "bowlingEnds": {
+        "Starc": "End A"
+      },
+      "currentOver": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Crawley",
+          "bowler": "Starc",
+          "runs": 6,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:22:43.588Z"
+        }
+      ],
+      "fallOfWickets": [],
+      "allBalls": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Crawley",
+          "bowler": "Starc",
+          "runs": 6,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:22:43.588Z"
+        }
+      ],
+      "followOnEnforced": false,
+      "declared": true
+    },
+    {
+      "number": 2,
+      "battingTeam": "Australia",
+      "bowlingTeam": "England",
+      "runs": 1,
+      "wickets": 0,
+      "overs": 0,
+      "balls": 1,
+      "status": "completed",
+      "battingOrder": [
+        "Khawaja",
+        "Weatherald",
+        "Labuschagne",
+        "Smith",
+        "Head",
+        "Green",
+        "Carey",
+        "Starc",
+        "Hazlewood",
+        "Lyon",
+        "Boland"
+      ],
+      "nextBatsmanIndex": 2,
+      "striker": "Weatherald",
+      "nonStriker": "Khawaja",
+      "currentBowler": {
+        "name": "Archer"
+      },
+      "currentEnd": "End A",
+      "allBatsmen": {
+        "Khawaja": {
+          "runs": 1,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out"
+        },
+        "Weatherald": {
+          "runs": 0,
+          "balls": 0,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out"
+        }
+      },
+      "allBowlers": {
+        "Archer": {
+          "overs": 0,
+          "balls": 1,
+          "maidens": 0,
+          "runs": 1,
+          "wickets": 0,
+          "name": "Archer"
+        }
+      },
+      "bowlingEnds": {
+        "Archer": "End A"
+      },
+      "currentOver": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Khawaja",
+          "bowler": "Archer",
+          "runs": 1,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:23:04.160Z"
+        }
+      ],
+      "fallOfWickets": [],
+      "allBalls": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Khawaja",
+          "bowler": "Archer",
+          "runs": 1,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:23:04.160Z"
+        }
+      ],
+      "followOnEnforced": false,
+      "declared": true
+    },
+    {
+      "number": 3,
+      "battingTeam": "England",
+      "bowlingTeam": "Australia",
+      "runs": 6,
+      "wickets": 0,
+      "overs": 0,
+      "balls": 1,
+      "status": "completed",
+      "battingOrder": [
+        "Crawley",
+        "Duckett",
+        "Pope",
+        "Root",
+        "Brook",
+        "Stokes",
+        "Smith",
+        "Atkinson",
+        "Archer",
+        "Wood",
+        "Bashir"
+      ],
+      "nextBatsmanIndex": 2,
+      "striker": "Crawley",
+      "nonStriker": "Duckett",
+      "currentBowler": {
+        "name": "Lyon"
+      },
+      "currentEnd": "End A",
+      "allBatsmen": {
+        "Crawley": {
+          "runs": 6,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 1,
+          "status": "not out"
+        },
+        "Duckett": {
+          "runs": 0,
+          "balls": 0,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out"
+        }
+      },
+      "allBowlers": {
+        "Lyon": {
+          "overs": 0,
+          "balls": 1,
+          "maidens": 0,
+          "runs": 6,
+          "wickets": 0,
+          "name": "Lyon"
+        }
+      },
+      "bowlingEnds": {
+        "Lyon": "End A"
+      },
+      "currentOver": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Crawley",
+          "bowler": "Lyon",
+          "runs": 6,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:23:25.629Z"
+        }
+      ],
+      "fallOfWickets": [],
+      "allBalls": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Crawley",
+          "bowler": "Lyon",
+          "runs": 6,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:23:25.629Z"
+        }
+      ],
+      "followOnEnforced": false,
+      "declared": true
+    },
+    {
+      "number": 4,
+      "battingTeam": "Australia",
+      "bowlingTeam": "England",
+      "runs": 1,
+      "wickets": 9,
+      "overs": 1,
+      "balls": 4,
+      "status": "completed",
+      "battingOrder": [
+        "Khawaja",
+        "Weatherald",
+        "Labuschagne",
+        "Smith",
+        "Head",
+        "Green",
+        "Carey",
+        "Starc",
+        "Hazlewood",
+        "Lyon",
+        "Boland"
+      ],
+      "nextBatsmanIndex": 11,
+      "striker": "Boland",
+      "nonStriker": "Starc",
+      "currentBowler": {
+        "name": "Stokes"
+      },
+      "currentEnd": "End B",
+      "allBatsmen": {
+        "Khawaja": {
+          "runs": 1,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "retired hurt",
+          "howOut": "retired hurt"
+        },
+        "Weatherald": {
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Labuschagne": {
+          "name": "Labuschagne",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Smith": {
+          "name": "Smith",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Head": {
+          "name": "Head",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Green": {
+          "name": "Green",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Carey": {
+          "name": "Carey",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Starc": {
+          "name": "Starc",
+          "runs": 0,
+          "balls": 0,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out"
+        },
+        "Hazlewood": {
+          "name": "Hazlewood",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Lyon": {
+          "name": "Lyon",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "out",
+          "howOut": "bowled"
+        },
+        "Boland": {
+          "name": "Boland",
+          "runs": 0,
+          "balls": 1,
+          "fours": 0,
+          "sixes": 0,
+          "status": "not out",
+          "howOut": "bowled"
+        }
+      },
+      "allBowlers": {
+        "Archer": {
+          "overs": 1,
+          "balls": 6,
+          "maidens": 0,
+          "runs": 1,
+          "wickets": 5,
+          "name": "Archer"
+        },
+        "Stokes": {
+          "name": "Stokes",
+          "balls": 4,
+          "overs": 0,
+          "maidens": 0,
+          "runs": 0,
+          "wickets": 4
+        }
+      },
+      "bowlingEnds": {
+        "Archer": "End A",
+        "Stokes": "End B"
+      },
+      "currentOver": [
+        {
+          "over": 1,
+          "ball": 1,
+          "batsman": "Labuschagne",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Labuschagne",
+          "timestamp": "2025-11-09T20:25:15.595Z"
+        },
+        {
+          "over": 1,
+          "ball": 2,
+          "batsman": "Hazlewood",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Hazlewood",
+          "timestamp": "2025-11-09T20:25:21.800Z"
+        },
+        {
+          "over": 1,
+          "ball": 3,
+          "batsman": "Lyon",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Lyon",
+          "timestamp": "2025-11-09T20:25:27.159Z"
+        },
+        {
+          "over": 1,
+          "ball": 4,
+          "batsman": "Boland",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Boland",
+          "timestamp": "2025-11-09T20:25:29.912Z"
+        }
+      ],
+      "fallOfWickets": [
+        {
+          "runs": 1,
+          "wickets": 1,
+          "batsman": "Weatherald"
+        },
+        {
+          "runs": 1,
+          "wickets": 2,
+          "batsman": "Smith"
+        },
+        {
+          "runs": 1,
+          "wickets": 3,
+          "batsman": "Head"
+        },
+        {
+          "runs": 1,
+          "wickets": 4,
+          "batsman": "Green"
+        },
+        {
+          "runs": 1,
+          "wickets": 5,
+          "batsman": "Carey"
+        },
+        {
+          "runs": 1,
+          "wickets": 6,
+          "batsman": "Labuschagne"
+        },
+        {
+          "runs": 1,
+          "wickets": 7,
+          "batsman": "Hazlewood"
+        },
+        {
+          "runs": 1,
+          "wickets": 8,
+          "batsman": "Lyon"
+        },
+        {
+          "runs": 1,
+          "wickets": 9,
+          "batsman": "Boland"
+        }
+      ],
+      "allBalls": [
+        {
+          "over": 0,
+          "ball": 1,
+          "batsman": "Khawaja",
+          "bowler": "Archer",
+          "runs": 1,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": false,
+          "wicketType": null,
+          "dismissedBatsman": null,
+          "timestamp": "2025-11-09T20:24:39.871Z"
+        },
+        {
+          "over": 0,
+          "ball": 2,
+          "batsman": "Weatherald",
+          "bowler": "Archer",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Weatherald",
+          "timestamp": "2025-11-09T20:24:54.250Z",
+          "incomingBatsman": "Smith"
+        },
+        {
+          "over": 0,
+          "ball": 3,
+          "batsman": "Smith",
+          "bowler": "Archer",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Smith",
+          "timestamp": "2025-11-09T20:24:57.617Z",
+          "incomingBatsman": "Head"
+        },
+        {
+          "over": 0,
+          "ball": 4,
+          "batsman": "Head",
+          "bowler": "Archer",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Head",
+          "timestamp": "2025-11-09T20:25:00.436Z",
+          "incomingBatsman": "Green"
+        },
+        {
+          "over": 0,
+          "ball": 5,
+          "batsman": "Green",
+          "bowler": "Archer",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Green",
+          "timestamp": "2025-11-09T20:25:03.406Z",
+          "incomingBatsman": "Carey"
+        },
+        {
+          "over": 0,
+          "ball": 6,
+          "batsman": "Carey",
+          "bowler": "Archer",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Carey",
+          "timestamp": "2025-11-09T20:25:06.407Z",
+          "incomingBatsman": "Starc"
+        },
+        {
+          "over": 1,
+          "ball": 1,
+          "batsman": "Labuschagne",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Labuschagne",
+          "timestamp": "2025-11-09T20:25:15.595Z",
+          "incomingBatsman": "Hazlewood"
+        },
+        {
+          "over": 1,
+          "ball": 2,
+          "batsman": "Hazlewood",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Hazlewood",
+          "timestamp": "2025-11-09T20:25:21.800Z",
+          "incomingBatsman": "Lyon"
+        },
+        {
+          "over": 1,
+          "ball": 3,
+          "batsman": "Lyon",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Lyon",
+          "timestamp": "2025-11-09T20:25:27.159Z",
+          "incomingBatsman": "Boland"
+        },
+        {
+          "over": 1,
+          "ball": 4,
+          "batsman": "Boland",
+          "bowler": "Stokes",
+          "runs": 0,
+          "overthrows": 0,
+          "extras": 0,
+          "extraType": null,
+          "secondExtras": 0,
+          "secondExtraType": null,
+          "wicket": true,
+          "wicketType": "bowled",
+          "dismissedBatsman": "Boland",
+          "timestamp": "2025-11-09T20:25:29.912Z"
+        }
+      ],
+      "followOnEnforced": false,
+      "lastBowlerAtEnd": {
+        "End A": "Archer"
+      },
+      "lastCompletedOver": {
+        "overNum": 1,
+        "bowler": "Archer",
+        "end": "End A",
+        "balls": [
+          {
+            "over": 0,
+            "ball": 1,
+            "batsman": "Khawaja",
+            "bowler": "Archer",
+            "runs": 1,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": false,
+            "wicketType": null,
+            "dismissedBatsman": null,
+            "timestamp": "2025-11-09T20:24:39.871Z"
+          },
+          {
+            "over": 0,
+            "ball": 2,
+            "batsman": "Weatherald",
+            "bowler": "Archer",
+            "runs": 0,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": true,
+            "wicketType": "bowled",
+            "dismissedBatsman": "Weatherald",
+            "timestamp": "2025-11-09T20:24:54.250Z"
+          },
+          {
+            "over": 0,
+            "ball": 3,
+            "batsman": "Smith",
+            "bowler": "Archer",
+            "runs": 0,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": true,
+            "wicketType": "bowled",
+            "dismissedBatsman": "Smith",
+            "timestamp": "2025-11-09T20:24:57.617Z"
+          },
+          {
+            "over": 0,
+            "ball": 4,
+            "batsman": "Head",
+            "bowler": "Archer",
+            "runs": 0,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": true,
+            "wicketType": "bowled",
+            "dismissedBatsman": "Head",
+            "timestamp": "2025-11-09T20:25:00.436Z"
+          },
+          {
+            "over": 0,
+            "ball": 5,
+            "batsman": "Green",
+            "bowler": "Archer",
+            "runs": 0,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": true,
+            "wicketType": "bowled",
+            "dismissedBatsman": "Green",
+            "timestamp": "2025-11-09T20:25:03.406Z"
+          },
+          {
+            "over": 0,
+            "ball": 6,
+            "batsman": "Carey",
+            "bowler": "Archer",
+            "runs": 0,
+            "overthrows": 0,
+            "extras": 0,
+            "extraType": null,
+            "secondExtras": 0,
+            "secondExtraType": null,
+            "wicket": true,
+            "wicketType": "bowled",
+            "dismissedBatsman": "Carey",
+            "timestamp": "2025-11-09T20:25:06.407Z"
+          }
+        ],
+        "runs": 1
+      }
+    }
+  ],
+  "squads": {
+    "England": [
+      "Crawley",
+      "Duckett",
+      "Pope",
+      "Root",
+      "Brook",
+      "Stokes",
+      "Smith",
+      "Atkinson",
+      "Archer",
+      "Wood",
+      "Bashir"
+    ],
+    "Australia": [
+      "Khawaja",
+      "Weatherald",
+      "Labuschagne",
+      "Smith",
+      "Head",
+      "Green",
+      "Carey",
+      "Starc",
+      "Hazlewood",
+      "Lyon",
+      "Boland"
+    ]
+  },
+  "matchSituation": {
+    "lead": "England",
+    "leadBy": 11,
+    "target": 12,
+    "toWin": 11
+  },
+  "followOn": {
+    "available": false,
+    "deficit": 200,
+    "enforced": false
+  },
+  "result": {
+    "status": "completed",
+    "winner": "England",
+    "winType": "runs",
+    "margin": 10
+  }
+}
