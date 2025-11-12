@@ -615,4 +615,16 @@ body {
   .keypad-blue {
     background: linear-gradient(145deg, #4a7ba7, #356089);
   }
+  * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  }
+
+/* Re-enable selection for input fields if needed */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
 }
