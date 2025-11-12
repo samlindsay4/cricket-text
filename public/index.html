@@ -36,34 +36,43 @@
 
         <!-- Subpage indicator (for cycling pages) -->
         <div class="subpage-indicator" id="subpage-indicator"></div>
+    </div>
 
-        <!-- Mobile Keypad -->
-        <div class="mobile-keypad collapsed" id="mobile-keypad">
-            <div class="keypad-toggle" id="keypad-toggle" onclick="toggleKeypad()">
+    <!-- Footer nav outside container, always at bottom -->
+    <div class="live-footer-nav" id="live-footer-nav">
+        <span class="page-link text-red" onclick="navigatePage('prev')">Previous</span>
+        <span class="page-link text-green" onclick="navigatePage('next')">Next</span>
+        <span class="page-link text-yellow" onclick="navigatePage(340)">Cricket</span>
+        <span class="page-link text-cyan" onclick="navigatePage('about')">About</span>
+    </div>
+
+    <!-- Mobile Keypad -->
+    <div class="mobile-keypad collapsed" id="mobile-keypad">
+        <div class="keypad-toggle" id="keypad-toggle" onclick="toggleKeypad()">
+        </div>
+        <div class="keypad-content" id="keypad-content">
+            <div class="keypad-grid">
+                <button class="keypad-btn" onclick="keypadInput('1')">1</button>
+                <button class="keypad-btn" onclick="keypadInput('2')">2</button>
+                <button class="keypad-btn" onclick="keypadInput('3')">3</button>
+                <button class="keypad-btn" onclick="keypadInput('4')">4</button>
+                <button class="keypad-btn" onclick="keypadInput('5')">5</button>
+                <button class="keypad-btn" onclick="keypadInput('6')">6</button>
+                <button class="keypad-btn" onclick="keypadInput('7')">7</button>
+                <button class="keypad-btn" onclick="keypadInput('8')">8</button>
+                <button class="keypad-btn" onclick="keypadInput('9')">9</button>
+                <button class="keypad-btn keypad-back" onclick="keypadBackspace()">BACK</button>
+                <button class="keypad-btn" onclick="keypadInput('0')">0</button>
+                <button class="keypad-btn keypad-clear" onclick="keypadClear()">CLR</button>
             </div>
-            <div class="keypad-content" id="keypad-content">
-                <div class="keypad-grid">
-                    <button class="keypad-btn" onclick="keypadInput('1')">1</button>
-                    <button class="keypad-btn" onclick="keypadInput('2')">2</button>
-                    <button class="keypad-btn" onclick="keypadInput('3')">3</button>
-                    <button class="keypad-btn" onclick="keypadInput('4')">4</button>
-                    <button class="keypad-btn" onclick="keypadInput('5')">5</button>
-                    <button class="keypad-btn" onclick="keypadInput('6')">6</button>
-                    <button class="keypad-btn" onclick="keypadInput('7')">7</button>
-                    <button class="keypad-btn" onclick="keypadInput('8')">8</button>
-                    <button class="keypad-btn" onclick="keypadInput('9')">9</button>
-                    <button class="keypad-btn keypad-back" onclick="keypadBackspace()">BACK</button>
-                    <button class="keypad-btn" onclick="keypadInput('0')">0</button>
-                    <button class="keypad-btn keypad-clear" onclick="keypadClear()">CLR</button>
-                </div>
-                <div class="keypad-color-row">
-                    <button class="keypad-color-btn keypad-red" onclick="navigatePage('prev')">RED</button>
-                    <button class="keypad-color-btn keypad-green" onclick="navigatePage('next')">GREEN</button>
-                    <button class="keypad-color-btn keypad-yellow" onclick="navigatePage(340)">YELLOW</button>
-                    <button class="keypad-color-btn keypad-blue" onclick="navigatePage('about')">BLUE</button>
-                </div>
+            <div class="keypad-color-row">
+                <button class="keypad-color-btn keypad-red" onclick="navigatePage('prev')">RED</button>
+                <button class="keypad-color-btn keypad-green" onclick="navigatePage('next')">GREEN</button>
+                <button class="keypad-color-btn keypad-yellow" onclick="navigatePage(340)">YELLOW</button>
+                <button class="keypad-color-btn keypad-blue" onclick="navigatePage('about')">BLUE</button>
             </div>
         </div>
+    </div>
 
     <script src="/js/page-viewer.js"></script>
     <script>
