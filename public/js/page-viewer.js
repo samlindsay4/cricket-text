@@ -973,10 +973,6 @@ function renderLiveScore(data) {
             }
         }
         
-        // Determine which bowler is at which end
-        endA = currentInnings.allBowlers.endA;
-        endB = currentInnings.allBowlers.endB;
-        
         // Display bowlers (End A first, then End B)
         [endA, endB].forEach(bowler => {
             if (bowler) {
