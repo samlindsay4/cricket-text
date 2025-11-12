@@ -1,6 +1,6 @@
 {
-  "name": "TELETEST - Cricket scores and news ",
-  "short_name": "TELETEST",
+  "name": "Teletest - Cricket scores and news ",
+  "short_name": "Teletest",
   "description": "Live cricket scores in authentic Teletext style",
   "start_url": "/",
   "display": "standalone",
