@@ -442,10 +442,10 @@ body {
 
 /* Mobile: Keep compact */
 @media (max-width: 600px) {
-  /* Footer fixed at bottom on mobile */
+  /* Footer fixed at bottom on mobile, above the keypad toggle */
   .live-footer-nav {
     position: fixed;
-    bottom: 0;
+    bottom: 40px; /* Positioned above the keypad toggle (30px) with small gap */
     left: 0;
     right: 0;
     padding: 8px 10px;
@@ -454,7 +454,7 @@ body {
   
   /* Content needs padding so it doesn't hide behind footer */
   .container {
-    padding-bottom: 50px; /* Height of footer nav + some space */
+    padding-bottom: 90px; /* Height of footer nav + keypad toggle + gaps */
   }
   
   .page-header {
@@ -513,7 +513,7 @@ body {
   /* PWA standalone mode - adjust for less chrome */
   @media (display-mode: standalone) {
     .container {
-      padding-bottom: 50px; /* Same as regular mobile */
+      padding-bottom: 90px; /* Same as regular mobile */
     }
   }
 
