@@ -48,6 +48,10 @@ async function getActivePages() {
  * Get page number from URL
  */
 function getPageFromURL() {
+    const path = window.location.pathname;
+    if (path === '/about') {
+        return 'about';
+    }
     const params = new URLSearchParams(window.location.search);
     const page = params.get('page');
     return page ? parseInt(page) : 340;
@@ -58,8 +62,13 @@ function getPageFromURL() {
  */
 function updateURL(page) {
     const url = new URL(window.location);
-    url.searchParams.set('page', page);
-    window.history.pushState({}, '', url);
+    if (page === 'about') {
+        window.history.pushState({}, '', '/about');
+    } else {
+        url.pathname = '/';
+        url.searchParams.set('page', page);
+        window.history.pushState({}, '', url);
+    }
 }
 
 /**
@@ -110,9 +119,8 @@ async function navigatePage(target) {
             // Loop back to first page
             currentPage = pages[0];
         }
-    } else if (target === 'donate') {
-        // TODO: Navigate to donation page when created
-        currentPage = 340; // Temporarily go to homepage
+    } else if (target === 'about') {
+        currentPage = 'about';
     } else {
         currentPage = parseInt(target);
     }
@@ -143,7 +151,7 @@ function getFooterNavigation() {
             <span class="page-link text-red" onclick="navigatePage('prev')">Previous</span>
             <span class="page-link text-green" onclick="navigatePage('next')">Next</span>
             <span class="page-link text-yellow" onclick="navigatePage(340)">Cricket</span>
-            <span class="page-link text-cyan" onclick="navigatePage('donate')">Donate</span>
+            <span class="page-link text-cyan" onclick="navigatePage('about')">About</span>
         </div>
     `;
 }
@@ -193,6 +201,20 @@ async function cyclePageNumbers(targetPage) {
  */
 async function loadPage(pageNum, preserveSubpage = false, skipAnimation = false) {
     try {
+        // Handle About page specially
+        if (pageNum === 'about') {
+            const response = await fetch('/api/about');
+            const data = await response.json();
+            
+            if (!response.ok) {
+                showErrorPage('Failed to load about page');
+                return;
+            }
+            
+            renderAboutPage(data);
+            return;
+        }
+        
         // Cycle through page numbers first (unless it's an auto-refresh)
         if (!skipAnimation) {
             await cyclePageNumbers(pageNum);
@@ -234,10 +256,7 @@ async function loadPage(pageNum, preserveSubpage = false, skipAnimation = false)
         });
         const data = await response.json();
         
-        console.log('Page load response:', { pageNum, status: response.status, ok: response.ok, data });
-        
         if (!response.ok) {
-            console.error('Failed to load page:', pageNum, data.error);
             showErrorPage(data.error || 'Page not found');
             return;
         }
@@ -292,6 +311,43 @@ function showErrorPage(message) {
         </div>
         ${getFooterNavigation()}
     `;
+}
+
+/**
+ * Render About Page
+ */
+function renderAboutPage(data) {
+    // Show page number as blank or "About"
+    document.getElementById('page-number-display').textContent = 'About';
+    
+    let html = `
+        <h2 class="text-green" style="margin-bottom: 10px; font-weight: normal;">${data.title}</h2>
+    `;
+    
+    // Parse content and convert markdown-style links to clickable links
+    const paragraphs = data.content.split('\n\n').filter(p => p.trim());
+    
+    paragraphs.forEach((para, index) => {
+        if (para.trim()) {
+            // Convert [text](url) format to HTML links
+            const linkedText = para.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, 
+                '<a href="$2" target="_blank" class="text-cyan" style="text-decoration: underline; cursor: pointer;">$1</a>');
+            
+            // First paragraph is white, rest are cyan
+            const colorClass = index === 0 ? 'text-white' : 'text-cyan';
+            html += `<p class="${colorClass}" style="margin-bottom: 15px;">${linkedText}</p>`;
+        }
+    });
+    
+    html += getFooterNavigation();
+    
+    document.getElementById('page-content').innerHTML = html;
+    
+    // Show banner
+    const banner = document.getElementById('main-title-bar');
+    if (banner) {
+        banner.style.visibility = 'visible';
+    }
 }
 
 /**
@@ -803,12 +859,6 @@ function renderLiveScore(data) {
     
     // Show bowlers - organized by bowling end (End A vs End B)
     if (currentInnings.allBowlers) {
-        console.log('All bowlers:', currentInnings.allBowlers);
-        console.log('Current bowler:', currentInnings.currentBowler);
-        console.log('Last completed over:', currentInnings.lastCompletedOver);
-        console.log('Current over number:', currentInnings.overs);
-        console.log('Balls in current over:', currentInnings.balls);
-        
         // Track bowlers by END (A or B)
         let endA = null;
         let endB = null;
@@ -923,8 +973,9 @@ function renderLiveScore(data) {
             }
         }
         
-        console.log('End A bowler:', endA);
-        console.log('End B bowler:', endB);
+        // Determine which bowler is at which end
+        endA = currentInnings.allBowlers.endA;
+        endB = currentInnings.allBowlers.endB;
         
         // Display bowlers (End A first, then End B)
         [endA, endB].forEach(bowler => {
@@ -942,8 +993,6 @@ function renderLiveScore(data) {
                 `;
             }
         });
-    } else {
-        console.log('No allBowlers found in currentInnings');
     }
     
     html += '</table>';

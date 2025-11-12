@@ -126,6 +126,7 @@
                 <button class="btn btn-secondary btn-small" onclick="showTab('series')">Series</button>
                 <button class="btn btn-secondary btn-small" onclick="showTab('homepage')">Homepage</button>
                 <button class="btn btn-secondary btn-small" onclick="showTab('news')">News</button>
+                <button class="btn btn-secondary btn-small" onclick="showTab('about')">About</button>
                 <button class="btn btn-danger btn-small" onclick="logout()" style="float: right;">Logout</button>
             </div>
         </div>
@@ -171,6 +172,31 @@
                 <div id="news-list" style="margin-top: 20px;">
                     <div class="loading">Loading news...</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- About Page Tab -->
+        <div id="about-tab" class="tab-content hidden">
+            <div class="section">
+                <h2>About Page</h2>
+                <p style="color: #00ffff; margin-bottom: 20px;">
+                    Edit the about page content. To add links, use the format: [link text](https://example.com)
+                </p>
+                
+                <form id="about-form" onsubmit="saveAboutPage(event)">
+                    <div class="form-group">
+                        <label>Page Title</label>
+                        <input type="text" id="about-title" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Content (separate paragraphs with blank lines)</label>
+                        <textarea id="about-content" class="form-control" rows="15" required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save About Page</button>
+                    <a href="/about" target="_blank" class="btn btn-secondary" style="margin-left: 10px;">Preview</a>
+                </form>
             </div>
         </div>
 

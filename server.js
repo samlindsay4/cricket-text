@@ -21,6 +21,7 @@ const matchFile = path.join(dataDir, 'match.json');
 const seriesFile = path.join(dataDir, 'series.json');
 const newsFile = path.join(dataDir, 'news.json');
 const pageRegistryFile = path.join(dataDir, 'page-registry.json');
+const aboutFile = path.join(dataDir, 'about.json');
 
 // Helper function to check if player is unavailable
 function isPlayerUnavailable(status) {
@@ -42,6 +43,12 @@ function initializeDataFiles() {
   }
   if (!fs.existsSync(pageRegistryFile)) {
     fs.writeFileSync(pageRegistryFile, JSON.stringify({ "340": { "title": "Cricket Homepage", "type": "homepage" } }, null, 2));
+  }
+  if (!fs.existsSync(aboutFile)) {
+    fs.writeFileSync(aboutFile, JSON.stringify({
+      title: "About TELETEST",
+      content: "Welcome to TELETEST - your source for live cricket scores and news."
+    }, null, 2));
   }
 }
 
@@ -3578,6 +3585,38 @@ app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
   res.json(match);
 });
 
+// About API endpoints
+app.get('/api/about', checkRateLimit, (req, res) => {
+  try {
+    const about = JSON.parse(fs.readFileSync(aboutFile, 'utf8'));
+    res.json(about);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load about page' });
+  }
+});
+
+app.put('/api/about', requireAuth, (req, res) => {
+  try {
+    const { title, content } = req.body;
+    
+    console.log('About page update request:', { title: title?.substring(0, 30), contentLength: content?.length });
+    
+    if (!title || !content) {
+      console.log('Missing title or content');
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+    
+    const aboutData = { title, content };
+    fs.writeFileSync(aboutFile, JSON.stringify(aboutData, null, 2));
+    
+    console.log('About page saved successfully');
+    res.json({ success: true, data: aboutData });
+  } catch (error) {
+    console.error('Error updating about page:', error);
+    res.status(500).json({ error: 'Failed to update about page: ' + error.message });
+  }
+});
+
 // News API endpoints
 app.get('/api/news', checkRateLimit, (req, res) => {
   const news = loadNews();
@@ -4000,14 +4039,14 @@ app.get('/scorecard', checkRateLimit, (req, res) => {
   res.redirect('/?page=351');
 });
 
+// Serve about page
+app.get('/about', checkRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Serve main page (Page viewer with ?page parameter)
 app.get('/', checkRateLimit, (req, res) => {
-  const page = req.query.page;
-  if (!page) {
-    // Default to homepage (340)
-    return res.redirect('/?page=340');
-  }
-  res.sendFile(path.join(__dirname, 'public', 'page.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {

@@ -1,7 +1,7 @@
 {
   "name": "cricket-text",
   "version": "2.0.0",
-  "description": "A simplified Ashes cricket scoring app with authentic TELETEST/Teletext styling",
+  "description": "A simplified Ashes cricket scoring app with authentic Teletext styling",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,7 +13,7 @@
     "ashes",
     "scoring",
     "teletext",
-    "ceefax"
+    "teletest"
   ],
   "author": "",
   "license": "ISC",

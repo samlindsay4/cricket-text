@@ -63,6 +63,8 @@ function showTab(tabName) {
         loadHomepageTab();
     } else if (tabName === 'news') {
         loadNews();
+    } else if (tabName === 'about') {
+        loadAboutPage();
     }
 }
 
@@ -312,6 +314,66 @@ async function createSeries() {
     } catch (error) {
         console.error('Error creating series:', error);
         alert('Failed to create series');
+    }
+}
+
+/**
+ * Load About Page
+ */
+async function loadAboutPage() {
+    try {
+        const response = await fetch('/api/about');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        document.getElementById('about-title').value = data.title;
+        document.getElementById('about-content').value = data.content;
+    } catch (error) {
+        console.error('Error loading about page:', error);
+        alert('Error loading about page: ' + error.message);
+    }
+}
+
+/**
+ * Save About Page
+ */
+async function saveAboutPage(event) {
+    event.preventDefault();
+    
+    const title = document.getElementById('about-title').value;
+    const content = document.getElementById('about-content').value;
+    
+    console.log('Session ID:', sessionId);
+    
+    if (!sessionId) {
+        alert('Not authenticated. Please refresh and log in again.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/about', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({ title, content })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('About page saved successfully!');
+        } else {
+            alert('Error saving about page: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving about page:', error);
+        alert('Error saving about page: ' + error.message);
     }
 }
 
