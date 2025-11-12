@@ -144,16 +144,10 @@ function navigateToInputPage() {
 
 /**
  * Generate footer navigation HTML
+ * Note: Footer is now in index.html outside container for proper mobile positioning
  */
 function getFooterNavigation() {
-    return `
-        <div class="live-footer-nav">
-            <span class="page-link text-red" onclick="navigatePage('prev')">Previous</span>
-            <span class="page-link text-green" onclick="navigatePage('next')">Next</span>
-            <span class="page-link text-yellow" onclick="navigatePage(340)">Cricket</span>
-            <span class="page-link text-cyan" onclick="navigatePage('about')">About</span>
-        </div>
-    `;
+    return ''; // Footer is now a fixed element in HTML, not dynamically generated
 }
 
 /**
