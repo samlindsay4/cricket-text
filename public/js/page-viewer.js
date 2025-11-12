@@ -1285,7 +1285,7 @@ function renderScorecardSubpage(match, subpage) {
             <span class="text-green">${match.title.toUpperCase()}, ${capitalizeWords(match.venue || '')}</span>
             <span style="display: inline-flex; align-items: center; gap: 10px;">
                 <span onclick="previousSubpage()" class="text-magenta" style="cursor: pointer;">◄</span>
-                <span onclick="toggleSubpagePause()" id="pauseBtn" class="${isSubpagePaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="toggleSubpagePause()" id="pauseBtn" class="${isSubpagePaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">||</span>
                 <span onclick="nextSubpage()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
                 <span class="text-white">${subpage}/${totalSubpages}</span>
             </span>
@@ -1765,7 +1765,7 @@ function renderBattingStatsTeam(data, teamIndex) {
             <span class="text-green">Runs - ${currentTeam}</span>
             <span class="text-white">
                 <span onclick="skipBattingStatsBackward()" class="text-magenta" style="cursor: pointer;">◄</span>
-                <span onclick="toggleBattingStatsPause()" id="batting-pause-btn" class="${battingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="toggleBattingStatsPause()" id="batting-pause-btn" class="${battingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">||</span>
                 <span onclick="skipBattingStatsForward()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
                 ${teamIndex + 1}/${teams.length}
             </span>
@@ -1904,7 +1904,7 @@ function renderBowlingStatsTeam(data, teamIndex) {
             <span class="text-green">Wickets - ${currentTeam}</span>
             <span class="text-white">
                 <span onclick="skipBowlingStatsBackward()" class="text-magenta" style="cursor: pointer;">◄</span>
-                <span onclick="toggleBowlingStatsPause()" id="bowling-pause-btn" class="${bowlingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">⏸</span>
+                <span onclick="toggleBowlingStatsPause()" id="bowling-pause-btn" class="${bowlingStatsPaused ? 'text-green' : 'text-magenta'}" style="cursor: pointer;">||</span>
                 <span onclick="skipBowlingStatsForward()" class="text-magenta" style="cursor: pointer; margin-right: 5px;">►</span>
                 ${teamIndex + 1}/${teams.length}
             </span>

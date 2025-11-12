@@ -437,7 +437,12 @@ body {
 /* Mobile: Keep compact */
 @media (max-width: 600px) {
   .container {
-    padding-bottom: 25px; /* Add space for keypad toggle */
+    padding-bottom: 100px; /* Add space for keypad toggle and footer nav */
+  }
+  
+  .live-footer-nav {
+    margin-bottom: 40px;
+    bottom: 40px;
   }
   
   .page-header {
@@ -495,13 +500,17 @@ body {
 
   /* Add padding to content and container so footer is visible above keypad */
   .container {
-    padding-bottom: 80px;
+    padding-bottom: 100px;
   }
 
   /* Much less padding for installed PWA (browser chrome is gone) */
   @media (display-mode: standalone) {
     .container {
-      padding-bottom: 10px;
+      padding-bottom: 90px;
+    }
+    
+    .live-footer-nav {
+      bottom: 35px;
     }
   }
 
