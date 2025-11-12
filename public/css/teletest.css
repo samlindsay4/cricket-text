@@ -477,9 +477,9 @@ body {
     transition: transform 0.3s ease;
   }
 
-  /* Add padding to page content so footer is visible above keypad */
-  .page-content {
-    padding-bottom: 60px;
+  /* Add padding to content and container so footer is visible above keypad */
+  .container {
+    padding-bottom: 80px;
   }
 
   .mobile-keypad.collapsed {
