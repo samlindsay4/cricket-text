@@ -2584,6 +2584,10 @@ app.get('/api/series/list', checkRateLimit, (req, res) => {
 
 // Get specific series
 app.get('/api/series/:seriesId', checkRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   const { seriesId } = req.params;
   const series = loadSeriesById(seriesId);
   
