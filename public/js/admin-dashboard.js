@@ -143,16 +143,56 @@ async function loadSeries() {
                         Priority ${s.priority || 'N/A'} | Pages ${s.startPage} - ${s.endPage}
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-primary btn-small" onclick="viewSeries('${s.id || s.dirName}')">View Matches</button>
-                        <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${s.startPage}', '_blank')">View Public Page</button>
-                        <button class="btn btn-secondary btn-small" onclick="showEditPriorityModal('${s.id || s.dirName}', ${JSON.stringify(s.name)}, ${s.priority || 1}, ${s.startPage}, ${s.endPage})">Edit Priority</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteSeries('${s.id || s.dirName}', ${JSON.stringify(s.name)})">Delete</button>
+                        <button class="btn btn-primary btn-small view-matches-btn" 
+                            data-series-id="${s.id || s.dirName}">View Matches</button>
+                        <button class="btn btn-secondary btn-small view-public-btn" 
+                            data-start-page="${s.startPage}">View Public Page</button>
+                        <button class="btn btn-secondary btn-small edit-priority-btn" 
+                            data-series-id="${s.id || s.dirName}"
+                            data-series-name="${s.name}"
+                            data-priority="${s.priority || 1}"
+                            data-start-page="${s.startPage}"
+                            data-end-page="${s.endPage}">Edit Priority</button>
+                        <button class="btn btn-danger btn-small delete-series-btn"
+                            data-series-id="${s.id || s.dirName}"
+                            data-series-name="${s.name}">Delete</button>
                     </div>
                 </div>
             `;
         });
         
         listDiv.innerHTML = html;
+        
+        // Add event listeners for buttons
+        document.querySelectorAll('.view-matches-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                viewSeries(btn.dataset.seriesId);
+            });
+        });
+        
+        document.querySelectorAll('.view-public-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.open('/?page=' + btn.dataset.startPage, '_blank');
+            });
+        });
+        
+        document.querySelectorAll('.edit-priority-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showEditPriorityModal(
+                    btn.dataset.seriesId,
+                    btn.dataset.seriesName,
+                    parseInt(btn.dataset.priority),
+                    parseInt(btn.dataset.startPage),
+                    parseInt(btn.dataset.endPage)
+                );
+            });
+        });
+        
+        document.querySelectorAll('.delete-series-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                deleteSeries(btn.dataset.seriesId, btn.dataset.seriesName);
+            });
+        });
     } catch (error) {
         console.error('Error loading series:', error);
         listDiv.innerHTML = `
@@ -464,13 +504,22 @@ async function loadNews() {
                         <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${item.page}', '_blank')">View</button>
                         <button class="btn btn-warning btn-small" onclick="showEditNewsModal('${item.id}')">Edit</button>
                         <button class="btn btn-primary btn-small" onclick="togglePublish('${item.id}', ${!item.published})">${item.published ? 'Unpublish' : 'Publish'}</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteNews('${item.id}', ${JSON.stringify(item.title)})">Delete</button>
+                        <button class="btn btn-danger btn-small delete-news-btn"
+                            data-news-id="${item.id}"
+                            data-news-title="${item.title}">Delete</button>
                     </div>
                 </div>
             `;
         });
         
         listDiv.innerHTML = html;
+        
+        // Add event listeners for delete news buttons
+        document.querySelectorAll('.delete-news-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                deleteNews(btn.dataset.newsId, btn.dataset.newsTitle);
+            });
+        });
     } catch (error) {
         console.error('Error loading news:', error);
         listDiv.innerHTML = `
