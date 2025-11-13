@@ -4,7 +4,6 @@ data/*.log
 .DS_Store
 .env
 
-# Ignore match data files (edited via Railway admin during matches)
+# Ignore all JSON data files (data stored in Railway volumes)
+data/*.json
 data/series/**/*.json
-data/*match*.json
-data/match.json

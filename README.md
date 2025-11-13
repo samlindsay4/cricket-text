@@ -88,6 +88,40 @@ npm start
 
 The application will run on http://localhost:3000
 
+## ☁️ Deployment
+
+### Railway Deployment (Recommended)
+
+This application uses **Railway persistent volumes** for data storage, ensuring data persists across deployments.
+
+#### Why Railway Volumes?
+
+- ✅ Data persists across code deployments
+- ✅ Match data isn't lost when updating code
+- ✅ Git history stays clean (no data commits)
+- ✅ Deleted series stay deleted after redeployment
+
+#### Quick Setup
+
+1. **Deploy to Railway**: Connect your GitHub repository to Railway
+2. **Add a Volume**: Create a volume with mount path `/app/data-persistent`
+3. **Set Environment Variables**:
+   ```
+   RAILWAY_VOLUME_MOUNT_PATH=/app/data-persistent
+   ADMIN_PASSWORD=your-secure-password
+   ```
+4. **Deploy**: Railway will automatically deploy your application
+
+📖 **See [RAILWAY.md](RAILWAY.md) for detailed deployment instructions, data migration guide, and troubleshooting.**
+
+### Local Development
+
+When developing locally, data is stored in `./data` directory (no volume needed):
+
+```bash
+npm start  # Uses ./data by default
+```
+
 ## 📍 Key URLs
 
 - **Homepage**: http://localhost:3000/?page=340
