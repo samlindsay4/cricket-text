@@ -538,7 +538,7 @@ function saveNews(news) {
 }
 
 // Homepage configuration functions
-const homepageFile = path.join(__dirname, 'data', 'homepage.json');
+const homepageFile = path.join(dataDir, 'homepage.json');
 
 function loadHomepage() {
   try {
