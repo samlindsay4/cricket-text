@@ -18,7 +18,6 @@ app.use(express.static('public'));
 const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
 const seriesDir = path.join(dataDir, 'series');
 const matchFile = path.join(dataDir, 'match.json');
-const seriesFile = path.join(dataDir, 'series.json');
 const newsFile = path.join(dataDir, 'news.json');
 const pageRegistryFile = path.join(dataDir, 'page-registry.json');
 const aboutFile = path.join(dataDir, 'about.json');
@@ -102,78 +101,7 @@ function getOrdinalSuffix(num) {
   return 'th';
 }
 
-function createDefaultSeries() {
-  return {
-    name: "The Ashes 2025",
-    matches: [
-      {
-        id: "ashes-test-1",
-        title: "1st Test",
-        venue: "The Gabba, Brisbane",
-        date: "2025-11-21",
-        status: "upcoming"
-      },
-      {
-        id: "ashes-test-2",
-        title: "2nd Test",
-        venue: "Adelaide Oval",
-        date: "2025-12-06",
-        status: "upcoming"
-      },
-      {
-        id: "ashes-test-3",
-        title: "3rd Test",
-        venue: "The WACA, Perth",
-        date: "2025-12-14",
-        status: "upcoming"
-      },
-      {
-        id: "ashes-test-4",
-        title: "4th Test",
-        venue: "MCG, Melbourne",
-        date: "2025-12-26",
-        status: "upcoming"
-      },
-      {
-        id: "ashes-test-5",
-        title: "5th Test",
-        venue: "SCG, Sydney",
-        date: "2026-01-03",
-        status: "upcoming"
-      }
-    ],
-    currentMatch: null,
-    seriesScore: {
-      England: 0,
-      Australia: 0
-    }
-  };
-}
 
-function loadSeries() {
-  try {
-    if (!fs.existsSync(seriesFile)) {
-      const defaultSeries = createDefaultSeries();
-      saveSeries(defaultSeries);
-      return defaultSeries;
-    }
-    const data = fs.readFileSync(seriesFile, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error loading series:', error);
-    return createDefaultSeries();
-  }
-}
-
-function saveSeries(series) {
-  try {
-    fs.writeFileSync(seriesFile, JSON.stringify(series, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error saving series:', error);
-    return false;
-  }
-}
 
 function loadMatchById(matchId) {
   try {
@@ -242,59 +170,17 @@ function saveMatchById(matchId, match) {
 
 function updateSeriesMatchStatus(matchId, match) {
   try {
-    // Update legacy series.json
-    const series = loadSeries();
-    const matchIndex = series.matches.findIndex(m => m.id === matchId);
-    
-    if (matchIndex !== -1) {
-      const seriesMatch = series.matches[matchIndex];
-      seriesMatch.status = match.status;
-      seriesMatch.venue = match.venue;
-      seriesMatch.date = match.date;
-      
-      // Update result if match completed
-      if (match.status === 'completed' && match.result) {
-        let resultText;
-        
-        // Handle different result types
-        if (match.result.winType === 'draw') {
-          resultText = 'Match drawn';
-        } else if (match.result.winType === 'tie') {
-          resultText = 'Match tied';
-        } else if (match.result.winner) {
-          // Safely construct result string with null checks
-          const margin = match.result.margin || 0;
-          const winType = match.result.winType || 'unknown';
-          resultText = `${match.result.winner} won by ${margin} ${winType}`;
-        }
-        
-        // Only update series score if this is a new result (not already counted)
-        if (resultText && seriesMatch.result !== resultText) {
-          seriesMatch.result = resultText;
-          
-          // Update series score only if not already counted and there's a winner
-          if (match.result.winner === 'England') {
-            series.seriesScore.England++;
-          } else if (match.result.winner === 'Australia') {
-            series.seriesScore.Australia++;
-          }
-        }
-      }
-      
-      saveSeries(series);
-    }
-    
-    // Also update new series directory if match has seriesId
+    // Update series directory if match has seriesId
     if (match.seriesId) {
-      const newSeries = loadSeriesById(match.seriesId);
-      if (newSeries && newSeries.matches) {
-        const newMatchIndex = newSeries.matches.findIndex(m => m.id === matchId);
+      const series = loadSeriesById(match.seriesId);
+      if (series && series.matches) {
+        const matchIndex = series.matches.findIndex(m => m.id === matchId);
         
-        if (newMatchIndex !== -1) {
-          const newSeriesMatch = newSeries.matches[newMatchIndex];
-          newSeriesMatch.status = match.status;
-          newSeriesMatch.venue = match.venue;
-          newSeriesMatch.date = match.date;
+        if (matchIndex !== -1) {
+          const seriesMatch = series.matches[matchIndex];
+          seriesMatch.status = match.status;
+          seriesMatch.venue = match.venue;
+          seriesMatch.date = match.date;
           
           // Update result if match completed
           if (match.status === 'completed' && match.result) {
@@ -312,27 +198,27 @@ function updateSeriesMatchStatus(matchId, match) {
             }
             
             // Only update series score if this is a new result (not already counted)
-            if (resultText && newSeriesMatch.result !== resultText) {
-              newSeriesMatch.result = resultText;
+            if (resultText && seriesMatch.result !== resultText) {
+              seriesMatch.result = resultText;
               
               // Update series score only if not already counted and not a tie or draw
               if (winType !== 'tie' && winType !== 'draw' && match.result.winner) {
-                if (!newSeries.seriesScore) {
-                  newSeries.seriesScore = {};
-                  newSeries.seriesScore[newSeries.team1] = 0;
-                  newSeries.seriesScore[newSeries.team2] = 0;
+                if (!series.seriesScore) {
+                  series.seriesScore = {};
+                  series.seriesScore[series.team1] = 0;
+                  series.seriesScore[series.team2] = 0;
                 }
                 
-                if (match.result.winner === newSeries.team1) {
-                  newSeries.seriesScore[newSeries.team1]++;
-                } else if (match.result.winner === newSeries.team2) {
-                  newSeries.seriesScore[newSeries.team2]++;
+                if (match.result.winner === series.team1) {
+                  series.seriesScore[series.team1]++;
+                } else if (match.result.winner === series.team2) {
+                  series.seriesScore[series.team2]++;
                 }
               }
             }
           }
           
-          saveSeriesById(match.seriesId, newSeries);
+          saveSeriesById(match.seriesId, series);
         }
       }
     }
@@ -1298,10 +1184,10 @@ function requireAuth(req, res, next) {
   }
 }
 
-// Get series information
+// Get all series information
 app.get('/api/series', checkRateLimit, (req, res) => {
-  const series = loadSeries();
-  res.json(series);
+  const allSeries = loadAllSeries();
+  res.json(allSeries);
 });
 
 // Get specific match by ID
@@ -1324,12 +1210,7 @@ app.post('/api/match/switch', requireAuth, (req, res) => {
     return res.status(404).json({ error: 'Match not found' });
   }
   
-  // Update series current match
-  const series = loadSeries();
-  series.currentMatch = matchId;
-  saveSeries(series);
-  
-  // Also save to legacy match.json for backward compatibility
+  // Save to legacy match.json for backward compatibility
   saveMatch(match);
   
   res.json({ success: true, match });
@@ -1403,17 +1284,6 @@ app.post('/api/match/create', requireAuth, (req, res) => {
   if (saveMatchById(matchId, match)) {
     // Also save to legacy match.json for backward compatibility
     saveMatch(match);
-    
-    // Update series
-    const series = loadSeries();
-    const matchIndex = series.matches.findIndex(m => m.id === matchId);
-    if (matchIndex !== -1) {
-      series.matches[matchIndex].status = 'upcoming';
-      series.matches[matchIndex].venue = venue;
-      series.matches[matchIndex].date = date;
-    }
-    series.currentMatch = matchId;
-    saveSeries(series);
     
     res.json(match);
   } else {

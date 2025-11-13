@@ -7,3 +7,9 @@ data/*.log
 # Ignore all JSON data files (data stored in Railway volumes)
 data/*.json
 data/series/**/*.json
+data/series.json
+data/match.json
+data/news.json
+data/homepage.json
+data/page-registry.json
+data/about.json
