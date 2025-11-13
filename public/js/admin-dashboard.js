@@ -79,11 +79,19 @@ function loadDashboard() {
  * Load all series
  */
 async function loadSeries() {
+    const listDiv = document.getElementById('series-list');
+    listDiv.innerHTML = '<div class="loading">Loading series...</div>';
+    
     try {
-        const response = await fetch('/api/series/list');
-        const series = await response.json();
+        const response = await fetch('/api/series/list', {
+            headers: sessionId ? { 'X-Session-Id': sessionId } : {}
+        });
         
-        const listDiv = document.getElementById('series-list');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const series = await response.json();
         
         if (series.length === 0) {
             listDiv.innerHTML = '<div style="text-align: center; color: #ffff00; padding: 20px;">No series created yet. Click "Create New Series" to get started.</div>';
@@ -111,8 +119,8 @@ async function loadSeries() {
                     <div class="btn-group">
                         <button class="btn btn-primary btn-small" onclick="viewSeries('${s.id || s.dirName}')">View Matches</button>
                         <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${s.startPage}', '_blank')">View Public Page</button>
-                        <button class="btn btn-secondary btn-small" onclick="showEditPriorityModal('${s.id || s.dirName}', '${s.name}', ${s.priority || 1}, ${s.startPage}, ${s.endPage})">Edit Priority</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteSeries('${s.id || s.dirName}', '${s.name}')">Delete</button>
+                        <button class="btn btn-secondary btn-small" onclick="showEditPriorityModal('${s.id || s.dirName}', ${JSON.stringify(s.name)}, ${s.priority || 1}, ${s.startPage}, ${s.endPage})">Edit Priority</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteSeries('${s.id || s.dirName}', ${JSON.stringify(s.name)})">Delete</button>
                     </div>
                 </div>
             `;
@@ -121,7 +129,12 @@ async function loadSeries() {
         listDiv.innerHTML = html;
     } catch (error) {
         console.error('Error loading series:', error);
-        document.getElementById('series-list').innerHTML = '<div style="color: #ff0000;">Failed to load series</div>';
+        listDiv.innerHTML = `
+            <div style="color: #ff0000; text-align: center; padding: 20px;">
+                Failed to load series. 
+                <button class="btn btn-primary" onclick="loadSeries()">Retry</button>
+            </div>
+        `;
     }
 }
 
@@ -172,10 +185,10 @@ async function viewSeries(seriesId) {
                     ${match.result ? `<div style="color: #00ff00; margin-top: 5px;">${match.result}</div>` : ''}
                     <div class="btn-group">
                         ${match.status === 'upcoming' && !match.venue ? `
-                            <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, '${series.team1}', '${series.team2}')">Setup Match</button>
+                            <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, ${JSON.stringify(series.team1)}, ${JSON.stringify(series.team2)})">Setup Match</button>
                         ` : `
                             <button class="btn btn-primary btn-small" onclick="manageMatch('${seriesId}', '${match.id}')">Manage Match</button>
-                            <button class="btn btn-secondary btn-small" onclick="showEditSquadsModal('${seriesId}', '${match.id}', '${series.team1}', '${series.team2}')">Edit Squads</button>
+                            <button class="btn btn-secondary btn-small" onclick="showEditSquadsModal('${seriesId}', '${match.id}', ${JSON.stringify(series.team1)}, ${JSON.stringify(series.team2)})">Edit Squads</button>
                         `}
                         ${match.status !== 'upcoming' || match.venue ? `
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage}', '_blank')">View Live Score</button>
@@ -407,7 +420,7 @@ async function loadNews() {
                         <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${item.page}', '_blank')">View</button>
                         <button class="btn btn-warning btn-small" onclick="showEditNewsModal('${item.id}')">Edit</button>
                         <button class="btn btn-primary btn-small" onclick="togglePublish('${item.id}', ${!item.published})">${item.published ? 'Unpublish' : 'Publish'}</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteNews('${item.id}', '${item.title}')">Delete</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteNews('${item.id}', ${JSON.stringify(item.title)})">Delete</button>
                     </div>
                 </div>
             `;
@@ -589,6 +602,8 @@ async function deleteNews(newsId, title) {
         
         if (data.success) {
             alert('News deleted successfully');
+            // Force cache-clear reload
+            await fetch('/api/news', { cache: 'reload' });
             loadNews();
         } else {
             alert('Failed to delete news: ' + (data.error || 'Unknown error'));
