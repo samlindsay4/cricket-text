@@ -1,7 +1,17 @@
 // Admin Dashboard JavaScript
-let sessionId = null;
+let sessionId = localStorage.getItem('adminSessionId') || null;
 let currentSeriesId = null;
 let pendingNewBowlerModal = false; // Track if we need to show bowler modal after batsman selection
+
+// Save session to localStorage when set
+function setSessionId(id) {
+    sessionId = id;
+    if (id) {
+        localStorage.setItem('adminSessionId', id);
+    } else {
+        localStorage.removeItem('adminSessionId');
+    }
+}
 
 /**
  * Login function
@@ -20,7 +30,7 @@ async function login() {
         const data = await response.json();
         
         if (data.success) {
-            sessionId = data.sessionId;
+            setSessionId(data.sessionId);
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('admin-section').classList.remove('hidden');
             document.getElementById('admin-section').style.display = 'block';
@@ -40,7 +50,7 @@ async function login() {
  * Logout function
  */
 function logout() {
-    sessionId = null;
+    setSessionId(null);
     document.getElementById('admin-section').style.display = 'none';
     document.getElementById('login-section').style.display = 'block';
     document.getElementById('password').value = '';
@@ -82,9 +92,25 @@ async function loadSeries() {
     const listDiv = document.getElementById('series-list');
     listDiv.innerHTML = '<div class="loading">Loading series...</div>';
     
+    // Wait for sessionId to be available
+    let attempts = 0;
+    while (!sessionId && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
+    if (!sessionId) {
+        listDiv.innerHTML = '<div style="color: #ff0000;">Not authenticated. Please log in.</div>';
+        return;
+    }
+    
     try {
         const response = await fetch('/api/series/list', {
-            headers: sessionId ? { 'X-Session-Id': sessionId } : {}
+            cache: 'no-store', // Force no cache
+            headers: { 
+                'X-Session-Id': sessionId,
+                'Cache-Control': 'no-cache'
+            }
         });
         
         if (!response.ok) {
@@ -131,7 +157,8 @@ async function loadSeries() {
         console.error('Error loading series:', error);
         listDiv.innerHTML = `
             <div style="color: #ff0000; text-align: center; padding: 20px;">
-                Failed to load series. 
+                Failed to load series: ${error.message}
+                <br><br>
                 <button class="btn btn-primary" onclick="loadSeries()">Retry</button>
             </div>
         `;
@@ -223,6 +250,12 @@ async function deleteSeries(seriesId, seriesName) {
         
         if (data.success) {
             alert('Series deleted successfully');
+            // Force cache clear
+            await fetch('/api/series/list', { 
+                method: 'GET',
+                cache: 'reload',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             loadSeries();
         } else {
             alert('Failed to delete series: ' + (data.error || 'Unknown error'));
@@ -394,11 +427,22 @@ async function saveAboutPage(event) {
  * Load news
  */
 async function loadNews() {
+    const listDiv = document.getElementById('news-list');
+    listDiv.innerHTML = '<div class="loading">Loading news...</div>';
+    
     try {
-        const response = await fetch('/api/news');
-        const news = await response.json();
+        const response = await fetch('/api/news', {
+            cache: 'no-store', // Force no cache
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
         
-        const listDiv = document.getElementById('news-list');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const news = await response.json();
         
         if (news.length === 0) {
             listDiv.innerHTML = '<div style="text-align: center; color: #ffff00; padding: 20px;">No news stories yet. Click "Create News Story" to add one.</div>';
@@ -429,7 +473,13 @@ async function loadNews() {
         listDiv.innerHTML = html;
     } catch (error) {
         console.error('Error loading news:', error);
-        document.getElementById('news-list').innerHTML = '<div style="color: #ff0000;">Failed to load news</div>';
+        listDiv.innerHTML = `
+            <div style="color: #ff0000; text-align: center; padding: 20px;">
+                Failed to load news: ${error.message}
+                <br><br>
+                <button class="btn btn-primary" onclick="loadNews()">Retry</button>
+            </div>
+        `;
     }
 }
 
@@ -602,8 +652,12 @@ async function deleteNews(newsId, title) {
         
         if (data.success) {
             alert('News deleted successfully');
-            // Force cache-clear reload
-            await fetch('/api/news', { cache: 'reload' });
+            // Force immediate cache clear
+            await fetch('/api/news', { 
+                method: 'GET',
+                cache: 'reload',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             loadNews();
         } else {
             alert('Failed to delete news: ' + (data.error || 'Unknown error'));
