@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Data storage
-const dataDir = path.join(__dirname, 'data');
+const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
 const seriesDir = path.join(dataDir, 'series');
 const matchFile = path.join(dataDir, 'match.json');
 const seriesFile = path.join(dataDir, 'series.json');
