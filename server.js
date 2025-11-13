@@ -1273,7 +1273,7 @@ setInterval(() => {
 
 // ===== DEBUG ENDPOINT =====
 // Debug endpoint to check data persistence status
-app.get('/api/debug/data-status', (req, res) => {
+app.get('/api/debug/data-status', checkRateLimit, (req, res) => {
   try {
     const status = {
       timestamp: new Date().toISOString(),
