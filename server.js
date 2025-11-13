@@ -2573,6 +2573,10 @@ app.post('/api/series/create', requireAuth, (req, res) => {
 
 // Get all series
 app.get('/api/series/list', checkRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   const allSeries = loadAllSeries();
   res.json(allSeries);
 });
@@ -3737,6 +3741,10 @@ app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
 
 // About API endpoints
 app.get('/api/about', checkRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   try {
     const about = JSON.parse(fs.readFileSync(aboutFile, 'utf8'));
     res.json(about);
@@ -3769,6 +3777,10 @@ app.put('/api/about', requireAuth, (req, res) => {
 
 // News API endpoints
 app.get('/api/news', checkRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   const news = loadNews();
   res.json(news);
 });
@@ -3893,6 +3905,10 @@ app.delete('/api/news/:id', requireAuth, (req, res) => {
 
 // Homepage configuration endpoints
 app.get('/api/homepage', checkRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   const config = loadHomepage();
   res.json(config);
 });
