@@ -252,10 +252,20 @@ async function viewSeries(seriesId) {
                     ${match.result ? `<div style="color: #00ff00; margin-top: 5px;">${match.result}</div>` : ''}
                     <div class="btn-group">
                         ${match.status === 'upcoming' && !match.venue ? `
-                            <button class="btn btn-primary btn-small" onclick="showCreateMatchModal('${seriesId}', ${match.number}, ${JSON.stringify(series.team1)}, ${JSON.stringify(series.team2)})">Setup Match</button>
+                            <button class="btn btn-primary btn-small setup-match-btn" 
+                                data-series-id="${seriesId}"
+                                data-match-number="${match.number}"
+                                data-team1="${series.team1}"
+                                data-team2="${series.team2}">Setup Match</button>
                         ` : `
-                            <button class="btn btn-primary btn-small" onclick="manageMatch('${seriesId}', '${match.id}')">Manage Match</button>
-                            <button class="btn btn-secondary btn-small" onclick="showEditSquadsModal('${seriesId}', '${match.id}', ${JSON.stringify(series.team1)}, ${JSON.stringify(series.team2)})">Edit Squads</button>
+                            <button class="btn btn-primary btn-small manage-match-btn"
+                                data-series-id="${seriesId}"
+                                data-match-id="${match.id}">Manage Match</button>
+                            <button class="btn btn-secondary btn-small edit-squads-btn"
+                                data-series-id="${seriesId}"
+                                data-match-id="${match.id}"
+                                data-team1="${series.team1}"
+                                data-team2="${series.team2}">Edit Squads</button>
                         `}
                         ${match.status !== 'upcoming' || match.venue ? `
                             <button class="btn btn-secondary btn-small" onclick="window.open('/?page=${series.startPage}', '_blank')">View Live Score</button>
@@ -267,6 +277,35 @@ async function viewSeries(seriesId) {
         });
         
         listDiv.innerHTML = html;
+        
+        // Add event listeners for match buttons
+        document.querySelectorAll('.setup-match-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showCreateMatchModal(
+                    btn.dataset.seriesId,
+                    parseInt(btn.dataset.matchNumber),
+                    btn.dataset.team1,
+                    btn.dataset.team2
+                );
+            });
+        });
+
+        document.querySelectorAll('.manage-match-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                manageMatch(btn.dataset.seriesId, btn.dataset.matchId);
+            });
+        });
+
+        document.querySelectorAll('.edit-squads-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showEditSquadsModal(
+                    btn.dataset.seriesId,
+                    btn.dataset.matchId,
+                    btn.dataset.team1,
+                    btn.dataset.team2
+                );
+            });
+        });
     } catch (error) {
         console.error('Error loading series details:', error);
     }
