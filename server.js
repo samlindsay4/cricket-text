@@ -2479,7 +2479,8 @@ app.post('/api/series/create', requireAuth, (req, res) => {
   // Priority 2: pages 351-360 (10 pages)
   // Priority 3: pages 361-370 (10 pages)
   // etc.
-  const startPage = 340 + (priority * 10);
+  // Formula: 331 + (priority * 10) ensures Priority 1 starts at 341
+  const startPage = 331 + (priority * 10);
   const endPage = startPage + 9; // 10 pages per series
   
   // Create series ID from name
@@ -2616,7 +2617,7 @@ app.put('/api/series/:seriesId/priority', requireAuth, checkRateLimit, (req, res
     }
     
     const oldStartPage = series.startPage;
-    const newStartPage = 340 + (priorityNum * 10);
+    const newStartPage = 331 + (priorityNum * 10);
     const newEndPage = newStartPage + 9;
     
     // Check if new page range is available (excluding current series)
