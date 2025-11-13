@@ -29,29 +29,79 @@ function isPlayerUnavailable(status) {
 
 // Ensure data directories exist
 if (!fs.existsSync(dataDir)) {
+  console.log(`[STARTUP] Creating data directory: ${dataDir}`);
   fs.mkdirSync(dataDir, { recursive: true });
+  console.log('[STARTUP] Data directory created successfully');
+} else {
+  console.log(`[STARTUP] Data directory exists: ${dataDir}`);
 }
+
 if (!fs.existsSync(seriesDir)) {
+  console.log(`[STARTUP] Creating series directory: ${seriesDir}`);
   fs.mkdirSync(seriesDir, { recursive: true });
+  console.log('[STARTUP] Series directory created successfully');
+} else {
+  console.log(`[STARTUP] Series directory exists: ${seriesDir}`);
 }
 
 // Initialize empty files if they don't exist
 function initializeDataFiles() {
+  console.log('[STARTUP] Initializing data files...');
+  
   if (!fs.existsSync(newsFile)) {
+    console.log(`[STARTUP] Creating news file: ${newsFile}`);
     fs.writeFileSync(newsFile, JSON.stringify([], null, 2));
+    console.log('[STARTUP] News file created');
+  } else {
+    console.log(`[STARTUP] News file exists: ${newsFile}`);
   }
+  
   if (!fs.existsSync(pageRegistryFile)) {
+    console.log(`[STARTUP] Creating page registry file: ${pageRegistryFile}`);
     fs.writeFileSync(pageRegistryFile, JSON.stringify({ "340": { "title": "Cricket Homepage", "type": "homepage" } }, null, 2));
+    console.log('[STARTUP] Page registry file created');
+  } else {
+    console.log(`[STARTUP] Page registry file exists: ${pageRegistryFile}`);
   }
+  
   if (!fs.existsSync(aboutFile)) {
+    console.log(`[STARTUP] Creating about file: ${aboutFile}`);
     fs.writeFileSync(aboutFile, JSON.stringify({
       title: "About TELETEST",
       content: "Welcome to TELETEST - your source for live cricket scores and news."
     }, null, 2));
+    console.log('[STARTUP] About file created');
+  } else {
+    console.log(`[STARTUP] About file exists: ${aboutFile}`);
   }
+  
+  console.log('[STARTUP] Data files initialization complete');
 }
 
 initializeDataFiles();
+
+// Log existing files in data directory
+console.log('[STARTUP] ===== DATA PERSISTENCE STATUS =====');
+console.log(`[STARTUP] Data directory: ${dataDir}`);
+console.log(`[STARTUP] Volume mount path: ${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'NOT SET (using local data directory)'}`);
+
+try {
+  const dataFiles = fs.readdirSync(dataDir);
+  console.log(`[STARTUP] Files in data directory (${dataFiles.length}): ${dataFiles.join(', ') || 'NONE'}`);
+  
+  // Log series directories
+  if (fs.existsSync(seriesDir)) {
+    const seriesDirs = fs.readdirSync(seriesDir, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+    console.log(`[STARTUP] Series directories (${seriesDirs.length}): ${seriesDirs.join(', ') || 'NONE'}`);
+  } else {
+    console.log('[STARTUP] Series directory not found');
+  }
+} catch (error) {
+  console.error('[STARTUP] Error reading data directory:', error);
+}
+console.log('[STARTUP] ===================================');
 
 // Initialize empty match if doesn't exist
 function initializeMatch() {
@@ -232,12 +282,20 @@ function updateSeriesMatchStatus(matchId, match) {
 // Load all series from series directory
 function loadAllSeries() {
   try {
-    if (!fs.existsSync(seriesDir)) {
+    console.log(`[LOAD] Loading all series from: ${seriesDir}`);
+    const dirExists = fs.existsSync(seriesDir);
+    console.log(`[LOAD] Series directory exists: ${dirExists}`);
+    
+    if (!dirExists) {
+      console.log('[LOAD] Series directory does not exist, returning empty array');
       return [];
     }
+    
     const seriesDirs = fs.readdirSync(seriesDir, { withFileTypes: true })
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
+    
+    console.log(`[LOAD] Found ${seriesDirs.length} series directories: ${seriesDirs.join(', ')}`);
     
     const allSeries = [];
     for (const dirName of seriesDirs) {
@@ -247,11 +305,15 @@ function loadAllSeries() {
         const series = JSON.parse(data);
         series.dirName = dirName;
         allSeries.push(series);
+        console.log(`[LOAD] Loaded series: ${series.name || dirName}`);
+      } else {
+        console.log(`[LOAD] No series.json found in ${dirName}`);
       }
     }
+    console.log(`[LOAD] Successfully loaded ${allSeries.length} series`);
     return allSeries;
   } catch (error) {
-    console.error('Error loading all series:', error);
+    console.error('[LOAD] Error loading all series:', error);
     return [];
   }
 }
@@ -292,6 +354,7 @@ function saveSeriesById(seriesId, series) {
   try {
     // Validate seriesId
     if (!seriesId || typeof seriesId !== 'string' || !/^[a-zA-Z0-9\-_]+$/.test(seriesId)) {
+      console.error('[SAVE] Invalid seriesId:', seriesId);
       return false;
     }
     
@@ -301,19 +364,26 @@ function saveSeriesById(seriesId, series) {
     const resolvedSeriesDir = path.resolve(seriesDir);
     
     if (!resolvedPath.startsWith(resolvedSeriesDir)) {
-      console.error('Path traversal attempt detected:', seriesId);
+      console.error('[SAVE] Path traversal attempt detected:', seriesId);
       return false;
     }
     
+    console.log(`[SAVE] Saving series to: ${seriesPath}`);
+    console.log(`[SAVE] Series name: ${series.name || 'Unknown'}, Matches: ${series.matches?.length || 0}`);
+    
     // Create series directory if doesn't exist
     if (!fs.existsSync(seriesDirPath)) {
+      console.log(`[SAVE] Creating series directory: ${seriesDirPath}`);
       fs.mkdirSync(seriesDirPath, { recursive: true });
     }
     
     fs.writeFileSync(seriesPath, JSON.stringify(series, null, 2));
+    
+    const stats = fs.statSync(seriesPath);
+    console.log(`[SAVE] Successfully saved series. File size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
     return true;
   } catch (error) {
-    console.error('Error saving series:', error);
+    console.error('[SAVE] Error saving series:', error);
     return false;
   }
 }
@@ -519,20 +589,37 @@ function calculateSeriesStats(seriesId) {
 // News management functions
 function loadNews() {
   try {
+    console.log(`[LOAD] Loading news from: ${newsFile}`);
+    const fileExists = fs.existsSync(newsFile);
+    console.log(`[LOAD] News file exists: ${fileExists}`);
+    
+    if (!fileExists) {
+      console.log('[LOAD] News file does not exist, returning empty array');
+      return [];
+    }
+    
     const data = fs.readFileSync(newsFile, 'utf8');
-    return JSON.parse(data);
+    const news = JSON.parse(data);
+    console.log(`[LOAD] Successfully loaded ${news.length} news items`);
+    return news;
   } catch (error) {
-    console.error('Error loading news:', error);
+    console.error('[LOAD] Error loading news:', error);
     return [];
   }
 }
 
 function saveNews(news) {
   try {
+    console.log(`[SAVE] Saving news to: ${newsFile}`);
+    console.log(`[SAVE] News items to save: ${news.length}`);
+    
     fs.writeFileSync(newsFile, JSON.stringify(news, null, 2));
+    
+    const stats = fs.statSync(newsFile);
+    console.log(`[SAVE] Successfully saved news. File size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
     return true;
   } catch (error) {
-    console.error('Error saving news:', error);
+    console.error('[SAVE] Error saving news:', error);
     return false;
   }
 }
@@ -542,20 +629,37 @@ const homepageFile = path.join(dataDir, 'homepage.json');
 
 function loadHomepage() {
   try {
+    console.log(`[LOAD] Loading homepage from: ${homepageFile}`);
+    const fileExists = fs.existsSync(homepageFile);
+    console.log(`[LOAD] Homepage file exists: ${fileExists}`);
+    
+    if (!fileExists) {
+      console.log('[LOAD] Homepage file does not exist, returning default config');
+      return { sections: [] };
+    }
+    
     const data = fs.readFileSync(homepageFile, 'utf8');
-    return JSON.parse(data);
+    const config = JSON.parse(data);
+    console.log(`[LOAD] Successfully loaded homepage with ${config.sections?.length || 0} sections`);
+    return config;
   } catch (error) {
-    console.error('Error loading homepage:', error);
+    console.error('[LOAD] Error loading homepage:', error);
     return { sections: [] };
   }
 }
 
 function saveHomepage(config) {
   try {
+    console.log(`[SAVE] Saving homepage to: ${homepageFile}`);
+    console.log(`[SAVE] Homepage sections to save: ${config.sections?.length || 0}`);
+    
     fs.writeFileSync(homepageFile, JSON.stringify(config, null, 2));
+    
+    const stats = fs.statSync(homepageFile);
+    console.log(`[SAVE] Successfully saved homepage. File size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
     return true;
   } catch (error) {
-    console.error('Error saving homepage:', error);
+    console.error('[SAVE] Error saving homepage:', error);
     return false;
   }
 }
@@ -563,20 +667,39 @@ function saveHomepage(config) {
 // Page registry functions
 function loadPageRegistry() {
   try {
+    console.log(`[LOAD] Loading page registry from: ${pageRegistryFile}`);
+    const fileExists = fs.existsSync(pageRegistryFile);
+    console.log(`[LOAD] Page registry file exists: ${fileExists}`);
+    
+    if (!fileExists) {
+      console.log('[LOAD] Page registry file does not exist, returning default registry');
+      return { "340": { "title": "Cricket Homepage", "type": "homepage" } };
+    }
+    
     const data = fs.readFileSync(pageRegistryFile, 'utf8');
-    return JSON.parse(data);
+    const registry = JSON.parse(data);
+    const pageCount = Object.keys(registry).length;
+    console.log(`[LOAD] Successfully loaded page registry with ${pageCount} pages`);
+    return registry;
   } catch (error) {
-    console.error('Error loading page registry:', error);
+    console.error('[LOAD] Error loading page registry:', error);
     return { "340": { "title": "Cricket Homepage", "type": "homepage" } };
   }
 }
 
 function savePageRegistry(registry) {
   try {
+    console.log(`[SAVE] Saving page registry to: ${pageRegistryFile}`);
+    const pageCount = Object.keys(registry).length;
+    console.log(`[SAVE] Page registry pages to save: ${pageCount}`);
+    
     fs.writeFileSync(pageRegistryFile, JSON.stringify(registry, null, 2));
+    
+    const stats = fs.statSync(pageRegistryFile);
+    console.log(`[SAVE] Successfully saved page registry. File size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
     return true;
   } catch (error) {
-    console.error('Error saving page registry:', error);
+    console.error('[SAVE] Error saving page registry:', error);
     return false;
   }
 }
@@ -1147,6 +1270,163 @@ setInterval(() => {
     }
   });
 }, RATE_LIMIT_WINDOW_MS);
+
+// ===== DEBUG ENDPOINT =====
+// Debug endpoint to check data persistence status
+app.get('/api/debug/data-status', (req, res) => {
+  try {
+    const status = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        dataDir: dataDir,
+        volumeMountPath: process.env.RAILWAY_VOLUME_MOUNT_PATH || 'NOT SET',
+        nodeEnv: process.env.NODE_ENV || 'development'
+      },
+      directories: {
+        dataDir: {
+          path: dataDir,
+          exists: fs.existsSync(dataDir)
+        },
+        seriesDir: {
+          path: seriesDir,
+          exists: fs.existsSync(seriesDir)
+        }
+      },
+      files: {}
+    };
+
+    // List files in data directory
+    if (fs.existsSync(dataDir)) {
+      const dataFiles = fs.readdirSync(dataDir);
+      status.directories.dataDir.files = dataFiles;
+      status.directories.dataDir.fileCount = dataFiles.length;
+      
+      // Get detailed info for each file
+      dataFiles.forEach(file => {
+        const filePath = path.join(dataDir, file);
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.isFile()) {
+            status.files[file] = {
+              path: filePath,
+              size: stats.size,
+              lastModified: stats.mtime,
+              created: stats.birthtime
+            };
+          }
+        } catch (err) {
+          status.files[file] = { error: err.message };
+        }
+      });
+    }
+
+    // List series directories
+    if (fs.existsSync(seriesDir)) {
+      const seriesDirs = fs.readdirSync(seriesDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+      
+      status.directories.seriesDir.subdirectories = seriesDirs;
+      status.directories.seriesDir.subdirectoryCount = seriesDirs.length;
+      
+      // Get details for each series
+      seriesDirs.forEach(dirName => {
+        const seriesPath = path.join(seriesDir, dirName, 'series.json');
+        if (fs.existsSync(seriesPath)) {
+          try {
+            const stats = fs.statSync(seriesPath);
+            const data = fs.readFileSync(seriesPath, 'utf8');
+            const series = JSON.parse(data);
+            
+            if (!status.series) {
+              status.series = {};
+            }
+            
+            status.series[dirName] = {
+              path: seriesPath,
+              size: stats.size,
+              lastModified: stats.mtime,
+              name: series.name || 'Unknown',
+              matchCount: series.matches?.length || 0
+            };
+          } catch (err) {
+            if (!status.series) {
+              status.series = {};
+            }
+            status.series[dirName] = { error: err.message };
+          }
+        }
+      });
+    }
+
+    // News data summary
+    try {
+      if (fs.existsSync(newsFile)) {
+        const newsData = fs.readFileSync(newsFile, 'utf8');
+        const news = JSON.parse(newsData);
+        status.data = status.data || {};
+        status.data.news = {
+          count: news.length,
+          items: news.map(n => ({ id: n.id, page: n.page, title: n.title, published: n.published }))
+        };
+      } else {
+        status.data = status.data || {};
+        status.data.news = { count: 0, exists: false };
+      }
+    } catch (err) {
+      status.data = status.data || {};
+      status.data.news = { error: err.message };
+    }
+
+    // Page registry summary
+    try {
+      if (fs.existsSync(pageRegistryFile)) {
+        const registryData = fs.readFileSync(pageRegistryFile, 'utf8');
+        const registry = JSON.parse(registryData);
+        const pageCount = Object.keys(registry).length;
+        status.data = status.data || {};
+        status.data.pageRegistry = {
+          pageCount: pageCount,
+          pages: Object.keys(registry).map(p => ({ page: p, ...registry[p] }))
+        };
+      } else {
+        status.data = status.data || {};
+        status.data.pageRegistry = { pageCount: 0, exists: false };
+      }
+    } catch (err) {
+      status.data = status.data || {};
+      status.data.pageRegistry = { error: err.message };
+    }
+
+    // Homepage configuration summary
+    try {
+      if (fs.existsSync(homepageFile)) {
+        const homepageData = fs.readFileSync(homepageFile, 'utf8');
+        const homepage = JSON.parse(homepageData);
+        status.data = status.data || {};
+        status.data.homepage = {
+          sectionCount: homepage.sections?.length || 0,
+          sections: homepage.sections || []
+        };
+      } else {
+        status.data = status.data || {};
+        status.data.homepage = { sectionCount: 0, exists: false };
+      }
+    } catch (err) {
+      status.data = status.data || {};
+      status.data.homepage = { error: err.message };
+    }
+
+    res.json(status);
+  } catch (error) {
+    console.error('[DEBUG] Error generating data status:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate data status', 
+      message: error.message 
+    });
+  }
+});
+// ===== END DEBUG ENDPOINT =====
 
 // Admin authentication
 app.post('/api/auth/login', (req, res) => {
