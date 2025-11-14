@@ -330,9 +330,12 @@ function displayMatch(match) {
     }
     
     // Current Over / Last Completed Over Display
-    // If current over is empty and there's a last completed over, show that instead
-    const showLastOver = (!currentInnings.currentOver || currentInnings.currentOver.length === 0) && 
-                         currentInnings.lastCompletedOver;
+    // Show last completed over if:
+    // 1. Current over is empty AND there's a last completed over, OR
+    // 2. showTicker is true (end of over - keep showing completed over until next ball)
+    const showLastOver = ((!currentInnings.currentOver || currentInnings.currentOver.length === 0) && 
+                          currentInnings.lastCompletedOver) ||
+                         (currentInnings.showTicker === true && currentInnings.lastCompletedOver);
     
     if (showLastOver) {
       const lastOver = currentInnings.lastCompletedOver;

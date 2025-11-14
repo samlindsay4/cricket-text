@@ -989,10 +989,15 @@ function renderLiveScore(data) {
     
     // Recent over at bottom - most recent ball first, proper formatting
     // Show current over if it exists, otherwise show previous completed over
+    // OR if showTicker is true (end of over), show the previous/completed over
     let overToDisplay = null;
     let overLabel = '';
     
-    if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
+    if (currentInnings.showTicker === true && currentInnings.previousOver && currentInnings.previousOver.length > 0) {
+        // End of over - show the completed over
+        overToDisplay = currentInnings.previousOver;
+        overLabel = `Previous over (Over ${currentInnings.overs}):`;
+    } else if (currentInnings.currentOver && currentInnings.currentOver.length > 0) {
         // Show current over in progress
         overToDisplay = currentInnings.currentOver;
         // Add 1 to overs because currentInnings.overs is 0-indexed (first over shows as 0, should be 1)
