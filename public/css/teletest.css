@@ -447,11 +447,11 @@ body {
   .live-footer-nav {
     position: fixed;
     bottom: 40px; /* Positioned above the keypad toggle (30px) with small gap */
-    left: 0;
-    width: 100%;
-    padding: 8px 1rem; /* Combine padding into one line */
+    left: 1rem; /* Match container padding */
+    right: 1rem; /* Match container padding */
+    width: auto; /* Let left/right define the width */
+    padding: 8px 0; /* Remove horizontal padding since we're using left/right positioning */
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
-    box-sizing: border-box;
   }
   
   /* Content needs padding so it doesn't hide behind footer */
