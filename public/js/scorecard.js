@@ -5,26 +5,6 @@ let currentSeries = null;
 const BALLS_PER_OVER = 6; // Standard cricket over
 
 /**
- * Update the ticker display based on showTicker flag
- */
-function updateTicker(currentInnings) {
-  const ticker = document.getElementById('end-of-over-ticker');
-  const tickerMessage = document.getElementById('ticker-message');
-  
-  if (!ticker || !tickerMessage) return;
-  
-  if (currentInnings && currentInnings.showTicker === true) {
-    // Show ticker with "End of Over X"
-    const overNumber = currentInnings.overs;
-    tickerMessage.textContent = `END OF OVER ${overNumber}`;
-    ticker.classList.add('show');
-  } else {
-    // Hide ticker
-    ticker.classList.remove('show');
-  }
-}
-
-/**
  * Updates the TELETEST header with current date and time
  * Displays date in GB format (e.g., "6 Nov 2025") and time in 24-hour format (e.g., "12:43")
  */
@@ -216,15 +196,10 @@ function displayMatch(match) {
         <p style="margin-top: 20px; font-size: 14px;">Please check back later</p>
       </div>
     `;
-    // Hide ticker when no match
-    updateTicker(null);
     return;
   }
   
   const currentInnings = match.innings[match.innings.length - 1];
-  
-  // Update ticker display based on showTicker flag
-  updateTicker(currentInnings);
   
   let html = `
     <div class="match-title">${match.title || 'THE ASHES'}</div>
@@ -355,9 +330,12 @@ function displayMatch(match) {
     }
     
     // Current Over / Last Completed Over Display
-    // If current over is empty and there's a last completed over, show that instead
-    const showLastOver = (!currentInnings.currentOver || currentInnings.currentOver.length === 0) && 
-                         currentInnings.lastCompletedOver;
+    // Show last completed over if:
+    // 1. Current over is empty AND there's a last completed over, OR
+    // 2. showTicker is true (end of over - keep showing completed over until next ball)
+    const showLastOver = ((!currentInnings.currentOver || currentInnings.currentOver.length === 0) && 
+                          currentInnings.lastCompletedOver) ||
+                         (currentInnings.showTicker === true && currentInnings.lastCompletedOver);
     
     if (showLastOver) {
       const lastOver = currentInnings.lastCompletedOver;
