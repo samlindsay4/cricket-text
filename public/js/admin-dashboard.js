@@ -447,7 +447,12 @@ async function createSeries() {
  */
 async function loadAboutPage() {
     try {
-        const response = await fetch('/api/about');
+        const response = await fetch('/api/about', {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -493,6 +498,8 @@ async function saveAboutPage(event) {
         
         if (response.ok) {
             alert('About page saved successfully!');
+            // Reload the data to confirm the save
+            await loadAboutPage();
         } else {
             alert('Error saving about page: ' + (data.error || 'Unknown error'));
         }
