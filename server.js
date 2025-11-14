@@ -858,7 +858,11 @@ function processBall(innings, ball, ballIndex) {
   
   // Rotate strike if odd total runs (runs + overthrows)
   const overthrowsForStrike = ball.overthrows || 0;
-  const totalRunsForStrike = ball.runs + overthrowsForStrike;
+  let totalRunsForStrike = ball.runs + overthrowsForStrike;
+  // For byes and leg byes, include the extras in strike rotation
+  if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    totalRunsForStrike += ball.extras;
+  }
   if (totalRunsForStrike % 2 === 1) {
     [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
   }
@@ -1677,7 +1681,11 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   }
   
   // 7. Rotate strike if odd total runs (runs + overthrows)
-  const totalRunsForStrike = ball.runs + ball.overthrows;
+  let totalRunsForStrike = ball.runs + ball.overthrows;
+  // For byes and leg byes, include the extras in strike rotation
+  if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    totalRunsForStrike += ball.extras;
+  }
   if (totalRunsForStrike % 2 === 1) {
     [currentInnings.striker, currentInnings.nonStriker] = 
       [currentInnings.nonStriker, currentInnings.striker];
@@ -2885,7 +2893,11 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   }
   
   // Rotate strike
-  const totalRunsForStrike = ball.runs + ball.overthrows;
+  let totalRunsForStrike = ball.runs + ball.overthrows;
+  // For byes and leg byes, include the extras in strike rotation
+  if (ball.extraType === 'Bye' || ball.extraType === 'B' || ball.extraType === 'LB') {
+    totalRunsForStrike += ball.extras;
+  }
   if (totalRunsForStrike % 2 === 1) {
     [currentInnings.striker, currentInnings.nonStriker] = 
       [currentInnings.nonStriker, currentInnings.striker];
