@@ -363,7 +363,7 @@ body {
   display: flex;
   justify-content: space-between;
   background-color: var(--teletext-black);
-  padding: 5px 10px;
+  padding: 5px 0;
   z-index: 500; /* Below keypad (1000) but above content */
 }
 
@@ -447,9 +447,7 @@ body {
   .live-footer-nav {
     position: fixed;
     bottom: 40px; /* Positioned above the keypad toggle (30px) with small gap */
-    left: 0;
-    right: 0;
-    padding: 8px 10px;
+    padding: 8px 0;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
   }
   
