@@ -26,6 +26,26 @@ const SUBPAGE_CYCLE_INTERVAL = 5000; // 5 seconds
 const SUBPAGES_PER_INNINGS = 2; // Batting and Bowling
 
 /**
+ * Update the ticker display based on showTicker flag
+ */
+function updateTicker(currentInnings) {
+  const ticker = document.getElementById('end-of-over-ticker');
+  const tickerMessage = document.getElementById('ticker-message');
+  
+  if (!ticker || !tickerMessage) return;
+  
+  if (currentInnings && currentInnings.showTicker === true) {
+    // Show ticker with "End of Over X"
+    const overNumber = currentInnings.overs;
+    tickerMessage.textContent = `END OF OVER ${overNumber}`;
+    ticker.classList.add('show');
+  } else {
+    // Hide ticker
+    ticker.classList.remove('show');
+  }
+}
+
+/**
  * Fetch and cache the list of active pages
  */
 async function getActivePages() {
@@ -525,6 +545,8 @@ function renderLiveScore(data) {
                 NO LIVE MATCH
             </span>
         `;
+        // Hide ticker when no match
+        updateTicker(null);
         return;
     }
     
@@ -588,10 +610,15 @@ function renderLiveScore(data) {
         `;
         document.getElementById('page-content').innerHTML = html;
         document.getElementById('subpage-indicator').textContent = '';
+        // Hide ticker for upcoming match
+        updateTicker(null);
         return;
     }
     
     const currentInnings = match.innings[match.innings.length - 1];
+    
+    // Update ticker display based on showTicker flag
+    updateTicker(currentInnings);
     
     // Calculate match situation
     let matchSituation = '';
@@ -1095,8 +1122,14 @@ function renderScorecard(data) {
                 NO MATCH DATA
             </div>
         `;
+        // Hide ticker when no match data
+        updateTicker(null);
         return;
     }
+    
+    // Update ticker for the current innings
+    const currentInnings = match.innings[match.innings.length - 1];
+    updateTicker(currentInnings);
     
     // Calculate total subpages (2 per innings: batting and bowling)
     totalSubpages = match.innings.length * SUBPAGES_PER_INNINGS;
