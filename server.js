@@ -726,6 +726,12 @@ function processBall(innings, ball, ballIndex) {
   // Ensure overthrows field exists (for backward compatibility)
   const overthrows = ball.overthrows || 0;
   
+  // NEW CODE: Clear previous over when starting a new over
+  const isLegal = (ball.extraType !== 'Wd' && ball.extraType !== 'Nb');
+  if (isLegal && innings.balls === 0 && innings.overs > 0 && innings.currentOver.length > 0) {
+    innings.currentOver = [];
+  }
+  
   // Update runs (include overthrows)
   innings.runs += (ball.runs + overthrows + ball.extras);
   
@@ -953,9 +959,9 @@ if (totalRunsForStrike % 2 === 1) {
       
       // Swap ends
       [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
-      
-      // Clear current over
-      innings.currentOver = [];
+
+      // DON'T clear current over yet - keep it visible until first ball of next over
+      // innings.currentOver = []; // COMMENT OUT THIS LINE
       
       // BUG FIX #3: Don't auto-update current bowler during recalculation
       // It will be set to the last ball's bowler after all balls are processed
@@ -2925,6 +2931,11 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   const striker = currentInnings.striker;
   const isLegalDelivery = (extraType !== 'Wd' && extraType !== 'Nb');
   const ballNumber = isLegalDelivery ? currentInnings.balls + 1 : Math.max(1, currentInnings.balls);
+
+  // NEW CODE: Clear previous over when starting a new over  
+  if (isLegalDelivery && currentInnings.balls === 0 && currentInnings.overs > 0 && currentInnings.currentOver.length > 0) {
+    currentInnings.currentOver = [];
+  }
   
   const ball = {
     over: currentInnings.overs,
@@ -3106,7 +3117,8 @@ if (totalRunsForStrike % 2 === 1) {
       
       [currentInnings.striker, currentInnings.nonStriker] = 
         [currentInnings.nonStriker, currentInnings.striker];
-      currentInnings.currentOver = [];
+      // DON'T clear current over yet - keep it visible until first ball of next over
+      // currentInnings.currentOver = []; // COMMENT OUT THIS LINE
     }
   }
   
