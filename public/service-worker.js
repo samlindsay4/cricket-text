@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teletest-cricket-v6';
+const CACHE_NAME = 'teletest-cricket-v7';
 const urlsToCache = [
   '/',
   '/css/teletest.css',
@@ -31,6 +31,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // DON'T CACHE API REQUESTS - always fetch from network for fresh content
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // For static assets, use cache-first strategy
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
