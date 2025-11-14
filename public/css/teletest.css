@@ -449,6 +449,10 @@ body {
     bottom: 40px; /* Positioned above the keypad toggle (30px) with small gap */
     padding: 8px 0;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
   
   /* Content needs padding so it doesn't hide behind footer */
