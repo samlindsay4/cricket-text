@@ -2071,11 +2071,11 @@ function updateBallHistory() {
         return;
     }
     
-    // Show last 20 balls
-    const recentBalls = balls.slice(-20).reverse();
+    // Show all balls (newest first)
+    const allBalls = [...balls].reverse();
     
     let html = '';
-    recentBalls.forEach((ball, reverseIdx) => {
+    allBalls.forEach((ball, reverseIdx) => {
         const ballIndex = balls.length - 1 - reverseIdx;
         let runsText = ball.runs.toString();
         if (ball.overthrows && ball.overthrows > 0) {
