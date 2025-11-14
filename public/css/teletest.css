@@ -147,7 +147,8 @@ body {
   
   .page-header,
   .main-title-bar,
-  .content {
+  .content,
+  .live-footer-nav {
     width: 80%;
     margin: 0 auto;
   }
