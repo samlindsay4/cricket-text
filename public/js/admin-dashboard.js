@@ -973,6 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let currentScoringMatch = null;
 let currentScoringSeriesId = null;
+let selectedInningsNumber = null; // Track which innings is selected for viewing (null = current/live)
 
 /**
  * Manage a match (view details and score)
@@ -1268,6 +1269,99 @@ function setupScoringInterface() {
     
     // Update ball history
     updateBallHistory();
+    
+    // Update innings selector
+    updateInningsSelector();
+}
+
+/**
+ * Update innings selector dropdown
+ */
+function updateInningsSelector() {
+    const selector = document.getElementById('innings-selector');
+    if (!selector || !currentScoringMatch || !currentScoringMatch.innings) {
+        return;
+    }
+    
+    // Clear existing options
+    selector.innerHTML = '';
+    
+    // Add option for each innings
+    currentScoringMatch.innings.forEach((innings, index) => {
+        const inningsNum = index + 1;
+        const option = document.createElement('option');
+        option.value = inningsNum;
+        
+        let status = '';
+        if (innings.status === 'completed') {
+            status = ' - Completed';
+        } else if (innings.status === 'declared') {
+            status = ' - Declared';
+        } else if (inningsNum === currentScoringMatch.innings.length) {
+            status = ' - Live';
+        }
+        
+        option.textContent = `Innings ${inningsNum} - ${innings.battingTeam}${status}`;
+        selector.appendChild(option);
+    });
+    
+    // Default to current/live innings (last innings)
+    if (selectedInningsNumber === null || selectedInningsNumber > currentScoringMatch.innings.length) {
+        selectedInningsNumber = currentScoringMatch.innings.length;
+    }
+    selector.value = selectedInningsNumber;
+    
+    // Update status badge and warning
+    updateInningsStatusIndicators();
+}
+
+/**
+ * Handle innings selector change
+ */
+function onInningsSelectorChange() {
+    const selector = document.getElementById('innings-selector');
+    selectedInningsNumber = parseInt(selector.value);
+    
+    // Update ball history for selected innings
+    updateBallHistory();
+    
+    // Update status indicators
+    updateInningsStatusIndicators();
+}
+
+/**
+ * Update innings status badge and warning
+ */
+function updateInningsStatusIndicators() {
+    if (!currentScoringMatch || !selectedInningsNumber) {
+        return;
+    }
+    
+    const innings = currentScoringMatch.innings[selectedInningsNumber - 1];
+    const badge = document.getElementById('innings-status-badge');
+    const warning = document.getElementById('completed-innings-warning');
+    
+    if (!innings || !badge || !warning) {
+        return;
+    }
+    
+    const isCurrentInnings = selectedInningsNumber === currentScoringMatch.innings.length;
+    
+    if (isCurrentInnings) {
+        badge.textContent = '● LIVE';
+        badge.style.background = '#00ff00';
+        badge.style.color = '#000';
+        warning.classList.add('hidden');
+    } else {
+        if (innings.status === 'declared') {
+            badge.textContent = 'DECLARED';
+        } else {
+            badge.textContent = 'COMPLETED';
+        }
+        badge.style.background = '#666';
+        badge.style.color = '#fff';
+        warning.classList.remove('hidden');
+    }
 }
 
 /**
@@ -1340,19 +1434,25 @@ function updateBallHistory() {
         return;
     }
     
-    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
-    const balls = currentInnings.allBalls || [];
+    // Use selected innings or default to current innings
+    const inningsIndex = selectedInningsNumber ? selectedInningsNumber - 1 : currentScoringMatch.innings.length - 1;
+    const innings = currentScoringMatch.innings[inningsIndex];
+    const balls = innings.allBalls || [];
     
     if (balls.length === 0) {
         historyDiv.innerHTML = '<div>No balls recorded</div>';
         return;
     }
     
-    // Show last 20 balls
-    const recentBalls = balls.slice(-20).reverse();
+    const isCurrentInnings = (inningsIndex === currentScoringMatch.innings.length - 1);
+    
+    // Show last 30 balls (increased from 20 for better visibility)
+    const recentBalls = balls.slice(-30).reverse();
     
     let html = '';
-    recentBalls.forEach((ball) => {
+    recentBalls.forEach((ball, reverseIndex) => {
+        const actualIndex = balls.length - 1 - reverseIndex;
+        
         let runsText = ball.runs.toString();
         if (ball.overthrows && ball.overthrows > 0) {
             runsText += ` + ${ball.overthrows}ot`;
@@ -1365,8 +1465,14 @@ function updateBallHistory() {
         const wicketText = ball.wicket ? ' 🔴 W' : '';
         
         html += `
-            <div style="padding: 5px; border-bottom: 1px solid #333;">
-                ${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}
+            <div style="padding: 5px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    ${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn btn-small" style="padding: 2px 6px; font-size: 11px;" onclick="openEditBallModalForInnings(${selectedInningsNumber || currentScoringMatch.innings.length}, ${actualIndex})">✏️ Edit</button>
+                    <button class="btn btn-small" style="padding: 2px 6px; font-size: 11px;" onclick="undoBallFromInnings(${selectedInningsNumber || currentScoringMatch.innings.length}, ${actualIndex})">↶ Undo</button>
+                </div>
             </div>
         `;
     });
@@ -2053,61 +2159,6 @@ async function confirmNewBowlerFromDashboard() {
 }
 
 /**
- * Update ball history with edit buttons
- */
-function updateBallHistory() {
-    const historyDiv = document.getElementById('scoring-ball-history');
-    
-    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
-        historyDiv.innerHTML = '<div>No balls recorded</div>';
-        return;
-    }
-    
-    const currentInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
-    const balls = currentInnings.allBalls || [];
-    
-    if (balls.length === 0) {
-        historyDiv.innerHTML = '<div>No balls recorded</div>';
-        return;
-    }
-    
-    // Show all balls (newest first)
-    const allBalls = [...balls].reverse();
-    
-    let html = '';
-    allBalls.forEach((ball, reverseIdx) => {
-        const ballIndex = balls.length - 1 - reverseIdx;
-        let runsText = ball.runs.toString();
-        if (ball.overthrows && ball.overthrows > 0) {
-            runsText += ` + ${ball.overthrows}ot`;
-        }
-        if (ball.extras) {
-            runsText += `+${ball.extras}`;
-        }
-        if (ball.secondExtras && ball.secondExtras > 0) {
-            runsText += `+${ball.secondExtras}`;
-        }
-        
-        let extraText = ball.extraType ? ` (${ball.extraType}` : '';
-        if (ball.secondExtraType) {
-            extraText += ` + ${ball.secondExtraType}`;
-        }
-        if (extraText) extraText += ')';
-        
-        const wicketText = ball.wicket ? ' 🔴 W' : '';
-        
-        html += `
-            <div style="padding: 5px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
-                <span>${ball.over}.${ball.ball}: ${ball.batsman} ${runsText}${extraText} - ${ball.bowler}${wicketText}</span>
-                <button class="btn btn-secondary btn-small" onclick="showEditBallModalFromDashboard(${ballIndex})" style="padding: 3px 8px; font-size: 10px;">Edit</button>
-            </div>
-        `;
-    });
-    
-    historyDiv.innerHTML = html;
-}
-
-/**
  * Show edit ball modal
  */
 function showEditBallModalFromDashboard(ballIndex) {
@@ -2175,10 +2226,136 @@ function hideEditBallModalFromDashboard() {
 }
 
 /**
+ * Open edit ball modal for a specific innings
+ */
+function openEditBallModalForInnings(inningsNumber, ballIndex) {
+    const modal = document.getElementById('dashboard-edit-ball-modal');
+    
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No active innings');
+        return;
+    }
+    
+    const innings = currentScoringMatch.innings[inningsNumber - 1];
+    if (!innings) {
+        alert('Invalid innings number');
+        return;
+    }
+    
+    const ball = innings.allBalls[ballIndex];
+    if (!ball) {
+        alert('Ball not found');
+        return;
+    }
+    
+    const isCurrentInnings = inningsNumber === currentScoringMatch.innings.length;
+    
+    // Store innings number and ball index for later
+    document.getElementById('edit-ball-index').value = ballIndex;
+    document.getElementById('edit-ball-index').setAttribute('data-innings-number', inningsNumber);
+    
+    // Populate form
+    document.getElementById('edit-ball-bowler').value = ball.bowler || '';
+    document.getElementById('edit-ball-batsman').value = ball.batsman || '';
+    document.getElementById('edit-ball-runs').value = ball.runs || 0;
+    document.getElementById('edit-ball-overthrows').value = ball.overthrows || 0;
+    document.getElementById('edit-ball-extra-type').value = ball.extraType || '';
+    document.getElementById('edit-ball-extras').value = ball.extras || 0;
+    document.getElementById('edit-ball-wicket').checked = ball.wicket || false;
+    document.getElementById('edit-ball-wicket-type').value = ball.wicketType || 'bowled';
+    document.getElementById('edit-ball-dismissed-batsman').value = ball.dismissedBatsman || '';
+    document.getElementById('edit-ball-fielder').value = ball.fielder || '';
+    
+    // Show/hide wicket details
+    const wicketDetails = document.getElementById('edit-ball-wicket-details');
+    if (ball.wicket) {
+        wicketDetails.classList.remove('hidden');
+    } else {
+        wicketDetails.classList.add('hidden');
+    }
+    
+    // Update info with warning if editing completed innings
+    const infoDiv = document.getElementById('edit-ball-info');
+    let infoText = `Editing ball ${ball.over}.${ball.ball} from Innings ${inningsNumber}`;
+    if (!isCurrentInnings) {
+        infoText += ' <span style="color: #ffaa00;">⚠️ (Completed Innings - will recalculate match)</span>';
+    }
+    infoDiv.innerHTML = infoText;
+    
+    // Add listener for wicket checkbox
+    document.getElementById('edit-ball-wicket').onchange = function() {
+        if (this.checked) {
+            wicketDetails.classList.remove('hidden');
+        } else {
+            wicketDetails.classList.add('hidden');
+        }
+    };
+    
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+}
+
+/**
+ * Undo a ball from a specific innings
+ */
+async function undoBallFromInnings(inningsNumber, ballIndex) {
+    const innings = currentScoringMatch.innings[inningsNumber - 1];
+    if (!innings) {
+        alert('Invalid innings number');
+        return;
+    }
+    
+    const isCurrentInnings = inningsNumber === currentScoringMatch.innings.length;
+    const ball = innings.allBalls[ballIndex];
+    
+    let confirmMsg = `Undo ball ${ball.over}.${ball.ball}?`;
+    if (!isCurrentInnings) {
+        confirmMsg = `⚠️ WARNING: You are undoing a ball from a COMPLETED innings.\nThis will recalculate all match statistics and may affect the match result.\n\nUndo ball ${ball.over}.${ball.ball} from Innings ${inningsNumber}?`;
+    }
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        const endpoint = isCurrentInnings 
+            ? `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/undo`
+            : `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/undo-completed-innings-ball`;
+        
+        const body = isCurrentInnings ? {} : { inningsNumber, ballIndex };
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            
+            // Update selected innings if needed (if we removed last ball, may need to adjust)
+            if (selectedInningsNumber && selectedInningsNumber > currentScoringMatch.innings.length) {
+                selectedInningsNumber = currentScoringMatch.innings.length;
+            }
+            
+            setupScoringInterface();
+        } else {
+            const error = await response.json();
+            alert('Failed to undo: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error undoing ball:', error);
+        alert('Failed to undo ball');
+    }
+}
+
+/**
  * Confirm edit ball
  */
 async function confirmEditBallFromDashboard() {
     const ballIndex = parseInt(document.getElementById('edit-ball-index').value);
+    const inningsNumber = parseInt(document.getElementById('edit-ball-index').getAttribute('data-innings-number'));
     const bowler = document.getElementById('edit-ball-bowler').value;
     const batsman = document.getElementById('edit-ball-batsman').value;
     const runs = parseInt(document.getElementById('edit-ball-runs').value) || 0;
@@ -2195,16 +2372,32 @@ async function confirmEditBallFromDashboard() {
         return;
     }
     
+    // Check if editing completed innings
+    const isCurrentInnings = !inningsNumber || inningsNumber === currentScoringMatch.innings.length;
+    
+    // Show confirmation for completed innings
+    if (!isCurrentInnings) {
+        if (!confirm('⚠️ You are editing a COMPLETED innings. This will recalculate all match statistics and may affect the match result. Continue?')) {
+            return;
+        }
+    }
+    
     try {
-        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/edit-ball`, {
+        const endpoint = isCurrentInnings 
+            ? `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/edit-ball`
+            : `/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/edit-completed-innings-ball`;
+        
+        const body = isCurrentInnings 
+            ? { ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, fielder }
+            : { inningsNumber, ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, fielder };
+        
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Session-Id': sessionId
             },
-            body: JSON.stringify({
-                ballIndex, bowler, batsman, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, fielder
-            })
+            body: JSON.stringify(body)
         });
         
         if (response.ok) {

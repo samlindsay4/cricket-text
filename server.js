@@ -3590,6 +3590,160 @@ app.post('/api/series/:seriesId/match/:matchId/edit-ball', requireAuth, (req, re
   res.json(match);
 });
 
+// Edit a ball from any innings (including completed innings)
+app.post('/api/series/:seriesId/match/:matchId/edit-completed-innings-ball', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  const { inningsNumber, ballIndex, runs, overthrows, extras, extraType, wicket, wicketType, dismissedBatsman, bowler, batsman, fielder } = req.body;
+  
+  // Validate innings number
+  if (!inningsNumber || inningsNumber < 1 || inningsNumber > match.innings.length) {
+    return res.status(400).json({ error: 'Invalid innings number' });
+  }
+  
+  const innings = match.innings[inningsNumber - 1];
+  
+  if (!innings.allBalls || ballIndex < 0 || ballIndex >= innings.allBalls.length) {
+    return res.status(400).json({ error: 'Invalid ball index' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dismissedBatsman && dangerousNames.includes(dismissedBatsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  if (bowler && dangerousNames.includes(bowler)) {
+    return res.status(400).json({ error: 'Invalid bowler name' });
+  }
+  if (batsman && dangerousNames.includes(batsman)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  if (fielder && dangerousNames.includes(fielder)) {
+    return res.status(400).json({ error: 'Invalid fielder name' });
+  }
+  if (extraType && dangerousNames.includes(extraType)) {
+    return res.status(400).json({ error: 'Invalid extra type' });
+  }
+  if (wicketType && dangerousNames.includes(wicketType)) {
+    return res.status(400).json({ error: 'Invalid wicket type' });
+  }
+  
+  // Validate ball exists
+  const ball = innings.allBalls[ballIndex];
+  if (!ball || typeof ball !== 'object') {
+    return res.status(400).json({ error: 'Invalid ball' });
+  }
+  
+  // Update ball at index (create safe copy to avoid prototype pollution)
+  const safeProps = {
+    runs: parseInt(runs) || 0,
+    overthrows: parseInt(overthrows) || 0,
+    extras: parseInt(extras) || 0,
+    extraType: extraType || null,
+    wicket: wicket || false,
+    wicketType: wicketType || null,
+    dismissedBatsman: dismissedBatsman || null,
+    fielder: fielder || null
+  };
+  
+  // Update ball properties safely using direct assignment (validated above)
+  ball.runs = safeProps.runs;
+  ball.overthrows = safeProps.overthrows;
+  ball.extras = safeProps.extras;
+  ball.extraType = safeProps.extraType;
+  ball.wicket = safeProps.wicket;
+  ball.wicketType = safeProps.wicketType;
+  ball.dismissedBatsman = safeProps.dismissedBatsman;
+  ball.fielder = safeProps.fielder;
+  
+  // Update bowler and batsman if provided (already validated as not dangerous)
+  if (bowler && bowler.trim()) {
+    ball.bowler = bowler.trim();
+  }
+  if (batsman && batsman.trim()) {
+    ball.batsman = batsman.trim();
+  }
+  
+  // Recalculate innings from all balls
+  recalculateInnings(innings);
+  
+  // Recalculate match situation after edit (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
+  
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
+// Undo a ball from any innings (including completed innings)
+app.post('/api/series/:seriesId/match/:matchId/undo-completed-innings-ball', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  const { inningsNumber, ballIndex } = req.body;
+  
+  // Validate innings number
+  if (!inningsNumber || inningsNumber < 1 || inningsNumber > match.innings.length) {
+    return res.status(400).json({ error: 'Invalid innings number' });
+  }
+  
+  const innings = match.innings[inningsNumber - 1];
+  
+  if (!innings.allBalls || innings.allBalls.length === 0) {
+    return res.status(400).json({ error: 'No balls to undo' });
+  }
+  
+  // If ballIndex is provided, remove that specific ball; otherwise remove last ball
+  if (ballIndex !== undefined && ballIndex !== null) {
+    if (ballIndex < 0 || ballIndex >= innings.allBalls.length) {
+      return res.status(400).json({ error: 'Invalid ball index' });
+    }
+    innings.allBalls.splice(ballIndex, 1);
+  } else {
+    innings.allBalls.pop();
+  }
+  
+  // Recalculate innings from all balls
+  recalculateInnings(innings);
+  
+  // Recalculate match situation after undo (updates target, lead/trail, etc.)
+  if (match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+    
+    // Update series status if match status changed
+    if (match.status === 'completed' && match.result && match.result.winner) {
+      updateSeriesMatchStatus(matchId, match);
+    }
+  }
+  
+  // Save
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
 // Get series match
 app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
   const { seriesId, matchId } = req.params;

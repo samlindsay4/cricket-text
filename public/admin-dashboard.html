@@ -406,8 +406,20 @@
                     
                     <!-- Ball History -->
                     <div style="margin-top: 20px;">
-                        <h4>All Balls (Current Innings)</h4>
-                        <div id="scoring-ball-history" style="max-height: 200px; overflow-y: auto; background: #0a0a0a; padding: 10px; border: 1px solid #333; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0;">Ball History</h4>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label for="innings-selector" style="color: #00ffff; margin: 0;">View Innings:</label>
+                                <select id="innings-selector" onchange="onInningsSelectorChange()" style="padding: 5px; background: #0a0a0a; color: #00ff00; border: 1px solid #00ff00; border-radius: 4px;">
+                                    <option value="">Select innings...</option>
+                                </select>
+                                <span id="innings-status-badge" style="padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold;"></span>
+                            </div>
+                        </div>
+                        <div id="completed-innings-warning" class="hidden" style="background: #4a3000; border: 1px solid #ffaa00; padding: 10px; margin-bottom: 10px; border-radius: 4px; color: #ffaa00;">
+                            ⚠️ You are viewing a <strong>completed innings</strong>. Edits will recalculate match results.
+                        </div>
+                        <div id="scoring-ball-history" style="max-height: 300px; overflow-y: auto; background: #0a0a0a; padding: 10px; border: 1px solid #333; border-radius: 4px;">
                             <div>No balls recorded</div>
                         </div>
                     </div>
