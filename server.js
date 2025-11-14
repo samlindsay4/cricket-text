@@ -1685,6 +1685,11 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
   if (isLegalDelivery) {
     currentInnings.balls++;
     
+    // Hide ticker when first ball of new over is bowled
+    if (currentInnings.balls === 1) {
+      currentInnings.showTicker = false;
+    }
+    
     // 10. Check if over complete
     if (currentInnings.balls === 6) {
       currentInnings.overs++;
@@ -1748,6 +1753,9 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
       
       // Clear current over
       currentInnings.currentOver = [];
+      
+      // Show ticker when over is completed
+      currentInnings.showTicker = true;
     }
   }
   
@@ -2896,6 +2904,12 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   
   if (isLegalDelivery) {
     currentInnings.balls++;
+    
+    // Hide ticker when first ball of new over is bowled
+    if (currentInnings.balls === 1) {
+      currentInnings.showTicker = false;
+    }
+    
     if (currentInnings.balls === 6) {
       currentInnings.overs++;
       currentInnings.balls = 0;
@@ -2946,6 +2960,9 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
       [currentInnings.striker, currentInnings.nonStriker] = 
         [currentInnings.nonStriker, currentInnings.striker];
       currentInnings.currentOver = [];
+      
+      // Show ticker when over is completed
+      currentInnings.showTicker = true;
     }
   }
   
