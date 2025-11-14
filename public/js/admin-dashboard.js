@@ -1446,11 +1446,11 @@ function updateBallHistory() {
     
     const isCurrentInnings = (inningsIndex === currentScoringMatch.innings.length - 1);
     
-    // Show last 30 balls (increased from 20 for better visibility)
-    const recentBalls = balls.slice(-30).reverse();
+    // Show all balls from the innings
+    const allBalls = [...balls].reverse();
     
     let html = '';
-    recentBalls.forEach((ball, reverseIndex) => {
+    allBalls.forEach((ball, reverseIndex) => {
         const actualIndex = balls.length - 1 - reverseIndex;
         
         let runsText = ball.runs.toString();
