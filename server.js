@@ -778,6 +778,11 @@ function processBall(innings, ball, ballIndex) {
     innings.allBatsmen[ball.dismissedBatsman].status = 'out';
     innings.allBatsmen[ball.dismissedBatsman].howOut = ball.wicketType;
     
+    // Update bowler wicket count (but not for run outs)
+    if (ball.wicketType !== 'run out') {
+      innings.allBowlers[ball.bowler].wickets++;
+    }
+    
     innings.fallOfWickets.push({
       runs: innings.runs,
       wickets: innings.wickets,
