@@ -860,12 +860,13 @@ function processBall(innings, ball, ballIndex) {
     }
   }
   
-  // Rotate strike if odd total runs (runs + overthrows)
-  const overthrowsForStrike = ball.overthrows || 0;
-  const totalRunsForStrike = ball.runs + overthrowsForStrike;
-  if (totalRunsForStrike % 2 === 1) {
-    [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
-  }
+  // Rotate strike if odd total runs (runs + overthrows + extras for byes/leg byes)
+const overthrowsForStrike = ball.overthrows || 0;
+const extrasForStrike = (ball.extraType === 'Bye' || ball.extraType === 'LB') ? (ball.extras || 0) : 0;
+const totalRunsForStrike = ball.runs + overthrowsForStrike + extrasForStrike;
+if (totalRunsForStrike % 2 === 1) {
+  [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+}
   
   // Add to current over
   innings.currentOver.push(ball);
@@ -3030,12 +3031,13 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
     });
   }
   
-  // Rotate strike
-  const totalRunsForStrike = ball.runs + ball.overthrows;
-  if (totalRunsForStrike % 2 === 1) {
-    [currentInnings.striker, currentInnings.nonStriker] = 
-      [currentInnings.nonStriker, currentInnings.striker];
-  }
+  // Rotate strike if odd total runs (runs + overthrows + byes/leg byes)
+const extrasForStrike = (ball.extraType === 'Bye' || ball.extraType === 'LB') ? ball.extras : 0;
+const totalRunsForStrike = ball.runs + ball.overthrows + extrasForStrike;
+if (totalRunsForStrike % 2 === 1) {
+  [currentInnings.striker, currentInnings.nonStriker] = 
+    [currentInnings.nonStriker, currentInnings.striker];
+}
   
   currentInnings.currentOver.push(ball);
   
