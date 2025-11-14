@@ -315,7 +315,7 @@ function renderAboutPage(data) {
     document.getElementById('page-number-display').textContent = 'About';
     
     let html = `
-        <h2 class="text-green" style="margin-bottom: 10px; font-weight: normal;">${data.title}</h2>
+        <div class="text-green" style="margin-bottom: 10px; font-weight: normal;">${data.title}</div>
     `;
     
     // Parse content and convert markdown-style links to clickable links
@@ -498,7 +498,7 @@ function renderNewsPage(data) {
     const paragraphs = news.content.split(/\n\n+/).filter(p => p.trim());
     
     let html = `
-        <div class="text-green" style="font-size: 24px; margin-bottom: 20px;">${news.title}</div>
+        <div class="text-green">${news.title}</div>
     `;
     
     // First paragraph in white, rest in cyan
