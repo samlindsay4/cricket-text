@@ -1351,16 +1351,21 @@ function renderScorecardSubpage(match, subpage) {
                 });
             
             batsmenArray.forEach(batsman => {
+                // Check if batsman is currently retired hurt
+                const isRetiredHurt = batsman.status === 'retired hurt';
                 // Check if batsman returned after being retired hurt
-                // If howOut is 'retired hurt' but status is not 'out', they've returned to batting
-                const returnedFromRetiredHurt = batsman.howOut === 'retired hurt' && batsman.status !== 'out';
+                // If howOut is 'retired hurt' but status is now 'batting' or 'not out', they've returned
+                const returnedFromRetiredHurt = batsman.howOut === 'retired hurt' && batsman.status !== 'out' && batsman.status !== 'retired hurt';
                 const isNotOut = (batsman.status === 'not out' || batsman.status === 'batting') && (!batsman.howOut || returnedFromRetiredHurt);
                 const rowClass = isNotOut ? 'text-white' : 'text-cyan';
                 
                 // Format dismissal info - combine type and fielder in one column
                 let dismissalInfo = '';
                 
-                if (batsman.howOut && !returnedFromRetiredHurt) {
+                // Show "retired hurt" if currently retired hurt, regardless of howOut
+                if (isRetiredHurt) {
+                    dismissalInfo = window.innerWidth < 768 ? 'r hurt' : 'retired hurt';
+                } else if (batsman.howOut && !returnedFromRetiredHurt) {
                     const howOut = batsman.howOut;
                     
                     // Get fielder from the dismissal ball
@@ -1388,8 +1393,6 @@ function renderScorecardSubpage(match, subpage) {
                         dismissalInfo = 'c & ';
                     } else if (howOut === 'hit wicket') {
                         dismissalInfo = 'hit wkt';
-                    } else if (howOut === 'retired hurt') {
-                        dismissalInfo = window.innerWidth < 768 ? 'r hurt' : 'retired hurt';
                     } else {
                         dismissalInfo = howOut;
                     }
