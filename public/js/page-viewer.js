@@ -301,7 +301,8 @@ function showErrorPage(message) {
     const content = document.getElementById('page-content');
     content.innerHTML = `
         <div style="text-align: center; padding: 40px;">
-            <div class="text-red" style="font-size: 32px;">PAGE NOT FOUND</div>
+            <div class="text-red" style="font-size: 32px;">No internet connection</div>
+            <div class="text-white" style="font-size: 16px; margin-top: 20px;">Please check your connection and try again</div>
         </div>
         ${getFooterNavigation()}
     `;

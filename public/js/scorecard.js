@@ -91,8 +91,8 @@ async function loadPageData(pageNumber) {
     const content = document.getElementById('content');
     content.innerHTML = `
       <div class="no-match">
-        <p>ERROR LOADING PAGE</p>
-        <p style="margin-top: 20px; font-size: 14px;">Please try again later</p>
+        <p>No internet connection</p>
+        <p style="margin-top: 20px; font-size: 14px;">Please check your connection and try again</p>
       </div>
     `;
   }
@@ -164,8 +164,8 @@ async function switchPublicMatch() {
       if (content) {
         content.innerHTML = `
           <div class="no-match">
-            <p>ERROR LOADING MATCH</p>
-            <p style="margin-top: 20px; font-size: 14px;">Please try again later</p>
+            <p>No internet connection</p>
+            <p style="margin-top: 20px; font-size: 14px;">Please check your connection and try again</p>
           </div>
         `;
       }
@@ -177,8 +177,8 @@ async function switchPublicMatch() {
     if (content) {
       content.innerHTML = `
         <div class="no-match">
-          <p>CONNECTION ERROR</p>
-          <p style="margin-top: 20px; font-size: 14px;">Please check your connection</p>
+          <p>No internet connection</p>
+          <p style="margin-top: 20px; font-size: 14px;">Please check your connection and try again</p>
         </div>
       `;
     }
