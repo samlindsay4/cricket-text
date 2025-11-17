@@ -1444,6 +1444,12 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
   
   const { battingTeam, bowlingTeam, battingOrder, openingBowler, enforceFollowOn } = req.body;
   
+  // Prevent teams from batting more than twice in a match
+  const battingTeamInningsCount = match.innings.filter(inn => inn.battingTeam === battingTeam).length;
+  if (battingTeamInningsCount >= 2) {
+    return res.status(400).json({ error: `Cannot start innings: ${battingTeam} has already batted twice in this match` });
+  }
+  
   // Validate batting order
   if (!battingOrder || battingOrder.length !== 11) {
     return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
@@ -3033,6 +3039,12 @@ app.post('/api/series/:seriesId/match/:matchId/start-innings', requireAuth, (req
     return res.status(400).json({ error: 'Cannot start new innings: match is completed' });
   }
   
+  // Prevent teams from batting more than twice in a match
+  const battingTeamInningsCount = match.innings.filter(inn => inn.battingTeam === battingTeam).length;
+  if (battingTeamInningsCount >= 2) {
+    return res.status(400).json({ error: `Cannot start innings: ${battingTeam} has already batted twice in this match` });
+  }
+  
   // Initialize innings
   const inningsNumber = match.innings.length + 1;
   
@@ -3126,6 +3138,55 @@ app.post('/api/series/:seriesId/match/:matchId/undo', requireAuth, (req, res) =>
   }
   
   // Save
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json(match);
+});
+
+// Delete last innings for series match
+app.delete('/api/series/:seriesId/match/:matchId/innings/:inningsNumber', requireAuth, (req, res) => {
+  const { seriesId, matchId, inningsNumber } = req.params;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  if (match.innings.length === 0) {
+    return res.status(400).json({ error: 'No innings to delete' });
+  }
+  
+  const inningsNum = parseInt(inningsNumber);
+  
+  // Only allow deleting the most recent innings
+  if (inningsNum !== match.innings.length) {
+    return res.status(400).json({ error: 'Can only delete the most recent innings' });
+  }
+  
+  // Remove the innings from the array
+  match.innings.pop();
+  
+  // Update current innings to the previous innings number (or 0 if no innings left)
+  match.currentInnings = match.innings.length;
+  
+  // If match was completed and we're deleting innings, revert status appropriately
+  if (match.status === 'completed') {
+    if (match.innings.length > 0) {
+      match.status = 'live';
+    } else {
+      match.status = 'scheduled';
+    }
+  }
+  
+  // Recalculate match situation if there are innings remaining
+  if (match.innings.length > 0 && match.format === 'test') {
+    calculateMatchSituation(match);
+    calculateMatchResult(match);
+  }
+  
+  // Save match
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);
   calculateSeriesStats(seriesId);

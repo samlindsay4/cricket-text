@@ -1193,6 +1193,47 @@ async function startInningsFromDashboard() {
 }
 
 /**
+ * Delete last innings
+ */
+async function deleteLastInnings() {
+    if (!currentScoringMatch || !currentScoringMatch.innings || currentScoringMatch.innings.length === 0) {
+        alert('No innings to delete');
+        return;
+    }
+    
+    const lastInnings = currentScoringMatch.innings[currentScoringMatch.innings.length - 1];
+    const inningsNumber = lastInnings.number;
+    
+    // Show confirmation dialog
+    const confirmed = confirm(`Are you sure you want to delete the last innings (Innings ${inningsNumber} - ${lastInnings.battingTeam})? This cannot be undone.`);
+    if (!confirmed) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/innings/${inningsNumber}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            }
+        });
+        
+        if (response.ok) {
+            currentScoringMatch = await response.json();
+            displayScoringMatchDetails();
+            alert('Innings deleted successfully');
+        } else {
+            const error = await response.json();
+            alert('Failed to delete innings: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting innings:', error);
+        alert('Failed to delete innings');
+    }
+}
+
+/**
  * Setup scoring interface
  */
 function setupScoringInterface() {
@@ -1272,6 +1313,17 @@ function setupScoringInterface() {
     
     // Update innings selector
     updateInningsSelector();
+    
+    // Show/hide delete innings button based on whether there are innings
+    const deleteBtn = document.getElementById('delete-innings-btn');
+    const deleteSection = document.getElementById('delete-innings-section');
+    if (deleteBtn && deleteSection) {
+        if (currentScoringMatch && currentScoringMatch.innings && currentScoringMatch.innings.length > 0) {
+            deleteSection.style.display = 'block';
+        } else {
+            deleteSection.style.display = 'none';
+        }
+    }
 }
 
 /**
