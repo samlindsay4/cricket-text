@@ -1,10 +1,11 @@
-const CACHE_NAME = 'teletest-cricket-v7';
+const CACHE_NAME = 'teletest-cricket-v8';
 const urlsToCache = [
   '/',
   '/css/teletest.css',
   '/js/page-viewer.js',
   '/js/scorecard.js',
   '/images/teletest-banner.png',
+  '/offline.html',
   'https://fonts.googleapis.com/css2?family=VT323&display=swap'
 ];
 
@@ -64,6 +65,11 @@ self.addEventListener('fetch', (event) => {
             });
           
           return response;
+        }).catch(() => {
+          // Network failed, return offline page for navigation requests
+          if (event.request.mode === 'navigate') {
+            return caches.match('/offline.html');
+          }
         });
       })
   );

@@ -776,11 +776,18 @@ function renderLiveScore(data) {
     // Show batsmen - for completed matches show last 2, for live show striker and non-striker
     if (currentInnings.allBatsmen) {
         if (match.status === 'completed' || !currentInnings.striker || !currentInnings.nonStriker || currentInnings.wickets >= 10) {
-            // For completed matches, all out, or when striker info is missing, show only batsmen who are genuinely not out
-            // Exclude anyone who has a "howOut" field (dismissed) or status is explicitly "out"
+            // For completed matches, all out, or when striker info is missing
+            // Show batsmen who are not out, batting, or retired hurt (but not other dismissals)
             const batsmenArray = Object.entries(currentInnings.allBatsmen)
                 .map(([name, stats]) => ({ name, ...stats }))
-                .filter(b => (b.status === 'not out' || b.status === 'batting') && !b.howOut)
+                .filter(b => {
+                    // Include if not out or batting
+                    if (b.status === 'not out' || b.status === 'batting') return true;
+                    // Include if retired hurt
+                    if (b.status === 'retired hurt') return true;
+                    // Exclude all others (out, etc.)
+                    return false;
+                })
                 .sort((a, b) => {
                     // Sort by balls faced (descending)
                     return (b.balls || 0) - (a.balls || 0);
@@ -788,9 +795,17 @@ function renderLiveScore(data) {
                 .slice(0, 2);
             
             batsmenArray.forEach(batsman => {
+                // Determine display text for status
+                let statusText = '';
+                if (batsman.status === 'retired hurt') {
+                    statusText = ' (r hurt)';
+                } else if (batsman.status === 'not out' || batsman.status === 'batting') {
+                    statusText = '*';
+                }
+                
                 html += `
                     <tr>
-                        <td>${batsman.name || 'Unknown'}</td>
+                        <td>${batsman.name || 'Unknown'}${statusText}</td>
                         <td>${batsman.runs}</td>
                         <td>${batsman.balls}</td>
                         <td>${batsman.fours || 0}</td>
@@ -1344,15 +1359,25 @@ function renderScorecardSubpage(match, subpage) {
             
             batsmenArray.forEach(batsman => {
                 // Check if batsman returned after being retired hurt
-                // If howOut is 'retired hurt' but status is not 'out', they've returned to batting
-                const returnedFromRetiredHurt = batsman.howOut === 'retired hurt' && batsman.status !== 'out';
+                // If howOut is 'retired hurt' but status is 'batting' or 'not out', they've returned to batting
+                const returnedFromRetiredHurt = batsman.howOut === 'retired hurt' && (batsman.status === 'batting' || batsman.status === 'not out');
+                
+                // Check if batsman is currently retired hurt
+                const isRetiredHurt = batsman.status === 'retired hurt';
+                
+                // Determine if batsman is not out (including those batting)
                 const isNotOut = (batsman.status === 'not out' || batsman.status === 'batting') && (!batsman.howOut || returnedFromRetiredHurt);
+                
+                // Set row color: white for not out/batting, cyan for retired hurt or dismissed
                 const rowClass = isNotOut ? 'text-white' : 'text-cyan';
                 
                 // Format dismissal info - combine type and fielder in one column
                 let dismissalInfo = '';
                 
-                if (batsman.howOut && !returnedFromRetiredHurt) {
+                if (isRetiredHurt) {
+                    // Currently retired hurt - show as retired hurt
+                    dismissalInfo = window.innerWidth < 768 ? 'r hurt' : 'retired hurt';
+                } else if (batsman.howOut && !returnedFromRetiredHurt) {
                     const howOut = batsman.howOut;
                     
                     // Get fielder from the dismissal ball
