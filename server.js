@@ -3822,6 +3822,55 @@ app.post('/api/series/:seriesId/match/:matchId/undo-completed-innings-ball', req
   res.json(match);
 });
 
+// Reorder batting lineup for an innings
+app.post('/api/series/:seriesId/match/:matchId/reorder-batting', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { inningsNumber, newBattingOrder } = req.body;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Validate innings number
+  if (!inningsNumber || inningsNumber < 1 || inningsNumber > match.innings.length) {
+    return res.status(400).json({ error: 'Invalid innings number' });
+  }
+  
+  const innings = match.innings[inningsNumber - 1];
+  
+  // Validate new batting order
+  if (!newBattingOrder || newBattingOrder.length !== 11) {
+    return res.status(400).json({ error: 'Batting order must contain exactly 11 players' });
+  }
+  
+  // Prevent prototype pollution - check for dangerous property names
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  const hasDangerousName = newBattingOrder.some(name => dangerousNames.includes(name));
+  if (hasDangerousName) {
+    return res.status(400).json({ error: 'Invalid player names detected' });
+  }
+  
+  // Ensure the same 11 players are present (just reordered)
+  const originalOrder = [...innings.battingOrder].sort();
+  const newOrder = [...newBattingOrder].sort();
+  
+  if (originalOrder.length !== newOrder.length || 
+      !originalOrder.every((player, index) => player === newOrder[index])) {
+    return res.status(400).json({ error: 'Batting order must contain the same 11 players' });
+  }
+  
+  // Update batting order
+  innings.battingOrder = newBattingOrder;
+  
+  // Save
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
+  calculateSeriesStats(seriesId);
+  
+  res.json({ success: true, match });
+});
+
 // Get series match
 app.get('/api/series/:seriesId/match/:matchId', checkRateLimit, (req, res) => {
   const { seriesId, matchId } = req.params;
