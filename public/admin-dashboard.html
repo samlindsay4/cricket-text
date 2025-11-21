@@ -103,6 +103,46 @@
             font-size: 12px;
             margin-top: 5px;
         }
+        
+        .batting-order-item {
+            background: #0a0a0a;
+            border: 2px solid #00ff00;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            user-select: none;
+        }
+        
+        .batting-order-item:hover {
+            border-color: #ffff00;
+            background: #1a1a1a;
+        }
+        
+        .batting-order-item.dragging {
+            opacity: 0.5;
+            border-color: #00ffff;
+        }
+        
+        .batting-order-item.drag-over {
+            border-top: 3px solid #ffff00;
+        }
+        
+        .batting-position-number {
+            color: #00ffff;
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 30px;
+        }
+        
+        .batting-player-name {
+            color: #00ff00;
+            font-size: 16px;
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -405,6 +445,7 @@
                             <button class="btn btn-secondary btn-small" onclick="swapStrikeFromDashboard()">⇄ Swap Strike</button>
                             <button class="btn btn-secondary btn-small" onclick="showChangeBatsmenModalFromDashboard()">🔄 Change Batters</button>
                             <button class="btn btn-secondary btn-small" onclick="showRetireBatsmanModalFromDashboard()">🏥 Retire</button>
+                            <button class="btn btn-secondary btn-small" onclick="showReorderBattingModal()">📋 Reorder Batting</button>
                             <button class="btn btn-secondary btn-small" onclick="declareInningsFromDashboard()">🏁 Declare</button>
                             <button class="btn btn-secondary btn-small" onclick="endInningsFromDashboard()">⏹ End Innings</button>
                             <button class="btn btn-warning btn-small" onclick="declareDrawFromDashboard()">🤝 Declare Match as Draw</button>
@@ -886,6 +927,36 @@
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button class="btn btn-primary" onclick="confirmChangeBatsmenFromDashboard()">Change Batsmen</button>
                 <button class="btn btn-secondary" onclick="hideChangeBatsmenModalFromDashboard()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reorder Batting Modal -->
+    <div id="reorder-batting-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('reorder-batting-modal')">&times;</span>
+            <h2>Reorder Batting Lineup</h2>
+            
+            <div class="form-group">
+                <label for="reorder-innings-selector">Select Innings</label>
+                <select id="reorder-innings-selector" onchange="loadBattingOrderForReorder()">
+                    <option value="">Select innings to reorder...</option>
+                </select>
+            </div>
+            
+            <div id="reorder-batting-container" style="display: none;">
+                <p style="color: #ffff00; margin: 15px 0;">
+                    ⚠️ Drag and drop players to reorder. This will update the batting positions on the scorecard.
+                </p>
+                
+                <div id="reorder-batting-list" style="margin: 20px 0;">
+                    <!-- Draggable batting order items will be inserted here -->
+                </div>
+                
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="saveReorderedBatting()">Save Batting Order</button>
+                    <button class="btn btn-secondary" onclick="closeModal('reorder-batting-modal')">Cancel</button>
+                </div>
             </div>
         </div>
     </div>

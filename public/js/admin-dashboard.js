@@ -2983,3 +2983,227 @@ async function saveHomepageConfig() {
         alert('Failed to save homepage');
     }
 }
+
+/**
+ * Show Reorder Batting Modal
+ */
+async function showReorderBattingModal() {
+    if (!currentScoringMatch || !currentScoringSeriesId) {
+        alert('No active match for reordering');
+        return;
+    }
+    
+    // Populate innings selector
+    const inningsSelector = document.getElementById('reorder-innings-selector');
+    inningsSelector.innerHTML = '<option value="">Select innings to reorder...</option>';
+    
+    if (currentScoringMatch.innings && currentScoringMatch.innings.length > 0) {
+        currentScoringMatch.innings.forEach((inn, index) => {
+            const option = document.createElement('option');
+            option.value = inn.number;
+            option.textContent = `Innings ${inn.number} - ${inn.battingTeam} (${inn.runs}/${inn.wickets})`;
+            inningsSelector.appendChild(option);
+        });
+    }
+    
+    // Reset container
+    document.getElementById('reorder-batting-container').style.display = 'none';
+    document.getElementById('reorder-batting-list').innerHTML = '';
+    
+    // Show modal
+    document.getElementById('reorder-batting-modal').style.display = 'block';
+}
+
+/**
+ * Load Batting Order For Reorder
+ */
+async function loadBattingOrderForReorder() {
+    const inningsNumber = parseInt(document.getElementById('reorder-innings-selector').value);
+    
+    if (!inningsNumber) {
+        document.getElementById('reorder-batting-container').style.display = 'none';
+        return;
+    }
+    
+    const innings = currentScoringMatch.innings.find(inn => inn.number === inningsNumber);
+    if (!innings || !innings.battingOrder) {
+        alert('Invalid innings selected');
+        return;
+    }
+    
+    // Display batting order as draggable items
+    const battingList = document.getElementById('reorder-batting-list');
+    battingList.innerHTML = '';
+    
+    innings.battingOrder.forEach((playerName, index) => {
+        const item = document.createElement('div');
+        item.className = 'batting-order-item';
+        item.draggable = true;
+        item.dataset.playerName = playerName;
+        item.dataset.originalIndex = index;
+        
+        item.innerHTML = `
+            <div class="batting-position-number">${index + 1}.</div>
+            <div class="batting-player-name">${playerName}</div>
+        `;
+        
+        // Drag event listeners
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragenter', handleDragEnter);
+        item.addEventListener('dragleave', handleDragLeave);
+        
+        battingList.appendChild(item);
+    });
+    
+    document.getElementById('reorder-batting-container').style.display = 'block';
+}
+
+// Track the element being dragged (standard pattern for vanilla JS drag-and-drop)
+let draggedElement = null;
+
+/**
+ * Handle drag start
+ */
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+/**
+ * Handle drag over
+ */
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+/**
+ * Handle drag enter
+ */
+function handleDragEnter(e) {
+    if (this !== draggedElement) {
+        this.classList.add('drag-over');
+    }
+}
+
+/**
+ * Handle drag leave
+ */
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+/**
+ * Handle drop
+ */
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedElement !== this) {
+        // Get all items
+        const battingList = document.getElementById('reorder-batting-list');
+        const allItems = Array.from(battingList.children);
+        
+        const draggedIndex = allItems.indexOf(draggedElement);
+        const targetIndex = allItems.indexOf(this);
+        
+        // Reorder in DOM
+        if (draggedIndex < targetIndex) {
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+        } else {
+            this.parentNode.insertBefore(draggedElement, this);
+        }
+        
+        // Update position numbers
+        updateBattingPositionNumbers();
+    }
+    
+    this.classList.remove('drag-over');
+    return false;
+}
+
+/**
+ * Handle drag end
+ */
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    
+    // Remove drag-over class from all items
+    const items = document.querySelectorAll('.batting-order-item');
+    items.forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+/**
+ * Update Batting Position Numbers
+ */
+function updateBattingPositionNumbers() {
+    const items = document.querySelectorAll('.batting-order-item');
+    items.forEach((item, index) => {
+        const positionNumber = item.querySelector('.batting-position-number');
+        if (positionNumber) {
+            positionNumber.textContent = `${index + 1}.`;
+        }
+    });
+}
+
+/**
+ * Save Reordered Batting
+ */
+async function saveReorderedBatting() {
+    const inningsNumber = parseInt(document.getElementById('reorder-innings-selector').value);
+    
+    if (!inningsNumber) {
+        alert('Please select an innings');
+        return;
+    }
+    
+    // Get the current order from DOM
+    const items = document.querySelectorAll('.batting-order-item');
+    const newBattingOrder = Array.from(items).map(item => item.dataset.playerName);
+    
+    if (newBattingOrder.length !== 11) {
+        alert('Batting order must contain exactly 11 players');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/reorder-batting`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({
+                inningsNumber: inningsNumber,
+                newBattingOrder: newBattingOrder
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Batting order updated successfully!');
+            closeModal('reorder-batting-modal');
+            
+            // Reload match data
+            await manageMatch(currentScoringSeriesId, currentScoringMatch.id);
+        } else {
+            const errorMsg = data.error || 'Unknown error';
+            alert(`Failed to update batting order: ${errorMsg}`);
+        }
+    } catch (error) {
+        console.error('Error saving batting order:', error);
+        alert('Failed to save batting order');
+    }
+}
