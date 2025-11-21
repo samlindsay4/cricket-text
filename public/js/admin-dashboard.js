@@ -3287,18 +3287,23 @@ async function loadBatsmenForPositionEdit() {
         const stats = `${batsman.runs} runs (${batsman.balls} balls)`;
         const statusText = batsman.status === 'out' ? 'out' : batsman.status === 'not out' ? 'not out*' : batsman.status;
         
+        const sanitizedId = batsman.name.replace(/[^a-zA-Z0-9]/g, '-');
+        const escapedName = batsman.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
         html += `<tr style="border-bottom: 1px solid #333;">`;
         html += `<td style="padding: 8px;">
             <input type="number" min="1" max="11" 
-                   id="pos-${batsman.name.replace(/\s/g, '-')}" 
+                   id="pos-${sanitizedId}" 
                    value="${currentPos}" 
                    style="width: 60px; padding: 4px; background: #0a0a0a; border: 1px solid #00ff00; color: #00ff00;" />
         </td>`;
-        html += `<td style="padding: 8px;">${batsman.name}</td>`;
+        html += `<td style="padding: 8px;">${escapedName}</td>`;
         html += `<td style="padding: 8px; text-align: right;">${stats} - ${statusText}</td>`;
         html += `<td style="padding: 8px; text-align: center;">
             <button class="btn btn-small btn-primary" 
-                    onclick="saveBattingPosition(${inningsNumber}, '${batsman.name.replace(/'/g, "\\'")}')">
+                    data-innings="${inningsNumber}" 
+                    data-batsman="${escapedName}"
+                    data-input-id="pos-${sanitizedId}">
                 Save
             </button>
         </td>`;
@@ -3308,14 +3313,28 @@ async function loadBatsmenForPositionEdit() {
     html += '</tbody></table>';
     
     document.getElementById('batsmen-position-list').innerHTML = html;
+    
+    // Add event listeners to save buttons
+    const saveButtons = document.querySelectorAll('#batsmen-position-list button[data-batsman]');
+    saveButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const inningsNum = parseInt(this.getAttribute('data-innings'));
+            const batsmanName = this.getAttribute('data-batsman');
+            const inputId = this.getAttribute('data-input-id');
+            const inputElem = document.getElementById(inputId);
+            if (inputElem) {
+                saveBattingPosition(inningsNum, batsmanName, inputId);
+            }
+        });
+    });
+    
     document.getElementById('edit-position-actions').style.display = 'flex';
 }
 
 /**
  * Save Batting Position
  */
-async function saveBattingPosition(inningsNumber, batsmanName) {
-    const inputId = `pos-${batsmanName.replace(/\s/g, '-')}`;
+async function saveBattingPosition(inningsNumber, batsmanName, inputId) {
     const newPosition = parseInt(document.getElementById(inputId).value);
     
     if (!newPosition || newPosition < 1 || newPosition > 11) {

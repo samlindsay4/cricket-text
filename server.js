@@ -2153,14 +2153,14 @@ app.post('/api/match/change-batsmen', requireAuth, (req, res) => {
     const strikerIndex = currentInnings.battingOrder.indexOf(striker);
     currentInnings.allBatsmen[striker] = { 
       runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
-      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : currentInnings.nextBatsmanIndex || 1
+      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : (currentInnings.nextBatsmanIndex || 1)
     };
   }
   if (!currentInnings.allBatsmen[nonStriker]) {
     const nonStrikerIndex = currentInnings.battingOrder.indexOf(nonStriker);
     currentInnings.allBatsmen[nonStriker] = { 
       runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
-      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : currentInnings.nextBatsmanIndex || 2
+      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : ((currentInnings.nextBatsmanIndex || 1) + 1)
     };
   }
   
@@ -3583,14 +3583,14 @@ app.post('/api/series/:seriesId/match/:matchId/change-batsmen', requireAuth, (re
     const strikerIndex = currentInnings.battingOrder.indexOf(striker);
     currentInnings.allBatsmen[striker] = { 
       runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
-      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : currentInnings.nextBatsmanIndex || 1
+      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : (currentInnings.nextBatsmanIndex || 1)
     };
   }
   if (!currentInnings.allBatsmen[nonStriker]) {
     const nonStrikerIndex = currentInnings.battingOrder.indexOf(nonStriker);
     currentInnings.allBatsmen[nonStriker] = { 
       runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
-      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : currentInnings.nextBatsmanIndex || 2
+      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : ((currentInnings.nextBatsmanIndex || 1) + 1)
     };
   }
   
