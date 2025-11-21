@@ -843,7 +843,7 @@ function processBall(innings, ball, ballIndex) {
           fours: 0, 
           sixes: 0, 
           status: 'batting',
-          battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : innings.nextBatsmanIndex
+          battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : (innings.nextBatsmanIndex || 1)
         };
       } else if (innings.allBatsmen[nextBat].status === 'retired hurt') {
         // BUG FIX #2: Resuming retired hurt batsman - keep stats, change status

@@ -3282,18 +3282,19 @@ async function loadBatsmenForPositionEdit() {
     html += '<th style="text-align: center; padding: 8px;">Action</th>';
     html += '</tr></thead><tbody>';
     
-    batsmenArray.forEach(batsman => {
+    batsmenArray.forEach((batsman, index) => {
         const currentPos = batsman.battingPosition || innings.battingOrder.indexOf(batsman.name) + 1;
         const stats = `${batsman.runs} runs (${batsman.balls} balls)`;
         const statusText = batsman.status === 'out' ? 'out' : batsman.status === 'not out' ? 'not out*' : batsman.status;
         
-        const sanitizedId = batsman.name.replace(/[^a-zA-Z0-9]/g, '-');
+        // Use index to ensure unique ID
+        const uniqueId = `pos-innings-${inningsNumber}-batsman-${index}`;
         const escapedName = batsman.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         
         html += `<tr style="border-bottom: 1px solid #333;">`;
         html += `<td style="padding: 8px;">
             <input type="number" min="1" max="11" 
-                   id="pos-${sanitizedId}" 
+                   id="${uniqueId}" 
                    value="${currentPos}" 
                    style="width: 60px; padding: 4px; background: #0a0a0a; border: 1px solid #00ff00; color: #00ff00;" />
         </td>`;
@@ -3302,8 +3303,8 @@ async function loadBatsmenForPositionEdit() {
         html += `<td style="padding: 8px; text-align: center;">
             <button class="btn btn-small btn-primary" 
                     data-innings="${inningsNumber}" 
-                    data-batsman="${escapedName}"
-                    data-input-id="pos-${sanitizedId}">
+                    data-batsman-name="${escapedName}"
+                    data-input-id="${uniqueId}">
                 Save
             </button>
         </td>`;
@@ -3315,11 +3316,11 @@ async function loadBatsmenForPositionEdit() {
     document.getElementById('batsmen-position-list').innerHTML = html;
     
     // Add event listeners to save buttons
-    const saveButtons = document.querySelectorAll('#batsmen-position-list button[data-batsman]');
+    const saveButtons = document.querySelectorAll('#batsmen-position-list button[data-batsman-name]');
     saveButtons.forEach(button => {
         button.addEventListener('click', function() {
             const inningsNum = parseInt(this.getAttribute('data-innings'));
-            const batsmanName = this.getAttribute('data-batsman');
+            const batsmanName = this.getAttribute('data-batsman-name');
             const inputId = this.getAttribute('data-input-id');
             const inputElem = document.getElementById(inputId);
             if (inputElem) {
