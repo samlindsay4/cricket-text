@@ -3207,3 +3207,157 @@ async function saveReorderedBatting() {
         alert('Failed to save batting order');
     }
 }
+
+/**
+ * Open Edit Batting Positions Modal
+ */
+async function openEditBattingPositionsModal() {
+    if (!currentScoringMatch || !currentScoringSeriesId) {
+        alert('No active match for editing positions');
+        return;
+    }
+    
+    // Populate innings selector
+    const inningsSelector = document.getElementById('edit-positions-innings-selector');
+    inningsSelector.innerHTML = '<option value="">Select innings...</option>';
+    
+    if (currentScoringMatch.innings && currentScoringMatch.innings.length > 0) {
+        currentScoringMatch.innings.forEach((inn, index) => {
+            const option = document.createElement('option');
+            option.value = inn.number;
+            option.textContent = `Innings ${inn.number} - ${inn.battingTeam} (${inn.runs}/${inn.wickets})`;
+            inningsSelector.appendChild(option);
+        });
+    }
+    
+    // Reset container
+    document.getElementById('batsmen-position-list').innerHTML = '';
+    document.getElementById('edit-position-actions').style.display = 'none';
+    
+    // Show modal
+    document.getElementById('edit-batting-positions-modal').style.display = 'block';
+}
+
+/**
+ * Load Batsmen For Position Edit
+ */
+async function loadBatsmenForPositionEdit() {
+    const inningsNumber = parseInt(document.getElementById('edit-positions-innings-selector').value);
+    
+    if (!inningsNumber) {
+        document.getElementById('batsmen-position-list').innerHTML = '';
+        document.getElementById('edit-position-actions').style.display = 'none';
+        return;
+    }
+    
+    const innings = currentScoringMatch.innings.find(inn => inn.number === inningsNumber);
+    if (!innings || !innings.allBatsmen) {
+        document.getElementById('batsmen-position-list').innerHTML = '<p>No batsmen found for this innings</p>';
+        return;
+    }
+    
+    // Get all batsmen who have batted (have balls > 0 or status is not 'not batted')
+    const batsmenArray = Object.entries(innings.allBatsmen)
+        .map(([name, stats]) => ({ name, ...stats }))
+        .filter(b => b.balls > 0 || b.status !== 'not batted')
+        .sort((a, b) => {
+            // Sort by current battingPosition, or fallback to battingOrder
+            const posA = a.battingPosition || innings.battingOrder.indexOf(a.name) + 1;
+            const posB = b.battingPosition || innings.battingOrder.indexOf(b.name) + 1;
+            return posA - posB;
+        });
+    
+    if (batsmenArray.length === 0) {
+        document.getElementById('batsmen-position-list').innerHTML = '<p>No batsmen have batted yet</p>';
+        document.getElementById('edit-position-actions').style.display = 'none';
+        return;
+    }
+    
+    // Build list of batsmen with editable position inputs
+    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    html += '<thead><tr style="border-bottom: 1px solid #00ff00;">';
+    html += '<th style="text-align: left; padding: 8px;">Position</th>';
+    html += '<th style="text-align: left; padding: 8px;">Batsman</th>';
+    html += '<th style="text-align: right; padding: 8px;">Stats</th>';
+    html += '<th style="text-align: center; padding: 8px;">Action</th>';
+    html += '</tr></thead><tbody>';
+    
+    batsmenArray.forEach(batsman => {
+        const currentPos = batsman.battingPosition || innings.battingOrder.indexOf(batsman.name) + 1;
+        const stats = `${batsman.runs} runs (${batsman.balls} balls)`;
+        const statusText = batsman.status === 'out' ? 'out' : batsman.status === 'not out' ? 'not out*' : batsman.status;
+        
+        html += `<tr style="border-bottom: 1px solid #333;">`;
+        html += `<td style="padding: 8px;">
+            <input type="number" min="1" max="11" 
+                   id="pos-${batsman.name.replace(/\s/g, '-')}" 
+                   value="${currentPos}" 
+                   style="width: 60px; padding: 4px; background: #0a0a0a; border: 1px solid #00ff00; color: #00ff00;" />
+        </td>`;
+        html += `<td style="padding: 8px;">${batsman.name}</td>`;
+        html += `<td style="padding: 8px; text-align: right;">${stats} - ${statusText}</td>`;
+        html += `<td style="padding: 8px; text-align: center;">
+            <button class="btn btn-small btn-primary" 
+                    onclick="saveBattingPosition(${inningsNumber}, '${batsman.name.replace(/'/g, "\\'")}')">
+                Save
+            </button>
+        </td>`;
+        html += `</tr>`;
+    });
+    
+    html += '</tbody></table>';
+    
+    document.getElementById('batsmen-position-list').innerHTML = html;
+    document.getElementById('edit-position-actions').style.display = 'flex';
+}
+
+/**
+ * Save Batting Position
+ */
+async function saveBattingPosition(inningsNumber, batsmanName) {
+    const inputId = `pos-${batsmanName.replace(/\s/g, '-')}`;
+    const newPosition = parseInt(document.getElementById(inputId).value);
+    
+    if (!newPosition || newPosition < 1 || newPosition > 11) {
+        alert('Position must be between 1 and 11');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/series/${currentScoringSeriesId}/match/${currentScoringMatch.id}/edit-batting-position`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': sessionId
+            },
+            body: JSON.stringify({
+                inningsNumber: inningsNumber,
+                batsmanName: batsmanName,
+                newPosition: newPosition
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Position updated for ${batsmanName}!`);
+            
+            // Update local match data
+            currentScoringMatch = data.match;
+            
+            // Reload the batsmen list to show updated positions
+            await loadBatsmenForPositionEdit();
+            
+            // Refresh the scorecard preview
+            if (typeof updateScoringInterface === 'function') {
+                updateScoringInterface();
+            }
+        } else {
+            const errorMsg = data.error || 'Unknown error';
+            alert(`Failed to update position: ${errorMsg}`);
+        }
+    } catch (error) {
+        console.error('Error saving batting position:', error);
+        alert('Failed to save batting position');
+    }
+}
