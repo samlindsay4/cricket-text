@@ -725,13 +725,15 @@ function processBall(innings, ball, ballIndex) {
   
   // Update striker stats
   if (!innings.allBatsmen[ball.batsman]) {
+    const batsmanIndex = innings.battingOrder.indexOf(ball.batsman);
     innings.allBatsmen[ball.batsman] = { 
       name: ball.batsman,
       runs: 0, 
       balls: 0, 
       fours: 0, 
       sixes: 0, 
-      status: 'batting' 
+      status: 'batting',
+      battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : innings.nextBatsmanIndex || 1
     };
   }
   
@@ -796,13 +798,15 @@ function processBall(innings, ball, ballIndex) {
       
       // Initialize batsman if not already in allBatsmen
       if (!innings.allBatsmen[nextBat]) {
+        const batsmanIndex = innings.battingOrder.indexOf(nextBat);
         innings.allBatsmen[nextBat] = { 
           name: nextBat,
           runs: 0, 
           balls: 0, 
           fours: 0, 
           sixes: 0, 
-          status: 'batting' 
+          status: 'batting',
+          battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : innings.nextBatsmanIndex + 1
         };
       } else if (innings.allBatsmen[nextBat].status === 'retired hurt') {
         // BUG FIX #2: Resuming retired hurt batsman - keep stats, change status
@@ -831,13 +835,15 @@ function processBall(innings, ball, ballIndex) {
       innings.nextBatsmanIndex++;
       
       if (!innings.allBatsmen[nextBat]) {
+        const batsmanIndex = innings.battingOrder.indexOf(nextBat);
         innings.allBatsmen[nextBat] = { 
           name: nextBat,
           runs: 0, 
           balls: 0, 
           fours: 0, 
           sixes: 0, 
-          status: 'batting' 
+          status: 'batting',
+          battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : (innings.nextBatsmanIndex || 1)
         };
       } else if (innings.allBatsmen[nextBat].status === 'retired hurt') {
         // BUG FIX #2: Resuming retired hurt batsman - keep stats, change status
@@ -1512,7 +1518,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     balls: 0,
     fours: 0,
     sixes: 0,
-    status: 'batting'
+    status: 'batting',
+    battingPosition: 1
   };
   innings.allBatsmen[battingOrder[1]] = {
     name: battingOrder[1],
@@ -1520,7 +1527,8 @@ app.post('/api/match/start-innings', requireAuth, (req, res) => {
     balls: 0,
     fours: 0,
     sixes: 0,
-    status: 'batting'
+    status: 'batting',
+    battingPosition: 2
   };
   
   match.innings.push(innings);
@@ -1566,10 +1574,10 @@ app.post('/api/match/ball', requireAuth, (req, res) => {
     
     // Initialize their stats
     currentInnings.allBatsmen[currentInnings.striker] = { 
-      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting', battingPosition: 1
     };
     currentInnings.allBatsmen[currentInnings.nonStriker] = { 
-      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting', battingPosition: 2
     };
   }
   
@@ -2142,10 +2150,18 @@ app.post('/api/match/change-batsmen', requireAuth, (req, res) => {
   
   // Initialize batsmen in allBatsmen if they don't exist
   if (!currentInnings.allBatsmen[striker]) {
-    currentInnings.allBatsmen[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+    const strikerIndex = currentInnings.battingOrder.indexOf(striker);
+    currentInnings.allBatsmen[striker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : (currentInnings.nextBatsmanIndex || 1)
+    };
   }
   if (!currentInnings.allBatsmen[nonStriker]) {
-    currentInnings.allBatsmen[nonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+    const nonStrikerIndex = currentInnings.battingOrder.indexOf(nonStriker);
+    currentInnings.allBatsmen[nonStriker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : ((currentInnings.nextBatsmanIndex || 1) + 1)
+    };
   }
   
   if (saveCurrentMatch(match)) {
@@ -2213,9 +2229,11 @@ app.post('/api/match/select-incoming-batsman', requireAuth, (req, res) => {
   // BUG FIX #2: Initialize batsman stats OR resume retired hurt batsman
   if (!currentInnings.allBatsmen[batsmanName]) {
     // New batsman - create fresh stats
+    const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
     currentInnings.allBatsmen[batsmanName] = { 
       name: batsmanName,
-      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : currentInnings.nextBatsmanIndex + 1
     };
   } else if (currentInnings.allBatsmen[batsmanName].status === 'retired hurt') {
     // Resuming retired hurt batsman - keep existing runs/balls, just change status
@@ -2819,8 +2837,10 @@ app.post('/api/series/:seriesId/match/:matchId/ball', requireAuth, (req, res) =>
   // - Overthrows after hitting the ball count for batsman
   // - Byes/leg byes are in ball.extras and don't count for batsman
   if (!currentInnings.allBatsmen[striker]) {
+    const strikerIndex = currentInnings.battingOrder.indexOf(striker);
     currentInnings.allBatsmen[striker] = { 
-      name: striker, runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      name: striker, runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : currentInnings.nextBatsmanIndex || 1
     };
   }
   
@@ -3310,9 +3330,11 @@ app.post('/api/series/:seriesId/match/:matchId/select-incoming-batsman', require
   // Initialize batsman stats OR resume retired hurt batsman
   if (!currentInnings.allBatsmen[batsmanName]) {
     // New batsman - create fresh stats
+    const batsmanIndex = currentInnings.battingOrder.indexOf(batsmanName);
     currentInnings.allBatsmen[batsmanName] = { 
       name: batsmanName,
-      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: batsmanIndex !== -1 ? batsmanIndex + 1 : currentInnings.nextBatsmanIndex + 1
     };
   } else if (currentInnings.allBatsmen[batsmanName].status === 'retired hurt') {
     // Resuming retired hurt batsman - keep existing runs/balls, just change status
@@ -3558,10 +3580,18 @@ app.post('/api/series/:seriesId/match/:matchId/change-batsmen', requireAuth, (re
   
   // Initialize batsmen in allBatsmen if they don't exist
   if (!currentInnings.allBatsmen[striker]) {
-    currentInnings.allBatsmen[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+    const strikerIndex = currentInnings.battingOrder.indexOf(striker);
+    currentInnings.allBatsmen[striker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: strikerIndex !== -1 ? strikerIndex + 1 : (currentInnings.nextBatsmanIndex || 1)
+    };
   }
   if (!currentInnings.allBatsmen[nonStriker]) {
-    currentInnings.allBatsmen[nonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting' };
+    const nonStrikerIndex = currentInnings.battingOrder.indexOf(nonStriker);
+    currentInnings.allBatsmen[nonStriker] = { 
+      runs: 0, balls: 0, fours: 0, sixes: 0, status: 'batting',
+      battingPosition: nonStrikerIndex !== -1 ? nonStrikerIndex + 1 : ((currentInnings.nextBatsmanIndex || 1) + 1)
+    };
   }
   
   saveSeriesMatch(seriesId, matchId, match);
@@ -3867,6 +3897,63 @@ app.post('/api/series/:seriesId/match/:matchId/reorder-batting', requireAuth, (r
   saveSeriesMatch(seriesId, matchId, match);
   saveMatch(match);
   calculateSeriesStats(seriesId);
+  
+  res.json({ success: true, match });
+});
+
+// Edit batting position
+app.post('/api/series/:seriesId/match/:matchId/edit-batting-position', requireAuth, (req, res) => {
+  const { seriesId, matchId } = req.params;
+  const { inningsNumber, batsmanName, newPosition } = req.body;
+  
+  let match = loadSeriesMatch(seriesId, matchId);
+  if (!match) {
+    return res.status(404).json({ error: 'Match not found' });
+  }
+  
+  // Validate innings number
+  if (!inningsNumber || inningsNumber < 1 || inningsNumber > match.innings.length) {
+    return res.status(400).json({ error: 'Invalid innings number' });
+  }
+  
+  const innings = match.innings[inningsNumber - 1];
+  
+  // Validate batsman exists
+  if (!innings.allBatsmen[batsmanName]) {
+    return res.status(400).json({ error: 'Batsman not found in this innings' });
+  }
+  
+  // Validate position
+  if (!newPosition || newPosition < 1 || newPosition > 11) {
+    return res.status(400).json({ error: 'Position must be between 1 and 11' });
+  }
+  
+  // Prevent prototype pollution
+  const dangerousNames = ['__proto__', 'constructor', 'prototype'];
+  if (dangerousNames.includes(batsmanName)) {
+    return res.status(400).json({ error: 'Invalid batsman name' });
+  }
+  
+  // Check if another batsman has this position
+  const existingBatsman = Object.entries(innings.allBatsmen).find(
+    ([name, stats]) => stats.battingPosition === newPosition && name !== batsmanName
+  );
+  
+  // If there's a conflict, swap positions
+  if (existingBatsman) {
+    const [otherName, otherStats] = existingBatsman;
+    // Get the old position (or compute from battingOrder if not set)
+    const oldPosition = innings.allBatsmen[batsmanName].battingPosition 
+      || innings.battingOrder.indexOf(batsmanName) + 1;
+    otherStats.battingPosition = oldPosition;
+  }
+  
+  // Update the batsman's position
+  innings.allBatsmen[batsmanName].battingPosition = newPosition;
+  
+  // Save
+  saveSeriesMatch(seriesId, matchId, match);
+  saveMatch(match);
   
   res.json({ success: true, match });
 });

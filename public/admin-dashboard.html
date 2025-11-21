@@ -315,6 +315,13 @@
                         </button>
                     </div>
                     
+                    <!-- Edit Batting Positions Button -->
+                    <div id="edit-positions-section" style="margin: 10px 0;">
+                        <button class="btn btn-secondary btn-small" onclick="openEditBattingPositionsModal()" id="edit-positions-btn">
+                            Edit Batting Positions
+                        </button>
+                    </div>
+                    
                     <!-- Current Match Situation -->
                     <div id="scoring-scorecard-preview" style="background: #0a0a0a; padding: 15px; margin: 15px 0; border: 1px solid #00ff00; border-radius: 4px;">
                         <div class="loading">Loading scorecard...</div>
@@ -957,6 +964,30 @@
                     <button class="btn btn-primary" onclick="saveReorderedBatting()">Save Batting Order</button>
                     <button class="btn btn-secondary" onclick="closeModal('reorder-batting-modal')">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Batting Positions Modal -->
+    <div id="edit-batting-positions-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-batting-positions-modal')">&times;</span>
+            <h2>Edit Batting Positions</h2>
+            <p>Change the batting position number for batsmen on the scorecard</p>
+            
+            <div class="form-group">
+                <label for="edit-positions-innings-selector">Select Innings</label>
+                <select id="edit-positions-innings-selector" onchange="loadBatsmenForPositionEdit()">
+                    <option value="">Select innings...</option>
+                </select>
+            </div>
+            
+            <div id="batsmen-position-list" style="margin: 20px 0;">
+                <!-- List of batsmen with editable position numbers will be inserted here -->
+            </div>
+            
+            <div id="edit-position-actions" style="margin-top: 20px; display: none; gap: 10px;">
+                <button class="btn btn-secondary" onclick="closeModal('edit-batting-positions-modal')">Close</button>
             </div>
         </div>
     </div>

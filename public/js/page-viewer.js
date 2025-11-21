@@ -782,9 +782,9 @@ function renderLiveScore(data) {
                 .map(([name, stats]) => ({ name, ...stats }))
                 .filter(b => (b.status === 'not out' || b.status === 'batting') && !b.howOut)
                 .sort((a, b) => {
-                    // Sort by batting order position
-                    const posA = currentInnings.battingOrder.indexOf(a.name);
-                    const posB = currentInnings.battingOrder.indexOf(b.name);
+                    // Sort by battingPosition if available, otherwise use battingOrder
+                    const posA = a.battingPosition || currentInnings.battingOrder.indexOf(a.name) + 1;
+                    const posB = b.battingPosition || currentInnings.battingOrder.indexOf(b.name) + 1;
                     return posA - posB;
                 })
                 .slice(0, 2);
@@ -1344,9 +1344,9 @@ function renderScorecardSubpage(match, subpage) {
                 .map(([name, stats]) => ({ name, ...stats }))
                 .filter(b => b.balls > 0 || b.status !== 'not batted')
                 .sort((a, b) => {
-                    // Sort by batting order position
-                    const posA = innings.battingOrder.indexOf(a.name);
-                    const posB = innings.battingOrder.indexOf(b.name);
+                    // Sort by battingPosition if available, otherwise use battingOrder
+                    const posA = a.battingPosition || innings.battingOrder.indexOf(a.name) + 1;
+                    const posB = b.battingPosition || innings.battingOrder.indexOf(b.name) + 1;
                     return posA - posB;
                 });
             
