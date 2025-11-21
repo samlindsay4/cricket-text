@@ -3196,7 +3196,7 @@ async function saveReorderedBatting() {
             closeModal('reorder-batting-modal');
             
             // Reload match data
-            await loadMatchForScoring(currentScoringSeriesId, currentScoringMatch.id);
+            await manageMatch(currentScoringSeriesId, currentScoringMatch.id);
         } else {
             alert('Failed to update batting order: ' + (data.error || 'Unknown error'));
         }
