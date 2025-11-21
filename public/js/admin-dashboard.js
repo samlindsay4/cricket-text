@@ -3061,6 +3061,7 @@ async function loadBattingOrderForReorder() {
     document.getElementById('reorder-batting-container').style.display = 'block';
 }
 
+// Track the element being dragged (standard pattern for vanilla JS drag-and-drop)
 let draggedElement = null;
 
 /**
@@ -3198,7 +3199,8 @@ async function saveReorderedBatting() {
             // Reload match data
             await manageMatch(currentScoringSeriesId, currentScoringMatch.id);
         } else {
-            alert('Failed to update batting order: ' + (data.error || 'Unknown error'));
+            const errorMsg = data.error || 'Unknown error';
+            alert(`Failed to update batting order: ${errorMsg}`);
         }
     } catch (error) {
         console.error('Error saving batting order:', error);
