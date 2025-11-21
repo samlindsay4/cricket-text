@@ -3942,7 +3942,9 @@ app.post('/api/series/:seriesId/match/:matchId/edit-batting-position', requireAu
   // If there's a conflict, swap positions
   if (existingBatsman) {
     const [otherName, otherStats] = existingBatsman;
-    const oldPosition = innings.allBatsmen[batsmanName].battingPosition;
+    // Get the old position (or compute from battingOrder if not set)
+    const oldPosition = innings.allBatsmen[batsmanName].battingPosition 
+      || innings.battingOrder.indexOf(batsmanName) + 1;
     otherStats.battingPosition = oldPosition;
   }
   
