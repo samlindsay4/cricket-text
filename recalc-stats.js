@@ -20,7 +20,7 @@ for (const matchInfo of series.matches) {
             const key = `${name}|${innings.battingTeam}`;
             if (!batsmen[key]) {
               batsmen[key] = {
-                name, team: innings.battingTeam, runs: 0, innings: 0, notOuts: 0,
+                name, team: innings.battingTeam, runs: 0, dismissals: 0, innings: 0, notOuts: 0,
                 highScore: 0, highScoreNotOut: false, hundreds: 0, fifties: 0, balls: 0, fours: 0, sixes: 0
               };
             }
@@ -29,6 +29,7 @@ for (const matchInfo of series.matches) {
             batsmen[key].fours += stats.fours || 0;
             batsmen[key].sixes += stats.sixes || 0;
             batsmen[key].innings++;
+            if (stats.status === 'out') batsmen[key].dismissals++;
             if (stats.status === 'not out' || stats.status === 'batting') batsmen[key].notOuts++;
             const runsInInnings = stats.runs || 0;
             if (runsInInnings > batsmen[key].highScore) {
@@ -69,8 +70,7 @@ for (const matchInfo of series.matches) {
 
 // Calculate averages
 Object.values(batsmen).forEach(b => {
-  const dismissals = b.innings - b.notOuts;
-  b.average = dismissals > 0 ? (b.runs / dismissals).toFixed(2) : '-';
+  b.average = b.dismissals > 0 ? (b.runs / b.dismissals).toFixed(2) : '-';
 });
 
 Object.values(bowlers).forEach(b => {

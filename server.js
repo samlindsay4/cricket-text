@@ -532,6 +532,7 @@ function calculateSeriesStats(seriesId) {
               name,
               team: innings.battingTeam,
               runs: 0,
+              dismissals: 0,
               innings: 0,
               notOuts: 0,
               highScore: 0,
@@ -549,6 +550,10 @@ function calculateSeriesStats(seriesId) {
           batsmen[key].fours += stats.fours || 0;
           batsmen[key].sixes += stats.sixes || 0;
           batsmen[key].innings++;
+          
+          if (stats.status === 'out') {
+            batsmen[key].dismissals++;
+          }
           
           if (stats.status === 'not out' || stats.status === 'batting') {
             batsmen[key].notOuts++;
@@ -610,8 +615,7 @@ function calculateSeriesStats(seriesId) {
     
     // Calculate averages
     Object.values(batsmen).forEach(b => {
-      const dismissals = b.innings - b.notOuts;
-      b.average = dismissals > 0 ? (b.runs / dismissals).toFixed(2) : '-';
+      b.average = b.dismissals > 0 ? (b.runs / b.dismissals).toFixed(2) : '-';
     });
     
     Object.values(bowlers).forEach(b => {
